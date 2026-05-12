@@ -1,0 +1,8 @@
+PROYECTO PAGINA WEB QUE PERMITA SACAR TURNOS PARA CONSULTORIO
+
+SERVICIO DE TURNOS *Permite sacar, visualizar y borrar turnos*
+
+SERVICIO DE NOTIFICACIONES *Permite notificar tanto al paciente como al doctor los eventos relacionados*
+
+SERVICIO DE GESTION DE PACIENTES *Permite guardar historia del paciente, ver su datos, historial de turnos*
+
