@@ -1,11 +1,14 @@
 package com.serviciodegesrtiondepacientes.service;
 
 import com.serviciodegesrtiondepacientes.domain.pacientes.Paciente;
+import com.serviciodegesrtiondepacientes.exception.DniDuplicadoException;
+import com.serviciodegesrtiondepacientes.exception.PacienteNotFoundException;
 import com.serviciodegesrtiondepacientes.repository.PacienteRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
+import org.springframework.transaction.annotation.Transactional;
 import java.util.Optional;
 
 @Service
@@ -18,34 +21,69 @@ public class PacienteService {
         this.pacienteRepository = pacienteRepository;
     }
 
-    public List<Paciente> obtenerTodosLosPacientes() {
-        return pacienteRepository.findAll();
+    // --- Listado paginado de pacientes activos ---
+    public Page<Paciente> obtenerTodosLosPacientes(Pageable pageable) {
+        return pacienteRepository.findAll(pageable);
     }
 
-    public Optional<Paciente> obtenerPacientePorId(Long id) {
-        return pacienteRepository.findById(id);
+    // --- Obtener paciente por ID ---
+    public Paciente obtenerPacientePorId(Long id) {
+        return pacienteRepository.findById(id)
+                .orElseThrow(() -> new PacienteNotFoundException(id));
     }
 
+    // --- Búsqueda por DNI ---
+    public Paciente obtenerPacientePorDni(Long dni) {
+        return pacienteRepository.findByDni(dni)
+                .orElseThrow(() -> new PacienteNotFoundException("Paciente no encontrado con DNI: " + dni));
+    }
+
+    // --- Búsqueda por nombre o apellido (parcial, paginada) ---
+    public Page<Paciente> buscarPorNombreOApellido(String termino, Pageable pageable) {
+        return pacienteRepository.findByNombreContainingIgnoreCaseOrApellidoContainingIgnoreCase(
+                termino, termino, pageable);
+    }
+
+    // --- Crear paciente con validación de DNI único ---
+    @Transactional
     public Paciente guardarPaciente(Paciente paciente) {
+        if (pacienteRepository.existsByDni(paciente.getDni())) {
+            throw new DniDuplicadoException(paciente.getDni());
+        }
+        paciente.setActivo(true);
         return pacienteRepository.save(paciente);
     }
 
-    public void eliminarPacientePorId(Long id) {
-        pacienteRepository.deleteById(id);
+    // --- Actualizar paciente ---
+    @Transactional
+    public Paciente actualizarPaciente(Long id, Paciente pacienteActualizado) {
+        Paciente pacienteExistente = pacienteRepository.findById(id)
+                .orElseThrow(() -> new PacienteNotFoundException(id));
+
+        // Si cambió el DNI, verificar que el nuevo DNI no esté en uso por otro paciente
+        if (!pacienteExistente.getDni().equals(pacienteActualizado.getDni())
+                && pacienteRepository.existsByDni(pacienteActualizado.getDni())) {
+            throw new DniDuplicadoException(pacienteActualizado.getDni());
+        }
+
+        pacienteExistente.setNombre(pacienteActualizado.getNombre());
+        pacienteExistente.setApellido(pacienteActualizado.getApellido());
+        pacienteExistente.setDni(pacienteActualizado.getDni());
+        pacienteExistente.setSexo(pacienteActualizado.getSexo());
+        pacienteExistente.setMail(pacienteActualizado.getMail());
+        pacienteExistente.setNumeroDeTelefono(pacienteActualizado.getNumeroDeTelefono());
+        pacienteExistente.setObraSocial(pacienteActualizado.getObraSocial());
+        pacienteExistente.setNumeroObraSocial(pacienteActualizado.getNumeroObraSocial());
+
+        return pacienteRepository.save(pacienteExistente);
     }
 
-    public Paciente actualizarPaciente(Long id, Paciente paciente) {
-        return pacienteRepository.findById(id).map(p -> {
-            p.setNombre(paciente.getNombre());
-            p.setApellido(paciente.getApellido());
-            p.setDni(paciente.getDni());
-            p.setSexo(paciente.getSexo());
-            p.setMail(paciente.getMail());
-            p.setNumeroDeTelefono(paciente.getNumeroDeTelefono());
-            p.setTipoDeSangre(paciente.getTipoDeSangre());
-            p.setObraSocial(paciente.getObraSocial());
-            p.setNumeroObraSocial(paciente.getNumeroObraSocial());
-            return pacienteRepository.save(p);
-        }).orElseThrow(() -> new RuntimeException("Paciente no encontrado con id: " + id));
+    // --- Borrado lógico (soft delete) ---
+    @Transactional
+    public void desactivarPaciente(Long id) {
+        if (!pacienteRepository.existsById(id)) {
+            throw new PacienteNotFoundException(id);
+        }
+        pacienteRepository.desactivarPaciente(id);
     }
 }
