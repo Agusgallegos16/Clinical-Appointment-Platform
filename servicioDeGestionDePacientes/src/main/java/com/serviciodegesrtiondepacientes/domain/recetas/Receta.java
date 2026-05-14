@@ -1,6 +1,6 @@
-package com.serviciodegesrtiondepacientes.Receta;
+package com.serviciodegesrtiondepacientes.domain.recetas;
 
-import com.serviciodegesrtiondepacientes.Paciente.Paciente;
+import com.serviciodegesrtiondepacientes.domain.pacientes.Paciente;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;

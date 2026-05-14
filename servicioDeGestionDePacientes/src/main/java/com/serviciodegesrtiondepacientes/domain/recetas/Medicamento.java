@@ -1,4 +1,4 @@
-package com.serviciodegesrtiondepacientes.Receta;
+package com.serviciodegesrtiondepacientes.domain.recetas;
 
 public enum Medicamento {
     PARACETAMOL,

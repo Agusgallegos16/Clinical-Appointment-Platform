@@ -29,6 +29,7 @@ class Paciente{
     - sexo : Sexo
     - mail : String
     - numeroDeTelefono : String
+    - tieneObraSocial : Boolean
 }
 
 class Calendario{
@@ -40,6 +41,8 @@ class Calendario{
 class AsignadorDeTurno{
 
 }
+
+
 
 Calendario -> "1*" Turno
 Doctor -> Calendario

@@ -1,5 +1,6 @@
-package com.serviciodegesrtiondepacientes.Paciente;
+package com.serviciodegesrtiondepacientes.domain.pacientes;
 
+import com.serviciodegesrtiondepacientes.domain.recetas.Receta;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -18,17 +19,19 @@ public class Paciente {
 
     private String nombre;
     private String apellido;
-    
+
     @Column(unique = true)
     private Long dni;
-    
+
     @Enumerated(EnumType.STRING)
     private Sexo sexo;
-    
+
     private String mail;
     private String numeroDeTelefono;
     private String tipoDeSangre;
+    private ObraSocial obraSocial;
+    private String numeroObraSocial;
 
     @OneToMany(mappedBy = "paciente", cascade = CascadeType.ALL)
-    private java.util.List<com.serviciodegesrtiondepacientes.Receta.Receta> recetas;
+    private java.util.List<Receta> recetas;
 }
