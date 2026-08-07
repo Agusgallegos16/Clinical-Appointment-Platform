@@ -2,5 +2,6 @@ package com.consultorio.domain;
 
 public enum Rol {
     PACIENTE,
-    DOCTOR
+    DOCTOR,
+    ADMIN
 }

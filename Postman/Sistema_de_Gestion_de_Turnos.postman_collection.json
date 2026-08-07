@@ -47,10 +47,14 @@
 					"response": []
 				},
 				{
-					"name": "Registrar Doctor",
+					"name": "Registrar Doctor (ADMIN)",
 					"request": {
 						"method": "POST",
 						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
 							{
 								"key": "Content-Type",
 								"value": "application/json"
@@ -77,7 +81,7 @@
 					"response": []
 				},
 				{
-					"name": "1. LOGIN PACIENTE (Guarda Token Automático)",
+					"name": "1. LOGIN ADMIN (Guarda Token Automático)",
 					"event": [
 						{
 							"listen": "test",
@@ -86,7 +90,52 @@
 									"if (pm.response.code === 200) {",
 									"    var jsonData = pm.response.json();",
 									"    pm.collectionVariables.set('jwt_token', jsonData.token);",
-									"    console.log('✅ Token JWT asignado automáticamente a la variable {{jwt_token}}: ' + jsonData.token);",
+									"    console.log('✅ Token JWT ADMIN asignado automáticamente a {{jwt_token}}');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"admin@consultorio.com\",\n  \"password\": \"123456\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8080/api/auth/login",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "2. LOGIN PACIENTE (Guarda Token Automático)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('jwt_token', jsonData.token);",
+									"    console.log('✅ Token JWT PACIENTE asignado automáticamente a {{jwt_token}}');",
 									"}"
 								],
 								"type": "text/javascript"
@@ -122,7 +171,7 @@
 					"response": []
 				},
 				{
-					"name": "2. LOGIN DOCTOR (Guarda Token Automático)",
+					"name": "3. LOGIN DOCTOR (Guarda Token Automático)",
 					"event": [
 						{
 							"listen": "test",
@@ -131,7 +180,7 @@
 									"if (pm.response.code === 200) {",
 									"    var jsonData = pm.response.json();",
 									"    pm.collectionVariables.set('jwt_token', jsonData.token);",
-									"    console.log('✅ Token JWT asignado automáticamente a la variable {{jwt_token}}: ' + jsonData.token);",
+									"    console.log('✅ Token JWT DOCTOR asignado automáticamente a {{jwt_token}}');",
 									"}"
 								],
 								"type": "text/javascript"
@@ -192,10 +241,14 @@
 					"response": []
 				},
 				{
-					"name": "Crear Especialidad",
+					"name": "Crear Especialidad (ADMIN)",
 					"request": {
 						"method": "POST",
 						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
 							{
 								"key": "Content-Type",
 								"value": "application/json"
@@ -657,7 +710,7 @@
 			"name": "05 - Notificaciones",
 			"item": [
 				{
-					"name": "Ejecutar Resumen Diario a Doctores (CronJob Test)",
+					"name": "Ejecutar Resumen Diario a Doctores (ADMIN)",
 					"request": {
 						"method": "POST",
 						"header": [
@@ -682,6 +735,42 @@
 								{
 									"key": "fecha",
 									"value": "2026-08-10"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Ejecutar Resumen Semanal a Doctores (ADMIN)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8080/api/doctores/ejecutar-resumen-semanal?desde=2026-08-10&hasta=2026-08-16",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"doctores",
+								"ejecutar-resumen-semanal"
+							],
+							"query": [
+								{
+									"key": "desde",
+									"value": "2026-08-10"
+								},
+								{
+									"key": "hasta",
+									"value": "2026-08-16"
 								}
 							]
 						}

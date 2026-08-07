@@ -6,6 +6,7 @@ import com.consultorio.repository.*;
 import com.consultorio.service.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalTime;
@@ -18,20 +19,37 @@ public class DataInitializer implements CommandLineRunner {
     private final DoctorService doctorService;
     private final PacienteService pacienteService;
     private final PlantillaAgendaService plantillaAgendaService;
+    private final UsuarioRepository usuarioRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Autowired
     public DataInitializer(EspecialidadRepository especialidadRepository,
                            DoctorService doctorService,
                            PacienteService pacienteService,
-                           PlantillaAgendaService plantillaAgendaService) {
+                           PlantillaAgendaService plantillaAgendaService,
+                           UsuarioRepository usuarioRepository,
+                           PasswordEncoder passwordEncoder) {
         this.especialidadRepository = especialidadRepository;
         this.doctorService = doctorService;
         this.pacienteService = pacienteService;
         this.plantillaAgendaService = plantillaAgendaService;
+        this.usuarioRepository = usuarioRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Override
     public void run(String... args) throws Exception {
+        // 0. Crear Usuario Administrador de Prueba
+        if (!usuarioRepository.existsByEmail("admin@consultorio.com")) {
+            Usuario admin = Usuario.builder()
+                    .email("admin@consultorio.com")
+                    .password(passwordEncoder.encode("123456"))
+                    .rol(Rol.ADMIN)
+                    .activo(true)
+                    .build();
+            usuarioRepository.save(admin);
+        }
+
         // 1. Crear Especialidades iniciales
         Especialidad cardiologia = especialidadRepository.save(Especialidad.builder()
                 .nombre("Cardiología")
@@ -97,6 +115,6 @@ public class DataInitializer implements CommandLineRunner {
 
         pacienteService.registrarPaciente(pacienteDTO);
 
-        System.out.println("✅ Datos de prueba iniciales cargados correctamente en H2 Database.");
+        System.out.println("✅ Datos de prueba iniciales (Admin, Doctor y Paciente) cargados correctamente en H2 Database.");
     }
 }

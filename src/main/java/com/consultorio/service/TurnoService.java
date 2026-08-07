@@ -1,10 +1,13 @@
 package com.consultorio.service;
 
+import com.consultorio.adapter.CalendarioAdapter;
 import com.consultorio.domain.*;
 import com.consultorio.dto.TurnoReservaDTO;
 import com.consultorio.dto.TurnoResponseDTO;
 import com.consultorio.repository.*;
 import com.consultorio.security.SecurityUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -18,26 +21,34 @@ import java.util.stream.Collectors;
 @Service
 public class TurnoService {
 
+    private static final Logger log = LoggerFactory.getLogger(TurnoService.class);
+
     private final TurnoRepository turnoRepository;
     private final PacienteRepository pacienteRepository;
     private final DoctorRepository doctorRepository;
     private final EspecialidadRepository especialidadRepository;
+    private final UsuarioRepository usuarioRepository;
     private final EmailService emailService;
     private final SecurityUtils securityUtils;
+    private final CalendarioAdapter calendarioAdapter;
 
     @Autowired
     public TurnoService(TurnoRepository turnoRepository,
                         PacienteRepository pacienteRepository,
                         DoctorRepository doctorRepository,
                         EspecialidadRepository especialidadRepository,
+                        UsuarioRepository usuarioRepository,
                         EmailService emailService,
-                        SecurityUtils securityUtils) {
+                        SecurityUtils securityUtils,
+                        CalendarioAdapter calendarioAdapter) {
         this.turnoRepository = turnoRepository;
         this.pacienteRepository = pacienteRepository;
         this.doctorRepository = doctorRepository;
         this.especialidadRepository = especialidadRepository;
+        this.usuarioRepository = usuarioRepository;
         this.emailService = emailService;
         this.securityUtils = securityUtils;
+        this.calendarioAdapter = calendarioAdapter;
     }
 
     @Transactional
@@ -51,12 +62,14 @@ public class TurnoService {
         Especialidad especialidad = especialidadRepository.findById(dto.getEspecialidadId())
                 .orElseThrow(() -> new IllegalArgumentException("Especialidad no encontrada"));
 
-        // Control de Seguridad IDOR: El paciente autenticado solo puede reservar para sí mismo
+        // Control de Seguridad IDOR: El paciente autenticado solo puede reservar para sí mismo (salvo ADMIN)
         String emailAutenticado = securityUtils.obtenerEmailUsuarioAutenticado();
         if (emailAutenticado == null) {
             throw new AccessDeniedException("Debe incluir un Token JWT válido en el encabezado Authorization para realizar esta acción.");
         }
-        if (!paciente.getUsuario().getEmail().equalsIgnoreCase(emailAutenticado)) {
+
+        boolean esAdmin = esUsuarioAdmin(emailAutenticado);
+        if (!esAdmin && !paciente.getUsuario().getEmail().equalsIgnoreCase(emailAutenticado)) {
             throw new AccessDeniedException("Acceso denegado: No tiene permisos para agendar turnos a nombre de otro paciente.");
         }
 
@@ -87,6 +100,18 @@ public class TurnoService {
                 .build();
 
         Turno guardado = turnoRepository.save(turno);
+
+        // Agendar evento de calendario usando el Adapter (Resiliente y desacoplado)
+        try {
+            String googleEventId = calendarioAdapter.agendarEvento(guardado);
+            if (googleEventId != null) {
+                guardado.setGoogleEventId(googleEventId);
+                guardado = turnoRepository.save(guardado);
+            }
+        } catch (Exception e) {
+            log.error("No se pudo agendar en el calendario remoto: {}", e.getMessage());
+        }
+
         TurnoResponseDTO responseDTO = mapearResponseDTO(guardado);
 
         // Notificación por email al paciente confirmando la reserva
@@ -100,16 +125,17 @@ public class TurnoService {
         Turno turno = turnoRepository.findById(turnoId)
                 .orElseThrow(() -> new IllegalArgumentException("Turno no encontrado con ID: " + turnoId));
 
-        // Control de Seguridad IDOR: Solo el paciente o el doctor dueño del turno pueden cancelarlo
+        // Control de Seguridad IDOR: Solo el paciente, doctor dueño del turno o ADMIN pueden cancelarlo
         String emailAutenticado = securityUtils.obtenerEmailUsuarioAutenticado();
         if (emailAutenticado == null) {
             throw new AccessDeniedException("Debe incluir un Token JWT válido en el encabezado Authorization para realizar esta acción.");
         }
 
+        boolean esAdmin = esUsuarioAdmin(emailAutenticado);
         boolean esSuPaciente = turno.getPaciente().getUsuario().getEmail().equalsIgnoreCase(emailAutenticado);
         boolean esSuDoctor = turno.getDoctor().getUsuario().getEmail().equalsIgnoreCase(emailAutenticado);
 
-        if (!esSuPaciente && !esSuDoctor) {
+        if (!esAdmin && !esSuPaciente && !esSuDoctor) {
             throw new AccessDeniedException("Acceso denegado: No tiene permisos para cancelar este turno.");
         }
 
@@ -119,6 +145,16 @@ public class TurnoService {
 
         turno.setEstado(EstadoTurno.CANCELADO);
         Turno actualizado = turnoRepository.save(turno);
+
+        // Cancelar evento en Google Calendar usando el Adapter
+        if (actualizado.getGoogleEventId() != null) {
+            try {
+                calendarioAdapter.cancelarEvento(actualizado.getGoogleEventId());
+            } catch (Exception e) {
+                log.error("No se pudo cancelar el evento en el calendario remoto: {}", e.getMessage());
+            }
+        }
+
         return mapearResponseDTO(actualizado);
     }
 
@@ -136,12 +172,14 @@ public class TurnoService {
         Paciente paciente = pacienteRepository.findById(pacienteId)
                 .orElseThrow(() -> new IllegalArgumentException("Paciente no encontrado"));
 
-        // Control de Seguridad IDOR: El paciente solo puede listar sus propios turnos
+        // Control de Seguridad IDOR: El paciente solo puede listar sus propios turnos (salvo ADMIN)
         String emailAutenticado = securityUtils.obtenerEmailUsuarioAutenticado();
         if (emailAutenticado == null) {
             throw new AccessDeniedException("Debe incluir un Token JWT válido en el encabezado Authorization para realizar esta acción.");
         }
-        if (!paciente.getUsuario().getEmail().equalsIgnoreCase(emailAutenticado)) {
+
+        boolean esAdmin = esUsuarioAdmin(emailAutenticado);
+        if (!esAdmin && !paciente.getUsuario().getEmail().equalsIgnoreCase(emailAutenticado)) {
             throw new AccessDeniedException("Acceso denegado: No tiene permiso para consultar los turnos de otro paciente.");
         }
 
@@ -156,12 +194,14 @@ public class TurnoService {
         Doctor doctor = doctorRepository.findById(doctorId)
                 .orElseThrow(() -> new IllegalArgumentException("Doctor no encontrado con id: " + doctorId));
 
-        // Control de Seguridad IDOR: El doctor solo puede ver su propia agenda
+        // Control de Seguridad IDOR: El doctor solo puede ver su propia agenda (salvo ADMIN)
         String emailAutenticado = securityUtils.obtenerEmailUsuarioAutenticado();
         if (emailAutenticado == null) {
             throw new AccessDeniedException("Debe incluir un Token JWT válido en el encabezado Authorization para realizar esta acción.");
         }
-        if (!doctor.getUsuario().getEmail().equalsIgnoreCase(emailAutenticado)) {
+
+        boolean esAdmin = esUsuarioAdmin(emailAutenticado);
+        if (!esAdmin && !doctor.getUsuario().getEmail().equalsIgnoreCase(emailAutenticado)) {
             throw new AccessDeniedException("Acceso denegado: No tiene permiso para ver la agenda de otro profesional.");
         }
 
@@ -173,6 +213,23 @@ public class TurnoService {
                 .stream()
                 .map(this::mapearResponseDTO)
                 .collect(Collectors.toList());
+    }
+
+    // Retorna todos los turnos del rango (incluyendo COMPLETADOS y CANCELADOS) para reportes de métricas
+    public List<TurnoResponseDTO> obtenerTurnosRangoDoctor(Long doctorId, LocalDate desde, LocalDate hasta) {
+        LocalDateTime inicio = desde.atStartOfDay();
+        LocalDateTime fin = hasta.atTime(23, 59, 59);
+
+        return turnoRepository.findByDoctorIdAndFechaHoraBetweenOrderByFechaHoraAsc(doctorId, inicio, fin)
+                .stream()
+                .map(this::mapearResponseDTO)
+                .collect(Collectors.toList());
+    }
+
+    private boolean esUsuarioAdmin(String email) {
+        return usuarioRepository.findByEmail(email)
+                .map(u -> u.getRol() == Rol.ADMIN)
+                .orElse(false);
     }
 
     private TurnoResponseDTO mapearResponseDTO(Turno turno) {

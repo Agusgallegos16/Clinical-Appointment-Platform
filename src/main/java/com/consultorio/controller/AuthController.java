@@ -11,10 +11,13 @@ import com.consultorio.repository.UsuarioRepository;
 import com.consultorio.security.JwtUtils;
 import com.consultorio.service.DoctorService;
 import com.consultorio.service.PacienteService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -25,6 +28,7 @@ import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/auth")
+@Tag(name = "Autenticación y Registro", description = "Endpoints para registro de usuarios y obtención de Token JWT de sesión.")
 public class AuthController {
 
     private final PacienteService pacienteService;
@@ -53,18 +57,22 @@ public class AuthController {
     }
 
     @PostMapping("/registro-paciente")
+    @Operation(summary = "Registro de un nuevo Paciente (Público)")
     public ResponseEntity<Paciente> registrarPaciente(@Valid @RequestBody RegistroPacienteDTO dto) {
         Paciente paciente = pacienteService.registrarPaciente(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(paciente);
     }
 
     @PostMapping("/registro-doctor")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Registro de un nuevo Doctor (Exclusivo ADMIN)")
     public ResponseEntity<Doctor> registrarDoctor(@Valid @RequestBody RegistroDoctorDTO dto) {
         Doctor doctor = doctorService.registrarDoctor(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(doctor);
     }
 
     @PostMapping("/login")
+    @Operation(summary = "Iniciar Sesión y obtener Token JWT Bearer")
     public ResponseEntity<JwtResponseDTO> login(@Valid @RequestBody LoginDTO loginDTO) {
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(loginDTO.getEmail(), loginDTO.getPassword())

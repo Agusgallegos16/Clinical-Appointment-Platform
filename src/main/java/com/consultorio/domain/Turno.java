@@ -42,4 +42,7 @@ public class Turno {
     private EstadoTurno estado = EstadoTurno.PENDIENTE;
 
     private String motivoConsulta;
+
+    @Column(name = "google_event_id")
+    private String googleEventId;
 }

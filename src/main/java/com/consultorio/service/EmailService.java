@@ -1,5 +1,6 @@
 package com.consultorio.service;
 
+import com.consultorio.domain.EstadoTurno;
 import com.consultorio.dto.TurnoResponseDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -86,6 +87,44 @@ public class EmailService {
         cuerpoBuilder.append("\nQue tenga una excelente jornada.\nSaludos,\nEquipo del Consultorio.");
 
         String asunto = String.format("Resumen de Turnos para Mañana (%s) - Dr/a. %s", fechaMañana, doctorNombre);
+        enviarCorreo(emailDestino, asunto, cuerpoBuilder.toString());
+    }
+
+    // 4. Email de Resumen Semanal para el Doctor (Completados, Confirmados y Cancelados)
+    public void enviarResumenSemanalDoctor(String emailDestino, String doctorNombre, String periodoFormateado, List<TurnoResponseDTO> turnos) {
+        long completados = turnos.stream().filter(t -> t.getEstado() == EstadoTurno.COMPLETADO).count();
+        long cancelados = turnos.stream().filter(t -> t.getEstado() == EstadoTurno.CANCELADO).count();
+        long confirmados = turnos.stream().filter(t -> t.getEstado() == EstadoTurno.CONFIRMADO || t.getEstado() == EstadoTurno.PENDIENTE).count();
+
+        StringBuilder cuerpoBuilder = new StringBuilder();
+        cuerpoBuilder.append(String.format("Estimado/a Dr/a. %s,\n\n", doctorNombre));
+        cuerpoBuilder.append(String.format("Le enviamos el informe semanal de actividad del consultorio (%s):\n\n", periodoFormateado));
+
+        cuerpoBuilder.append("📊 Resumen de Métrica Semanal:\n");
+        cuerpoBuilder.append(String.format(" - Total de Turnos: %d\n", turnos.size()));
+        cuerpoBuilder.append(String.format(" - ✅ Completados: %d\n", completados));
+        cuerpoBuilder.append(String.format(" - 📌 Confirmados / Pendientes: %d\n", confirmados));
+        cuerpoBuilder.append(String.format(" - ❌ Cancelados: %d\n\n", cancelados));
+
+        cuerpoBuilder.append("📋 Detalle Completo de Citas Médicas:\n");
+
+        DateTimeFormatter fechaHoraFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+
+        for (int i = 0; i < turnos.size(); i++) {
+            TurnoResponseDTO t = turnos.get(i);
+            cuerpoBuilder.append(String.format("%d. [%s hs] [%s] Paciente: %s | Especialidad: %s | Motivo: %s\n",
+                    i + 1,
+                    t.getFechaHora().format(fechaHoraFormatter),
+                    t.getEstado(),
+                    t.getPacienteNombre(),
+                    t.getEspecialidadNombre(),
+                    t.getMotivoConsulta() != null ? t.getMotivoConsulta() : "Sin especificar"
+            ));
+        }
+
+        cuerpoBuilder.append("\nSaludos cordiales,\nEquipo del Consultorio Médico.");
+
+        String asunto = String.format("Reporte Semanal de Actividad (%s) - Dr/a. %s", periodoFormateado, doctorNombre);
         enviarCorreo(emailDestino, asunto, cuerpoBuilder.toString());
     }
 

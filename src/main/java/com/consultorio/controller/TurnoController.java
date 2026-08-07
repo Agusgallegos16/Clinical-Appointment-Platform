@@ -4,16 +4,20 @@ import com.consultorio.domain.EstadoTurno;
 import com.consultorio.dto.TurnoReservaDTO;
 import com.consultorio.dto.TurnoResponseDTO;
 import com.consultorio.service.TurnoService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/turnos")
+@Tag(name = "Gestión de Turnos", description = "Endpoints para reserva, cancelación y actualización del estado de turnos médicos.")
 public class TurnoController {
 
     private final TurnoService turnoService;
@@ -23,32 +27,34 @@ public class TurnoController {
         this.turnoService = turnoService;
     }
 
-    // Reservar un nuevo turno
     @PostMapping
+    @PreAuthorize("hasRole('PACIENTE') or hasRole('ADMIN')")
+    @Operation(summary = "Reservar un nuevo turno médico (PACIENTE / ADMIN)")
     public ResponseEntity<TurnoResponseDTO> reservarTurno(@Valid @RequestBody TurnoReservaDTO dto) {
-        TurnoResponseDTO turno = turnoService.reservarTurno(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(turno);
+        TurnoResponseDTO nuevoTurno = turnoService.reservarTurno(dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(nuevoTurno);
     }
 
-    // Cancelar turno
-    @PutMapping("/{id}/cancelar")
-    public ResponseEntity<TurnoResponseDTO> cancelarTurno(@PathVariable Long id) {
-        TurnoResponseDTO turno = turnoService.cancelarTurno(id);
-        return ResponseEntity.ok(turno);
-    }
-
-    // Cambiar estado del turno (ej. COMPLETADO, AUSENTE)
-    @PutMapping("/{id}/estado")
-    public ResponseEntity<TurnoResponseDTO> cambiarEstado(
-            @PathVariable Long id,
-            @RequestParam EstadoTurno nuevoEstado) {
-        TurnoResponseDTO turno = turnoService.cambiarEstadoTurno(id, nuevoEstado);
-        return ResponseEntity.ok(turno);
-    }
-
-    // Mis turnos (como paciente)
     @GetMapping("/paciente/{pacienteId}")
+    @PreAuthorize("hasRole('PACIENTE') or hasRole('ADMIN')")
+    @Operation(summary = "Consultar el historial y turnos agendados de un paciente (PACIENTE / ADMIN)")
     public ResponseEntity<List<TurnoResponseDTO>> obtenerTurnosPorPaciente(@PathVariable Long pacienteId) {
         return ResponseEntity.ok(turnoService.obtenerTurnosPorPaciente(pacienteId));
+    }
+
+    @PutMapping("/{id}/cancelar")
+    @PreAuthorize("hasRole('PACIENTE') or hasRole('DOCTOR') or hasRole('ADMIN')")
+    @Operation(summary = "Cancelar un turno agendado (PACIENTE / DOCTOR / ADMIN)")
+    public ResponseEntity<TurnoResponseDTO> cancelarTurno(@PathVariable Long id) {
+        return ResponseEntity.ok(turnoService.cancelarTurno(id));
+    }
+
+    @PutMapping("/{id}/estado")
+    @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
+    @Operation(summary = "Actualizar el estado de un turno (ej. COMPLETADO, AUSENTE) (DOCTOR / ADMIN)")
+    public ResponseEntity<TurnoResponseDTO> cambiarEstadoTurno(
+            @PathVariable Long id,
+            @RequestParam EstadoTurno nuevoEstado) {
+        return ResponseEntity.ok(turnoService.cambiarEstadoTurno(id, nuevoEstado));
     }
 }

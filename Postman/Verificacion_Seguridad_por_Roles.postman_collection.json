@@ -1,0 +1,697 @@
+{
+	"info": {
+		"_postman_id": "b9876543-21ef-4321-9876-fedcba098765",
+		"name": "Suite de Seguridad y Matriz de Roles (Automática)",
+		"description": "Colección de pruebas automatizadas para verificar que cada rol (PACIENTE, DOCTOR, ADMIN) solo pueda ejecutar las acciones autorizadas y que el sistema rechace con 403 Forbidden cualquier intento de intrusión.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "admin_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "doctor_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "paciente_token",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "00 - Autenticación Inicial de los 3 Roles",
+			"item": [
+				{
+					"name": "Login ADMIN (Obtener {{admin_token}})",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code es 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('admin_token', jsonData.token);",
+									"    console.log('✅ admin_token guardado exitosamente');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"admin@consultorio.com\",\n  \"password\": \"123456\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8080/api/auth/login",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Login DOCTOR (Obtener {{doctor_token}})",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code es 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('doctor_token', jsonData.token);",
+									"    console.log('✅ doctor_token guardado exitosamente');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"doctor.perez@consultorio.com\",\n  \"password\": \"123456\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8080/api/auth/login",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Login PACIENTE (Obtener {{paciente_token}})",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status code es 200 OK', function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('paciente_token', jsonData.token);",
+									"    console.log('✅ paciente_token guardado exitosamente');",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"paciente.gomez@gmail.com\",\n  \"password\": \"123456\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8080/api/auth/login",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "01 - Pruebas del Rol PACIENTE",
+			"item": [
+				{
+					"name": "1.1 - [PACIENTE] Consultar sus propios turnos (DEBE PASAR -> 200 OK)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('PASÓ: El Paciente puede ver sus turnos (200 OK)', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{paciente_token}}"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8080/api/turnos/paciente/1",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"turnos",
+								"paciente",
+								"1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "1.2 - [PACIENTE - SEGURIDAD] Intentar crear especialidad (DEBE FALLAR -> 403 Forbidden)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('BLOQUEADO CORRECTAMENTE: El Paciente no puede crear especialidades (403 Forbidden)', function () {",
+									"    pm.response.to.have.status(403);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{paciente_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nombre\": \"Odontología\",\n  \"descripcion\": \"Intento no autorizado por un paciente\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8080/api/especialidades",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"especialidades"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "1.3 - [PACIENTE - SEGURIDAD] Intentar registrar un nuevo Doctor (DEBE FALLAR -> 403 Forbidden)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('BLOQUEADO CORRECTAMENTE: El Paciente no puede dar de alta doctores (403 Forbidden)', function () {",
+									"    pm.response.to.have.status(403);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{paciente_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"doctor.intruso@consultorio.com\",\n  \"password\": \"123456\",\n  \"nombre\": \"Intruso\",\n  \"apellido\": \"Prueba\",\n  \"matricula\": \"MP-00000\",\n  \"especialidadIds\": [1]\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8080/api/auth/registro-doctor",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"auth",
+								"registro-doctor"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "1.4 - [PACIENTE - SEGURIDAD] Intentar modificar horarios de un Doctor (DEBE FALLAR -> 403 Forbidden)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('BLOQUEADO CORRECTAMENTE: El Paciente no puede modificar horarios de doctores (403 Forbidden)', function () {",
+									"    pm.response.to.have.status(403);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{paciente_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"diaSemana\": \"VIERNES\",\n  \"horaInicio\": \"10:00\",\n  \"horaFin\": \"12:00\",\n  \"duracionTurnoMinutos\": 30\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8080/api/doctores/1/horarios",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"doctores",
+								"1",
+								"horarios"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "02 - Pruebas del Rol DOCTOR",
+			"item": [
+				{
+					"name": "2.1 - [DOCTOR] Consultar su propia agenda del día (DEBE PASAR -> 200 OK)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('PASÓ: El Doctor puede ver su agenda (200 OK)', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{doctor_token}}"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8080/api/doctores/1/agenda?fecha=2026-08-10",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"doctores",
+								"1",
+								"agenda"
+							],
+							"query": [
+								{
+									"key": "fecha",
+									"value": "2026-08-10"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "2.2 - [DOCTOR] Configurar su horario de atención (DEBE PASAR -> 201 Created)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('PASÓ: El Doctor puede agregar sus horarios de atención (201 Created)', function () {",
+									"    pm.response.to.have.status(201);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{doctor_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"diaSemana\": \"MARTES\",\n  \"horaInicio\": \"09:00\",\n  \"horaFin\": \"14:00\",\n  \"duracionTurnoMinutos\": 30\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8080/api/doctores/1/horarios",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"doctores",
+								"1",
+								"horarios"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "2.3 - [DOCTOR - SEGURIDAD] Intentar crear especialidad (DEBE FALLAR -> 403 Forbidden)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('BLOQUEADO CORRECTAMENTE: El Doctor no puede crear especialidades (403 Forbidden)', function () {",
+									"    pm.response.to.have.status(403);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{doctor_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nombre\": \"Oftalmología\",\n  \"descripcion\": \"Intento no autorizado por un doctor\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8080/api/especialidades",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"especialidades"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "2.4 - [DOCTOR - SEGURIDAD] Intentar registrar otro Doctor (DEBE FALLAR -> 403 Forbidden)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('BLOQUEADO CORRECTAMENTE: El Doctor no puede dar de alta otros doctores (403 Forbidden)', function () {",
+									"    pm.response.to.have.status(403);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{doctor_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"nuevo.doctor@consultorio.com\",\n  \"password\": \"123456\",\n  \"nombre\": \"Carlos\",\n  \"apellido\": \"Ruiz\",\n  \"matricula\": \"MP-77889\",\n  \"especialidadIds\": [1]\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8080/api/auth/registro-doctor",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"auth",
+								"registro-doctor"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "03 - Pruebas del Rol ADMIN",
+			"item": [
+				{
+					"name": "3.1 - [ADMIN] Crear una nueva especialidad médica (DEBE PASAR -> 201 Created)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('PASÓ: El Administrador puede crear especialidades (201 Created)', function () {",
+									"    pm.response.to.have.status(201);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nombre\": \"Traumatología\",\n  \"descripcion\": \"Tratamiento de lesiones del sistema musculoesquelético\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8080/api/especialidades",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"especialidades"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "3.2 - [ADMIN] Registrar un nuevo Doctor en el sistema (DEBE PASAR -> 201 Created)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('PASÓ: El Administrador puede dar de alta doctores (201 Created)', function () {",
+									"    pm.response.to.have.status(201);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"dr.sofia.alvarez@consultorio.com\",\n  \"password\": \"123456\",\n  \"nombre\": \"Sofía\",\n  \"apellido\": \"Álvarez\",\n  \"matricula\": \"MP-44102\",\n  \"especialidadIds\": [1, 2]\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8080/api/auth/registro-doctor",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"auth",
+								"registro-doctor"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "3.3 - [ADMIN] Disparar Resumen Diario de Turnos (DEBE PASAR -> 200 OK)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('PASÓ: El Administrador puede ejecutar procesos del sistema (200 OK)', function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{admin_token}}"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8080/api/doctores/ejecutar-resumen-diario?fecha=2026-08-10",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"doctores",
+								"ejecutar-resumen-diario"
+							],
+							"query": [
+								{
+									"key": "fecha",
+									"value": "2026-08-10"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}
