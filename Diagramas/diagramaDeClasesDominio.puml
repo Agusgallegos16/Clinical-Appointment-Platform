@@ -1,0 +1,116 @@
+@startuml
+
+enum Rol {
+    PACIENTE
+    DOCTOR
+}
+
+enum EstadoTurno {
+    PENDIENTE
+    CONFIRMADO
+    CANCELADO
+    COMPLETADO
+    AUSENTE
+}
+
+enum DiaSemana {
+    LUNES
+    MARTES
+    MIERCOLES
+    JUEVES
+    VIERNES
+    SABADO
+    DOMINGO
+}
+
+class Usuario {
+    - id : Long
+    - email : String
+    - password : String
+    - rol : Rol
+    - activo : boolean
+}
+
+class Paciente {
+    - id : Long
+    - usuario : Usuario
+    - nombre : String
+    - apellido : String
+    - dni : Long
+    - telefono : String
+}
+
+class Especialidad {
+    - id : Long
+    - nombre : String
+    - descripcion : String
+}
+
+class Doctor {
+    - id : Long
+    - usuario : Usuario
+    - nombre : String
+    - apellido : String
+    - matricula : String
+    - especialidades : List<Especialidad>
+}
+
+class HorarioAtencion {
+    - id : Long
+    - doctor : Doctor
+    - diaSemana : DiaSemana
+    - fecha : LocalDate
+    - horaInicio : LocalTime
+    - horaFin : LocalTime
+    - duracionTurnoMinutos : int
+}
+
+class PlantillaAgenda {
+    - id : Long
+    - doctor : Doctor
+    - nombre : String
+    - descripcion : String
+    - detalles : List<DetallePlantilla>
+}
+
+class DetallePlantilla {
+    - id : Long
+    - horaInicio : LocalTime
+    - horaFin : LocalTime
+    - duracionTurnoMinutos : int
+}
+
+class Turno {
+    - id : Long
+    - paciente : Paciente
+    - doctor : Doctor
+    - especialidad : Especialidad
+    - fechaHora : LocalDateTime
+    - estado : EstadoTurno
+    - motivoConsulta : String
+}
+
+
+' Relaciones de Autenticación
+Paciente "1" --> "1" Usuario : vincula cuenta
+Doctor "1" --> "1" Usuario : vincula cuenta
+
+' Relaciones del Doctor
+Doctor "*" --> "*" Especialidad : ejerce
+Doctor "1" --> "0..*" HorarioAtencion : atiende en
+Doctor "1" --> "0..*" PlantillaAgenda : crea moldes de
+
+' Relación de Plantilla
+PlantillaAgenda "1" *-- "1..*" DetallePlantilla : contiene franjas
+
+' Relaciones del Turno
+Paciente "1" --> "0..*" Turno : reserva
+Doctor "1" --> "0..*" Turno : es asignado a
+Turno "*" --> "1" Especialidad : corresponde a
+
+' Relaciones con Enums
+Usuario --> Rol
+Turno --> EstadoTurno
+HorarioAtencion --> DiaSemana
+
+@enduml
