@@ -7,6 +7,7 @@ import com.consultorio.dto.RegistroPacienteDTO;
 import com.consultorio.repository.PacienteRepository;
 import com.consultorio.repository.UsuarioRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,14 +19,17 @@ public class PacienteService {
     private final PacienteRepository pacienteRepository;
     private final UsuarioRepository usuarioRepository;
     private final EmailService emailService;
+    private final PasswordEncoder passwordEncoder;
 
     @Autowired
     public PacienteService(PacienteRepository pacienteRepository,
                            UsuarioRepository usuarioRepository,
-                           EmailService emailService) {
+                           EmailService emailService,
+                           PasswordEncoder passwordEncoder) {
         this.pacienteRepository = pacienteRepository;
         this.usuarioRepository = usuarioRepository;
         this.emailService = emailService;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional
@@ -39,7 +43,7 @@ public class PacienteService {
 
         Usuario usuario = Usuario.builder()
                 .email(dto.getEmail())
-                .password(dto.getPassword())
+                .password(passwordEncoder.encode(dto.getPassword()))
                 .rol(Rol.PACIENTE)
                 .activo(true)
                 .build();

@@ -5,6 +5,7 @@ import com.consultorio.dto.HorarioAtencionDTO;
 import com.consultorio.dto.RegistroDoctorDTO;
 import com.consultorio.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,18 +20,21 @@ public class DoctorService {
     private final EspecialidadRepository especialidadRepository;
     private final HorarioAtencionRepository horarioAtencionRepository;
     private final EmailService emailService;
+    private final PasswordEncoder passwordEncoder;
 
     @Autowired
     public DoctorService(DoctorRepository doctorRepository,
                          UsuarioRepository usuarioRepository,
                          EspecialidadRepository especialidadRepository,
                          HorarioAtencionRepository horarioAtencionRepository,
-                         EmailService emailService) {
+                         EmailService emailService,
+                         PasswordEncoder passwordEncoder) {
         this.doctorRepository = doctorRepository;
         this.usuarioRepository = usuarioRepository;
         this.especialidadRepository = especialidadRepository;
         this.horarioAtencionRepository = horarioAtencionRepository;
         this.emailService = emailService;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional
@@ -49,7 +53,7 @@ public class DoctorService {
 
         Usuario usuario = Usuario.builder()
                 .email(dto.getEmail())
-                .password(dto.getPassword())
+                .password(passwordEncoder.encode(dto.getPassword()))
                 .rol(Rol.DOCTOR)
                 .activo(true)
                 .build();
@@ -74,9 +78,14 @@ public class DoctorService {
     public HorarioAtencion agregarHorarioAtencion(Long doctorId, HorarioAtencionDTO dto) {
         Doctor doctor = obtenerPorId(doctorId);
 
+        if (dto.getFecha() == null && dto.getDiaSemana() == null) {
+            throw new IllegalArgumentException("Debe especificar al menos un día de la semana o una fecha concreta.");
+        }
+
         HorarioAtencion horario = HorarioAtencion.builder()
                 .doctor(doctor)
                 .diaSemana(dto.getDiaSemana())
+                .fecha(dto.getFecha())
                 .horaInicio(dto.getHoraInicio())
                 .horaFin(dto.getHoraFin())
                 .duracionTurnoMinutos(dto.getDuracionTurnoMinutos() > 0 ? dto.getDuracionTurnoMinutos() : 30)

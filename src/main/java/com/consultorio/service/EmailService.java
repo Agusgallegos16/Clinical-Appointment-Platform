@@ -3,6 +3,7 @@ package com.consultorio.service;
 import com.consultorio.dto.TurnoResponseDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -18,9 +19,9 @@ public class EmailService {
 
     private final JavaMailSender mailSender;
 
-    @Autowired(required = false)
-    public EmailService(JavaMailSender mailSender) {
-        this.mailSender = mailSender;
+    @Autowired
+    public EmailService(ObjectProvider<JavaMailSender> mailSenderProvider) {
+        this.mailSender = mailSenderProvider.getIfAvailable();
     }
 
     // 1. Email de Bienvenida al crearse la cuenta

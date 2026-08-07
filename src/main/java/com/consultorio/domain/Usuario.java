@@ -1,5 +1,7 @@
 package com.consultorio.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -8,6 +10,7 @@ import lombok.*;
 
 @Entity
 @Table(name = "usuarios")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -26,6 +29,7 @@ public class Usuario {
 
     @NotBlank(message = "La contraseña es obligatoria")
     @Column(nullable = false)
+    @JsonIgnore
     private String password;
 
     @NotNull(message = "El rol es obligatorio")

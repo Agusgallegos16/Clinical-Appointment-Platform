@@ -1,5 +1,7 @@
 package com.consultorio.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
@@ -9,6 +11,7 @@ import java.util.List;
 
 @Entity
 @Table(name = "plantillas_agenda")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -22,6 +25,7 @@ public class PlantillaAgenda {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "doctor_id", nullable = false)
+    @JsonIgnore
     private Doctor doctor;
 
     @NotBlank(message = "El nombre de la plantilla es obligatorio")

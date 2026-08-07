@@ -107,10 +107,12 @@ public class DoctorController {
 
     // --- NOTIFICACIONES ---
 
-    // Disparar manualmente el envío del resumen diario de mañana a los doctores (para pruebas rápidas)
+    // Disparar manualmente el envío del resumen diario de turnos a los doctores
     @PostMapping("/ejecutar-resumen-diario")
-    public ResponseEntity<String> ejecutarResumenDiario() {
-        notificacionProgramadaService.enviarResumenDiarioADoctores();
-        return ResponseEntity.ok("Proceso de envío de resúmenes diarios ejecutado correctamente.");
+    public ResponseEntity<String> ejecutarResumenDiario(
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {
+        LocalDate fechaTarget = (fecha != null) ? fecha : LocalDate.now().plusDays(1);
+        notificacionProgramadaService.enviarResumenDiarioADoctoresParaFecha(fechaTarget);
+        return ResponseEntity.ok("Proceso de envío de resúmenes diarios ejecutado correctamente para la fecha: " + fechaTarget);
     }
 }

@@ -2,6 +2,8 @@ package com.consultorio.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -50,5 +52,27 @@ public class GlobalExceptionHandler {
         respuesta.put("mensaje", ex.getMessage());
 
         return ResponseEntity.status(HttpStatus.CONFLICT).body(respuesta);
+    }
+
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<Map<String, Object>> handleBadCredentials(BadCredentialsException ex) {
+        Map<String, Object> respuesta = new LinkedHashMap<>();
+        respuesta.put("timestamp", LocalDateTime.now());
+        respuesta.put("status", HttpStatus.UNAUTHORIZED.value());
+        respuesta.put("error", "No autorizado");
+        respuesta.put("mensaje", "Credenciales inválidas. Email o contraseña incorrectos.");
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(respuesta);
+    }
+
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException ex) {
+        Map<String, Object> respuesta = new LinkedHashMap<>();
+        respuesta.put("timestamp", LocalDateTime.now());
+        respuesta.put("status", HttpStatus.FORBIDDEN.value());
+        respuesta.put("error", "Acceso denegado");
+        respuesta.put("mensaje", "No tiene los permisos suficientes para acceder a este recurso.");
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(respuesta);
     }
 }

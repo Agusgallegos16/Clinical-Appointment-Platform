@@ -1,0 +1,694 @@
+{
+	"info": {
+		"_postman_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+		"name": "Sistema de Gestión de Turnos Médicos (Con Auto-Token JWT)",
+		"description": "Colección completa de pruebas para el Sistema de Gestión de Turnos Médicos. Los endpoints de Login guardan automáticamente el Token JWT en una variable {{jwt_token}} para que todas las peticiones funcionen sin copiar/pegar a mano.",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{
+			"key": "jwt_token",
+			"value": "",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "01 - Autenticación y Registro",
+			"item": [
+				{
+					"name": "Registrar Paciente",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"paciente.nuevo@gmail.com\",\n  \"password\": \"123456\",\n  \"nombre\": \"Lucas\",\n  \"apellido\": \"Fernández\",\n  \"dni\": 39123456,\n  \"telefono\": \"+5491144556677\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8080/api/auth/registro-paciente",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"auth",
+								"registro-paciente"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Registrar Doctor",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"doctora.gomez@consultorio.com\",\n  \"password\": \"123456\",\n  \"nombre\": \"Laura\",\n  \"apellido\": \"Gómez\",\n  \"matricula\": \"MP-88312\",\n  \"especialidadIds\": [1, 3]\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8080/api/auth/registro-doctor",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"auth",
+								"registro-doctor"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "1. LOGIN PACIENTE (Guarda Token Automático)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('jwt_token', jsonData.token);",
+									"    console.log('✅ Token JWT asignado automáticamente a la variable {{jwt_token}}: ' + jsonData.token);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"paciente.gomez@gmail.com\",\n  \"password\": \"123456\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8080/api/auth/login",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "2. LOGIN DOCTOR (Guarda Token Automático)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    var jsonData = pm.response.json();",
+									"    pm.collectionVariables.set('jwt_token', jsonData.token);",
+									"    console.log('✅ Token JWT asignado automáticamente a la variable {{jwt_token}}: ' + jsonData.token);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"doctor.perez@consultorio.com\",\n  \"password\": \"123456\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8080/api/auth/login",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"auth",
+								"login"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "02 - Especialidades",
+			"item": [
+				{
+					"name": "Listar Especialidades",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8080/api/especialidades",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"especialidades"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Crear Especialidad",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nombre\": \"Neurología\",\n  \"descripcion\": \"Diagnóstico y tratamiento de trastornos del sistema nervioso\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8080/api/especialidades",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"especialidades"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "03 - Doctores y Disponibilidad",
+			"item": [
+				{
+					"name": "Listar Todos los Doctores",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8080/api/doctores",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"doctores"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Listar Doctores por Especialidad",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8080/api/doctores?especialidadId=1",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"doctores"
+							],
+							"query": [
+								{
+									"key": "especialidadId",
+									"value": "1"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Agregar Horario por Fecha Puntual (ej. Lunes 10 de Agosto)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"fecha\": \"2026-08-10\",\n  \"horaInicio\": \"09:00\",\n  \"horaFin\": \"13:00\",\n  \"duracionTurnoMinutos\": 30\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8080/api/doctores/1/horarios",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"doctores",
+								"1",
+								"horarios"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Agregar Horario Semanal Recurrente (ej. LUNES)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"diaSemana\": \"LUNES\",\n  \"horaInicio\": \"14:00\",\n  \"horaFin\": \"18:00\",\n  \"duracionTurnoMinutos\": 30\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8080/api/doctores/1/horarios",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"doctores",
+								"1",
+								"horarios"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Ver Horarios del Doctor",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8080/api/doctores/1/horarios",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"doctores",
+								"1",
+								"horarios"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Crear Plantilla de Agenda",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"nombre\": \"Día de Prácticas Intensivas\",\n  \"descripcion\": \"Turnos de 15m a la mañana y 45m a la tarde\",\n  \"detalles\": [\n    {\n      \"horaInicio\": \"08:00\",\n      \"horaFin\": \"12:00\",\n      \"duracionTurnoMinutos\": 15\n    },\n    {\n      \"horaInicio\": \"14:00\",\n      \"horaFin\": \"17:00\",\n      \"duracionTurnoMinutos\": 45\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8080/api/doctores/1/plantillas",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"doctores",
+								"1",
+								"plantillas"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Listar Plantillas del Doctor",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8080/api/doctores/1/plantillas",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"doctores",
+								"1",
+								"plantillas"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Aplicar Plantilla a una Fecha Especial",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"plantillaId\": 1,\n  \"fecha\": \"2026-08-20\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8080/api/doctores/1/aplicar-plantilla",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"doctores",
+								"1",
+								"aplicar-plantilla"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Consultar Disponibilidad Horaria (Pública)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "http://localhost:8080/api/doctores/1/disponibilidad?fecha=2026-08-10",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"doctores",
+								"1",
+								"disponibilidad"
+							],
+							"query": [
+								{
+									"key": "fecha",
+									"value": "2026-08-10"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Ver Agenda del Día del Doctor (Privada)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8080/api/doctores/1/agenda?fecha=2026-08-10",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"doctores",
+								"1",
+								"agenda"
+							],
+							"query": [
+								{
+									"key": "fecha",
+									"value": "2026-08-10"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "04 - Turnos",
+			"item": [
+				{
+					"name": "Reservar Turno",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							},
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"pacienteId\": 1,\n  \"doctorId\": 1,\n  \"especialidadId\": 1,\n  \"fechaHora\": \"2026-08-10T09:00:00\",\n  \"motivoConsulta\": \"Chequeo cardiológico anual\"\n}"
+						},
+						"url": {
+							"raw": "http://localhost:8080/api/turnos",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"turnos"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Ver Mis Turnos (Paciente)",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8080/api/turnos/paciente/1",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"turnos",
+								"paciente",
+								"1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Cancelar Turno",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8080/api/turnos/1/cancelar",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"turnos",
+								"1",
+								"cancelar"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Cambiar Estado del Turno (Doctor/Admin)",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8080/api/turnos/1/estado?nuevoEstado=COMPLETADO",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"turnos",
+								"1",
+								"estado"
+							],
+							"query": [
+								{
+									"key": "nuevoEstado",
+									"value": "COMPLETADO"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "05 - Notificaciones",
+			"item": [
+				{
+					"name": "Ejecutar Resumen Diario a Doctores (CronJob Test)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Authorization",
+								"value": "Bearer {{jwt_token}}"
+							}
+						],
+						"url": {
+							"raw": "http://localhost:8080/api/doctores/ejecutar-resumen-diario?fecha=2026-08-10",
+							"protocol": "http",
+							"host": [
+								"localhost"
+							],
+							"port": "8080",
+							"path": [
+								"api",
+								"doctores",
+								"ejecutar-resumen-diario"
+							],
+							"query": [
+								{
+									"key": "fecha",
+									"value": "2026-08-10"
+								}
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

@@ -31,27 +31,38 @@ public class NotificacionProgramadaService {
         this.emailService = emailService;
     }
 
-    // Tarea programada: Todos los días a las 20:00 hs (cron = "0 0 20 * * ?")
+    // Tarea programada automática: Todos los días a las 20:00 hs (cron = "0 0 20 * * ?")
     @Scheduled(cron = "0 0 20 * * ?")
     public void enviarResumenDiarioADoctores() {
-        log.info("⏰ Ejecutando tarea programada: Procesando resúmenes diarios para doctores...");
-        LocalDate mañana = LocalDate.now().plusDays(1);
+        enviarResumenDiarioADoctoresParaFecha(LocalDate.now().plusDays(1));
+    }
+
+    // Procesa el envío de resúmenes diarios para una fecha determinada
+    public void enviarResumenDiarioADoctoresParaFecha(LocalDate fechaTarget) {
+        log.info("⏰ Procesando resúmenes diarios de agenda para la fecha: {}", fechaTarget);
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
-        String fechaFormateada = mañana.format(formatter);
+        String fechaFormateada = fechaTarget.format(formatter);
 
         List<Doctor> doctores = doctorRepository.findAll();
 
-        for (Doctor doctor : doctores) {
-            List<TurnoResponseDTO> turnosMañana = turnoService.obtenerAgendaDoctor(doctor.getId(), mañana);
+        if (doctores.isEmpty()) {
+            log.info("ℹ️ No hay doctores registrados en el sistema.");
+            return;
+        }
 
-            // Solo enviamos email si el doctor tiene turnos asignados para mañana
-            if (!turnosMañana.isEmpty()) {
+        for (Doctor doctor : doctores) {
+            List<TurnoResponseDTO> turnosDia = turnoService.obtenerAgendaDoctor(doctor.getId(), fechaTarget);
+
+            if (!turnosDia.isEmpty()) {
                 emailService.enviarResumenDiarioDoctor(
                         doctor.getUsuario().getEmail(),
                         doctor.getNombre() + " " + doctor.getApellido(),
                         fechaFormateada,
-                        turnosMañana
+                        turnosDia
                 );
+            } else {
+                log.info("ℹ️ El Dr/a. {} {} no posee turnos confirmados para el día {}. Se omite notificación.",
+                        doctor.getNombre(), doctor.getApellido(), fechaFormateada);
             }
         }
     }
