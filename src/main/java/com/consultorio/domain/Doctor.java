@@ -32,10 +32,6 @@ public class Doctor {
     @NotBlank(message = "El apellido es obligatorio")
     private String apellido;
 
-    @NotBlank(message = "La matrícula es obligatoria")
-    @Column(unique = true, nullable = false)
-    private String matricula;
-
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
         name = "doctor_especialidades",

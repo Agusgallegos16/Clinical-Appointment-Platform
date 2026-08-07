@@ -18,6 +18,10 @@ public class EspecialidadService {
         this.especialidadRepository = especialidadRepository;
     }
 
+    public List<Especialidad> listarTodas() {
+        return especialidadRepository.findAll();
+    }
+
     @Transactional
     public Especialidad crearEspecialidad(Especialidad especialidad) {
         if (especialidadRepository.existsByNombreIgnoreCase(especialidad.getNombre())) {
@@ -26,12 +30,11 @@ public class EspecialidadService {
         return especialidadRepository.save(especialidad);
     }
 
-    public List<Especialidad> listarTodas() {
-        return especialidadRepository.findAll();
-    }
-
-    public Especialidad obtenerPorId(Long id) {
-        return especialidadRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Especialidad no encontrada con id: " + id));
+    @Transactional
+    public void eliminarEspecialidad(Long id) {
+        if (!especialidadRepository.existsById(id)) {
+            throw new IllegalArgumentException("Especialidad no encontrada con ID: " + id);
+        }
+        especialidadRepository.deleteById(id);
     }
 }

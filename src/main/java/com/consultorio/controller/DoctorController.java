@@ -59,6 +59,23 @@ public class DoctorController {
         return ResponseEntity.ok(doctorService.obtenerPorId(id));
     }
 
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Actualizar datos de un médico existente (Exclusivo ADMIN)")
+    public ResponseEntity<Doctor> actualizarDoctor(
+            @PathVariable Long id,
+            @RequestBody RegistroDoctorDTO dto) {
+        return ResponseEntity.ok(doctorService.actualizarDoctor(id, dto));
+    }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Eliminar un médico por su ID (Exclusivo ADMIN)")
+    public ResponseEntity<Void> eliminarDoctor(@PathVariable Long id) {
+        doctorService.eliminarDoctor(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/{id}/horarios")
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Agregar un nuevo horario de atención semanal o por fecha puntual (DOCTOR / ADMIN)")
@@ -76,6 +93,14 @@ public class DoctorController {
         return ResponseEntity.ok(doctorService.obtenerHorariosDoctor(id));
     }
 
+    @DeleteMapping("/horarios/{horarioId}")
+    @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
+    @Operation(summary = "Eliminar un horario de atención (DOCTOR / ADMIN)")
+    public ResponseEntity<Void> eliminarHorario(@PathVariable Long horarioId) {
+        doctorService.eliminarHorarioAtencion(horarioId);
+        return ResponseEntity.noContent().build();
+    }
+
     @PostMapping("/{id}/plantillas")
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Crear una nueva plantilla de agenda personalizada (ej. Día de Prácticas) (DOCTOR / ADMIN)")
@@ -91,6 +116,14 @@ public class DoctorController {
     @Operation(summary = "Listar todas las plantillas de agenda del doctor (DOCTOR / ADMIN)")
     public ResponseEntity<List<PlantillaAgenda>> listarPlantillas(@PathVariable Long id) {
         return ResponseEntity.ok(plantillaAgendaService.listarPlantillasDoctor(id));
+    }
+
+    @DeleteMapping("/plantillas/{plantillaId}")
+    @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
+    @Operation(summary = "Eliminar una plantilla de agenda (DOCTOR / ADMIN)")
+    public ResponseEntity<Void> eliminarPlantilla(@PathVariable Long plantillaId) {
+        plantillaAgendaService.eliminarPlantilla(plantillaId);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/aplicar-plantilla")

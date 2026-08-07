@@ -38,4 +38,12 @@ public class EspecialidadController {
         Especialidad nueva = especialidadService.crearEspecialidad(especialidad);
         return ResponseEntity.status(HttpStatus.CREATED).body(nueva);
     }
+
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Eliminar una especialidad médica por su ID (Exclusivo ADMIN)")
+    public ResponseEntity<Void> eliminar(@PathVariable Long id) {
+        especialidadService.eliminarEspecialidad(id);
+        return ResponseEntity.noContent().build();
+    }
 }

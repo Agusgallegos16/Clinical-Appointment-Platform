@@ -1,5 +1,6 @@
 package com.consultorio.exception;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -52,6 +53,17 @@ public class GlobalExceptionHandler {
         respuesta.put("mensaje", ex.getMessage());
 
         return ResponseEntity.status(HttpStatus.CONFLICT).body(respuesta);
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
+        Map<String, Object> respuesta = new LinkedHashMap<>();
+        respuesta.put("timestamp", LocalDateTime.now());
+        respuesta.put("status", HttpStatus.BAD_REQUEST.value());
+        respuesta.put("error", "Restricción de integridad");
+        respuesta.put("mensaje", "No se puede eliminar el registro porque posee elementos asociados (doctores o turnos activos).");
+
+        return ResponseEntity.badRequest().body(respuesta);
     }
 
     @ExceptionHandler(BadCredentialsException.class)
