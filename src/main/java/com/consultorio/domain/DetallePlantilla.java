@@ -25,6 +25,10 @@ public class DetallePlantilla {
     @JsonIgnore
     private PlantillaAgenda plantilla;
 
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "especialidad_id")
+    private Especialidad especialidad; // Especialidad asignada a este detalle de plantilla
+
     @NotNull(message = "La hora de inicio es obligatoria")
     @Column(nullable = false)
     private LocalTime horaInicio;

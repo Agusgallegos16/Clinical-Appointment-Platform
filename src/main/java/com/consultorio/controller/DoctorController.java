@@ -1,10 +1,18 @@
 package com.consultorio.controller;
 
-import com.consultorio.domain.Doctor;
-import com.consultorio.domain.HorarioAtencion;
-import com.consultorio.domain.PlantillaAgenda;
-import com.consultorio.dto.*;
-import com.consultorio.service.*;
+import com.consultorio.domain.*;
+import com.consultorio.dto.BloqueoHorarioDTO;
+import com.consultorio.dto.AplicarPlantillaDTO;
+import com.consultorio.dto.CrearPlantillaDTO;
+import com.consultorio.dto.HorarioAtencionDTO;
+import com.consultorio.dto.RegistroDoctorDTO;
+import com.consultorio.dto.SlotDisponibilidadDTO;
+import com.consultorio.dto.TurnoResponseDTO;
+import com.consultorio.service.DisponibilidadService;
+import com.consultorio.service.DoctorService;
+import com.consultorio.service.NotificacionProgramadaService;
+import com.consultorio.service.PlantillaAgendaService;
+import com.consultorio.service.TurnoService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -21,7 +29,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/doctores")
-@Tag(name = "Doctores y Agendas", description = "Endpoints para consulta de profesionales, configuración de horarios, plantillas de agenda y disponibilidad.")
+@Tag(name = "Gestión de Médicos", description = "Endpoints para registro, consulta, horarios y disponibilidad de doctores.")
 public class DoctorController {
 
     private final DoctorService doctorService;
@@ -43,10 +51,17 @@ public class DoctorController {
         this.notificacionProgramadaService = notificacionProgramadaService;
     }
 
+    @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Registrar un nuevo médico (Exclusivo ADMIN)")
+    public ResponseEntity<Doctor> registrarDoctor(@Valid @RequestBody RegistroDoctorDTO dto) {
+        Doctor nuevoDoctor = doctorService.registrarDoctor(dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(nuevoDoctor);
+    }
+
     @GetMapping
-    @Operation(summary = "Listar médicos (opcionalmente filtrados por especialidad) (Público)")
-    public ResponseEntity<List<Doctor>> listarDoctores(
-            @RequestParam(required = false) Long especialidadId) {
+    @Operation(summary = "Listar todos los médicos o filtrar por especialidad (Público)")
+    public ResponseEntity<List<Doctor>> listarDoctores(@RequestParam(required = false) Long especialidadId) {
         if (especialidadId != null) {
             return ResponseEntity.ok(doctorService.listarPorEspecialidad(especialidadId));
         }
@@ -54,8 +69,8 @@ public class DoctorController {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Obtener perfil de un médico por su ID (Público)")
-    public ResponseEntity<Doctor> obtenerPorId(@PathVariable Long id) {
+    @Operation(summary = "Obtener el detalle de un médico por su ID (Público)")
+    public ResponseEntity<Doctor> obtenerDoctorPorId(@PathVariable Long id) {
         return ResponseEntity.ok(doctorService.obtenerPorId(id));
     }
 
@@ -86,6 +101,15 @@ public class DoctorController {
         return ResponseEntity.status(HttpStatus.CREATED).body(horario);
     }
 
+    @PutMapping("/horarios/{horarioId}")
+    @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
+    @Operation(summary = "Actualizar parámetros de una franja horaria existente (DOCTOR / ADMIN)")
+    public ResponseEntity<HorarioAtencion> actualizarHorario(
+            @PathVariable Long horarioId,
+            @Valid @RequestBody HorarioAtencionDTO dto) {
+        return ResponseEntity.ok(doctorService.actualizarHorarioAtencion(horarioId, dto));
+    }
+
     @GetMapping("/{id}/horarios")
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Obtener todos los horarios de atención configurados por un doctor (DOCTOR / ADMIN)")
@@ -98,6 +122,31 @@ public class DoctorController {
     @Operation(summary = "Eliminar un horario de atención (DOCTOR / ADMIN)")
     public ResponseEntity<Void> eliminarHorario(@PathVariable Long horarioId) {
         doctorService.eliminarHorarioAtencion(horarioId);
+        return ResponseEntity.noContent().build();
+    }
+
+    // ENDPOINTS DE BLOQUEO DE SLOTS INDIVIDUALES
+    @PostMapping("/{id}/bloquear-slot")
+    @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
+    @Operation(summary = "Deshabilitar/Bloquear un slot individual de turno para una fecha (DOCTOR / ADMIN)")
+    public ResponseEntity<BloqueoHorario> bloquearSlot(
+            @PathVariable Long id,
+            @Valid @RequestBody BloqueoHorarioDTO dto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(doctorService.bloquearSlotIndividual(id, dto));
+    }
+
+    @GetMapping("/{id}/bloqueos")
+    @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
+    @Operation(summary = "Obtener la lista de slots bloqueados por el doctor (DOCTOR / ADMIN)")
+    public ResponseEntity<List<BloqueoHorario>> obtenerBloqueos(@PathVariable Long id) {
+        return ResponseEntity.ok(doctorService.obtenerBloqueosDoctor(id));
+    }
+
+    @DeleteMapping("/bloqueos/{bloqueoId}")
+    @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
+    @Operation(summary = "Eliminar un bloqueo de slot individual (DOCTOR / ADMIN)")
+    public ResponseEntity<Void> eliminarBloqueo(@PathVariable Long bloqueoId) {
+        doctorService.eliminarBloqueoSlot(bloqueoId);
         return ResponseEntity.noContent().build();
     }
 
@@ -137,11 +186,12 @@ public class DoctorController {
     }
 
     @GetMapping("/{id}/disponibilidad")
-    @Operation(summary = "Consultar slots de horarios libres disponibles para reservar en una fecha (Público)")
+    @Operation(summary = "Consultar slots de horarios libres disponibles para reservar en una fecha y especialidad (Público)")
     public ResponseEntity<List<SlotDisponibilidadDTO>> obtenerDisponibilidad(
             @PathVariable Long id,
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {
-        return ResponseEntity.ok(disponibilidadService.obtenerHorariosDisponibles(id, fecha));
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha,
+            @RequestParam(required = false) Long especialidadId) {
+        return ResponseEntity.ok(disponibilidadService.obtenerHorariosDisponibles(id, fecha, especialidadId));
     }
 
     @GetMapping("/{id}/agenda")

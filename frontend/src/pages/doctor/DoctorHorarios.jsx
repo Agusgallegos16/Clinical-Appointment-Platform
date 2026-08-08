@@ -1,8 +1,4 @@
-import React, { useEffect, useState, useMemo, useRef } from 'react';
-import FullCalendar from '@fullcalendar/react';
-import timeGridPlugin from '@fullcalendar/timegrid';
-import dayGridPlugin from '@fullcalendar/daygrid';
-import interactionPlugin from '@fullcalendar/interaction';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -25,55 +21,87 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
-  Tabs,
-  Tab,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  TableContainer,
 } from '@mui/material';
 import {
   Add as AddIcon,
   Schedule as ScheduleIcon,
   Delete as DeleteIcon,
+  Settings as SettingsIcon,
   FolderCopy as TemplateIcon,
-  CalendarMonth as CalendarIcon,
   Info as InfoIcon,
+  ChevronLeft as ChevronLeftIcon,
+  ChevronRight as ChevronRightIcon,
+  Today as TodayIcon,
+  Block as BlockIcon,
+  Warning as WarningIcon,
+  MedicalServices as MedicalIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { doctorService } from '../../api/doctorService';
 import dayjs from 'dayjs';
 
-const diasSemana = ['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO'];
+const diasSemanaEnum = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
+const diasNombreEs = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
-const dayOfWeekToNumber = {
-  LUNES: 1,
-  MARTES: 2,
-  MIERCOLES: 3,
-  JUEVES: 4,
-  VIERNES: 5,
-  SABADO: 6,
-  DOMINGO: 0,
+// Paletas de color por especialidad
+const getSpecialtyColorPalette = (espId) => {
+  const palettes = [
+    { bg: 'linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%)', text: '#0369a1', border: '#0284c7' }, // Azul Médico
+    { bg: 'linear-gradient(135deg, #ccfbf1 0%, #99f6e4 100%)', text: '#0f766e', border: '#0d9488' }, // Teal Salud
+    { bg: 'linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%)', text: '#6b21a8', border: '#9333ea' }, // Violeta Dermatología
+    { bg: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)', text: '#92400e', border: '#d97706' }, // Ámbar Traumatología
+    { bg: 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)', text: '#166534', border: '#16a34a' }, // Verde Pediatría
+    { bg: 'linear-gradient(135deg, #ffe4e6 0%, #fecdd3 100%)', text: '#9f1239', border: '#e11d48' }, // Rosa
+  ];
+  if (!espId) return palettes[0];
+  const idx = Number(espId) % palettes.length;
+  return palettes[idx];
+};
+
+const generateTimeSlots = () => {
+  const times = [];
+  let current = dayjs().hour(7).minute(0).second(0);
+  const end = dayjs().hour(22).minute(0).second(0);
+
+  while (current.isBefore(end) || current.isSame(end)) {
+    times.push(current.format('HH:mm'));
+    current = current.add(30, 'minute');
+  }
+  return times;
 };
 
 const DoctorHorarios = () => {
   const { entidadId } = useAuth();
-  const calendarRef = useRef(null);
+  const todayStr = dayjs().format('YYYY-MM-DD');
 
+  const [doctorInfo, setDoctorInfo] = useState(null);
   const [horarios, setHorarios] = useState([]);
   const [plantillas, setPlantillas] = useState([]);
+  const [bloqueos, setBloqueos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+
+  // Pop-up modal centrado de error o advertencia
+  const [errorModal, setErrorModal] = useState('');
+  const [errorModalTitle, setErrorModalTitle] = useState('Atención');
   const [success, setSuccess] = useState('');
 
-  // Filtros
-  const [filterTab, setFilterTab] = useState(0); // 0: Todos, 1: Recurrentes, 2: Puntuales
-
-  // Rango de fechas visible en el calendario para proyectar recurrentes
-  const [currentStartStr, setCurrentStartStr] = useState(dayjs().startOf('week').format('YYYY-MM-DD'));
-  const [currentEndStr, setCurrentEndStr] = useState(dayjs().endOf('week').format('YYYY-MM-DD'));
+  // Navegación de semana (Inicio de semana actual: Domingo)
+  const [currentWeekStart, setCurrentWeekStart] = useState(dayjs().startOf('week'));
 
   // Formulario nuevo horario manual
+  const [selectedEspecialidadId, setSelectedEspecialidadId] = useState('');
   const [tipoHorario, setTipoHorario] = useState('RECURRENTE');
   const [diaSemana, setDiaSemana] = useState('LUNES');
   const [fechaPuntual, setFechaPuntual] = useState('');
+  const [fechaDesde, setFechaDesde] = useState('');
+  const [fechaHasta, setFechaHasta] = useState('');
   const [horaInicio, setHoraInicio] = useState('09:00');
   const [horaFin, setHoraFin] = useState('13:00');
   const [duracionTurno, setDuracionTurno] = useState(30);
@@ -85,23 +113,54 @@ const DoctorHorarios = () => {
   const [fechaAplicar, setFechaAplicar] = useState('');
   const [applying, setApplying] = useState(false);
 
-  // Modal para eliminar horario
+  // Modal para deshabilitar / bloquear slot individual
+  const [selectedSlotBlock, setSelectedSlotBlock] = useState(null);
+  const [blocking, setBlocking] = useState(false);
+
+  // Modal para editar / configurar franja horaria existente ⚙️
+  const [editingHorario, setEditingHorario] = useState(null);
+  const [editFormData, setEditFormData] = useState({
+    especialidadId: '',
+    diaSemana: 'LUNES',
+    fecha: '',
+    fechaDesde: '',
+    fechaHasta: '',
+    horaInicio: '09:00',
+    horaFin: '13:00',
+    duracionTurnoMinutos: 30,
+  });
+
+  // Modal para eliminar franja horaria completa
   const [selectedHorarioDelete, setSelectedHorarioDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     if (entidadId) {
+      cargarPerfilDoctor();
       cargarHorarios();
       cargarPlantillas();
+      cargarBloqueos();
     }
   }, [entidadId]);
+
+  const cargarPerfilDoctor = async () => {
+    try {
+      const doc = await doctorService.obtenerPorId(entidadId);
+      setDoctorInfo(doc);
+      if (doc.especialidades && doc.especialidades.length > 0) {
+        setSelectedEspecialidadId(doc.especialidades[0].id);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const cargarHorarios = async () => {
     try {
       const data = await doctorService.obtenerHorarios(entidadId);
       setHorarios(data);
     } catch (err) {
-      setError('Error al obtener la lista de horarios.');
+      triggerErrorModal('Error al obtener la lista de horarios.', 'Error de Carga');
     } finally {
       setLoading(false);
     }
@@ -116,65 +175,190 @@ const DoctorHorarios = () => {
     }
   };
 
-  // Mapear los horarios de backend a eventos de FullCalendar
-  const calendarEvents = useMemo(() => {
-    const events = [];
+  const cargarBloqueos = async () => {
+    try {
+      const data = await doctorService.obtenerBloqueos(entidadId);
+      setBloqueos(data);
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
-    horarios.forEach((h) => {
-      if (h.fecha) {
-        // Horario puntual en fecha específica
-        events.push({
-          id: `h-${h.id}`,
-          title: `Atención Puntual (${h.duracionTurnoMinutos}m/turno)`,
-          start: `${h.fecha}T${h.horaInicio}`,
-          end: `${h.fecha}T${h.horaFin}`,
-          backgroundColor: '#0d9488', // Teal para fecha puntual
-          borderColor: '#0f766e',
-          extendedProps: { originalData: h },
-        });
-      } else if (h.diaSemana) {
-        // Horario semanal recurrente proyectado en la semana visible del calendario
-        const targetDayNum = dayOfWeekToNumber[h.diaSemana];
-        let curr = dayjs(currentStartStr);
-        const end = dayjs(currentEndStr);
+  const triggerErrorModal = (msg, title = 'Conflicto de Horario') => {
+    setErrorModalTitle(title);
+    setErrorModal(msg);
+  };
 
-        while (curr.isBefore(end) || curr.isSame(end, 'day')) {
-          if (curr.day() === targetDayNum) {
-            const dateStr = curr.format('YYYY-MM-DD');
-            events.push({
-              id: `h-${h.id}-${dateStr}`,
-              title: `Atención Semanal (${h.duracionTurnoMinutos}m/turno)`,
-              start: `${dateStr}T${h.horaInicio}`,
-              end: `${dateStr}T${h.horaFin}`,
-              backgroundColor: '#0284c7', // Azul para recurrente
-              borderColor: '#0369a1',
-              extendedProps: { originalData: h },
+  const timeSlots = useMemo(() => generateTimeSlots(), []);
+
+  // Días de la semana visible con sus fechas reales (Domingo a Sábado)
+  const weekDaysWithDates = useMemo(() => {
+    return [0, 1, 2, 3, 4, 5, 6].map((offset) => {
+      const dateObj = currentWeekStart.add(offset, 'day');
+      return {
+        dayNum: offset,
+        enumName: diasSemanaEnum[offset],
+        nameEs: diasNombreEs[offset],
+        dateStr: dateObj.format('YYYY-MM-DD'),
+        formattedHeader: `${diasNombreEs[offset]} ${dateObj.format('DD/MM')}`,
+      };
+    });
+  }, [currentWeekStart]);
+
+  // Generar desgloses de slots individuales
+  const weekSlotsByDate = useMemo(() => {
+    const slotsMap = {};
+
+    weekDaysWithDates.forEach((dayInfo) => {
+      const { dateStr, enumName } = dayInfo;
+      slotsMap[dateStr] = [];
+
+      const fechaObj = dayjs(dateStr);
+
+      const puntualesDelDia = horarios.filter((h) => h.fecha === dateStr);
+      const semanalesDelDia = horarios.filter((h) => {
+        if (h.diaSemana !== enumName || h.fecha) return false;
+        if (h.fechaDesde && fechaObj.isBefore(dayjs(h.fechaDesde), 'day')) return false;
+        if (h.fechaHasta && fechaObj.isAfter(dayjs(h.fechaHasta), 'day')) return false;
+        return true;
+      });
+
+      const bloqueosDelDia = bloqueos.filter((b) => b.fecha === dateStr);
+
+      const desglosarFranja = (h, isPuntual) => {
+        const duracion = h.duracionTurnoMinutos > 0 ? h.duracionTurnoMinutos : 30;
+        let actual = dayjs(`${dateStr}T${h.horaInicio}`);
+        const fin = dayjs(`${dateStr}T${h.horaFin}`);
+
+        const espNombre = h.especialidad ? h.especialidad.nombre : null;
+        const espId = h.especialidad ? h.especialidad.id : null;
+        const colorPalette = getSpecialtyColorPalette(espId);
+
+        const result = [];
+        while (actual.add(duracion, 'minute').isBefore(fin) || actual.add(duracion, 'minute').isSame(fin)) {
+          const next = actual.add(duracion, 'minute');
+          const startText = actual.format('HH:mm');
+          const endText = next.format('HH:mm');
+
+          const startMinutes = actual.hour() * 60 + actual.minute();
+          const endMinutes = next.hour() * 60 + next.minute();
+
+          const estaBloqueado = bloqueosDelDia.some(
+            (b) => startText >= b.horaInicio.substring(0, 5) && startText < b.horaFin.substring(0, 5)
+          );
+
+          if (!estaBloqueado) {
+            result.push({
+              id: `slot-${h.id}-${dateStr}-${startText}`,
+              originalData: h,
+              dateStr,
+              isPuntual,
+              startText,
+              endText,
+              startMinutes,
+              endMinutes,
+              durationMinutes: duracion,
+              especialidadNombre: espNombre,
+              colorPalette,
             });
           }
-          curr = curr.add(1, 'day');
+
+          actual = next;
         }
-      }
+        return result;
+      };
+
+      puntualesDelDia.forEach((he) => {
+        slotsMap[dateStr].push(...desglosarFranja(he, true));
+      });
+
+      semanalesDelDia.forEach((hs) => {
+        const candidateSlots = desglosarFranja(hs, false);
+        candidateSlots.forEach((slot) => {
+          let superpuesto = false;
+          for (const he of puntualesDelDia) {
+            const heStartMin = dayjs(`${dateStr}T${he.horaInicio}`).hour() * 60 + dayjs(`${dateStr}T${he.horaInicio}`).minute();
+            const heEndMin = dayjs(`${dateStr}T${he.horaFin}`).hour() * 60 + dayjs(`${dateStr}T${he.horaFin}`).minute();
+
+            if (slot.startMinutes < heEndMin && slot.endMinutes > heStartMin) {
+              superpuesto = true;
+              break;
+            }
+          }
+
+          if (!superpuesto) {
+            slotsMap[dateStr].push(slot);
+          }
+        });
+      });
     });
 
-    return events;
-  }, [horarios, currentStartStr, currentEndStr]);
+    return slotsMap;
+  }, [horarios, bloqueos, weekDaysWithDates]);
 
-  const handleDatesSet = (dateInfo) => {
-    setCurrentStartStr(dayjs(dateInfo.start).format('YYYY-MM-DD'));
-    setCurrentEndStr(dayjs(dateInfo.end).format('YYYY-MM-DD'));
-  };
+  // FILTRADO Y ORDENAMIENTO DINÁMICO DE LA LISTA INFERIOR (POR DÍA Y LUEGO POR HORA DE INICIO)
+  const horariosVisiblesEnSemana = useMemo(() => {
+    const weekStart = currentWeekStart.startOf('day');
+    const weekEnd = currentWeekStart.add(6, 'day').endOf('day');
+
+    const diasOrden = {
+      DOMINGO: 0,
+      LUNES: 1,
+      MARTES: 2,
+      MIERCOLES: 3,
+      JUEVES: 4,
+      VIERNES: 5,
+      SABADO: 6,
+    };
+
+    const filtrados = horarios.filter((h) => {
+      if (h.fecha) {
+        const f = dayjs(h.fecha);
+        return (f.isAfter(weekStart) || f.isSame(weekStart, 'day')) &&
+               (f.isBefore(weekEnd) || f.isSame(weekEnd, 'day'));
+      } else if (h.diaSemana) {
+        if (h.fechaDesde && dayjs(h.fechaDesde).isAfter(weekEnd, 'day')) return false;
+        if (h.fechaHasta && dayjs(h.fechaHasta).isBefore(weekStart, 'day')) return false;
+        return true;
+      }
+      return true;
+    });
+
+    // Ordenar estrictamente por Día de la Semana y luego por Hora de Inicio
+    return filtrados.sort((a, b) => {
+      const diaA = a.fecha ? dayjs(a.fecha).day() : (diasOrden[a.diaSemana] ?? 0);
+      const diaB = b.fecha ? dayjs(b.fecha).day() : (diasOrden[b.diaSemana] ?? 0);
+
+      if (diaA !== diaB) {
+        return diaA - diaB;
+      }
+
+      return a.horaInicio.localeCompare(b.horaInicio);
+    });
+  }, [horarios, currentWeekStart]);
+
+  const totalTurnosSemana = useMemo(() => {
+    return Object.values(weekSlotsByDate).reduce((acc, arr) => acc + arr.length, 0);
+  }, [weekSlotsByDate]);
+
+  const handlePrevWeek = () => setCurrentWeekStart((prev) => prev.subtract(1, 'week'));
+  const handleNextWeek = () => setCurrentWeekStart((prev) => prev.add(1, 'week'));
+  const handleToday = () => setCurrentWeekStart(dayjs().startOf('week'));
 
   const handleGuardarHorario = async (e) => {
     e.preventDefault();
     setSaving(true);
-    setError('');
+    setErrorModal('');
     setSuccess('');
 
     try {
       const payload = {
+        especialidadId: selectedEspecialidadId ? Number(selectedEspecialidadId) : null,
         horaInicio,
         horaFin,
         duracionTurnoMinutos: Number(duracionTurno),
+        fechaDesde: fechaDesde || null,
+        fechaHasta: fechaHasta || null,
       };
 
       if (tipoHorario === 'RECURRENTE') {
@@ -185,11 +369,86 @@ const DoctorHorarios = () => {
 
       await doctorService.agregarHorario(entidadId, payload);
       setSuccess('¡Horario de atención agregado exitosamente!');
+      setFechaDesde('');
+      setFechaHasta('');
       cargarHorarios();
     } catch (err) {
-      setError(err.response?.data?.mensaje || err.response?.data?.message || 'Error al guardar el horario.');
+      const msg = err.response?.data?.mensaje || err.response?.data?.message || 'Error al guardar el horario.';
+      triggerErrorModal(msg, 'Conflicto de Horario');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleOpenEditModal = (h) => {
+    setEditingHorario(h);
+    setEditFormData({
+      especialidadId: h.especialidad ? h.especialidad.id : '',
+      diaSemana: h.diaSemana || 'LUNES',
+      fecha: h.fecha || '',
+      fechaDesde: h.fechaDesde || '',
+      fechaHasta: h.fechaHasta || '',
+      horaInicio: h.horaInicio || '09:00',
+      horaFin: h.horaFin || '13:00',
+      duracionTurnoMinutos: h.duracionTurnoMinutos || 30,
+    });
+  };
+
+  const handleSaveEditHorario = async () => {
+    if (!editingHorario) return;
+    setSaving(true);
+    setErrorModal('');
+    setSuccess('');
+
+    try {
+      const payload = {
+        especialidadId: editFormData.especialidadId ? Number(editFormData.especialidadId) : null,
+        horaInicio: editFormData.horaInicio,
+        horaFin: editFormData.horaFin,
+        duracionTurnoMinutos: Number(editFormData.duracionTurnoMinutos),
+        fechaDesde: editFormData.fechaDesde || null,
+        fechaHasta: editFormData.fechaHasta || null,
+      };
+
+      if (editingHorario.fecha) {
+        payload.fecha = editFormData.fecha;
+      } else {
+        payload.diaSemana = editFormData.diaSemana;
+      }
+
+      await doctorService.actualizarHorario(editingHorario.id, payload);
+      setSuccess('¡Franja horaria actualizada correctamente!');
+      setEditingHorario(null);
+      cargarHorarios();
+    } catch (err) {
+      const msg = err.response?.data?.mensaje || err.response?.data?.message || 'Error al actualizar la franja horaria.';
+      triggerErrorModal(msg, 'Conflicto de Horario');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleBloquearSlotIndividual = async () => {
+    if (!selectedSlotBlock) return;
+    setBlocking(true);
+    try {
+      const hStart = selectedSlotBlock.startText.length === 5 ? `${selectedSlotBlock.startText}:00` : selectedSlotBlock.startText;
+      const hEnd = selectedSlotBlock.endText.length === 5 ? `${selectedSlotBlock.endText}:00` : selectedSlotBlock.endText;
+
+      await doctorService.bloquearSlot(entidadId, {
+        fecha: selectedSlotBlock.dateStr,
+        horaInicio: hStart,
+        horaFin: hEnd,
+      });
+
+      setSuccess(`¡Turno de ${selectedSlotBlock.startText} a ${selectedSlotBlock.endText} deshabilitado para el ${dayjs(selectedSlotBlock.dateStr).format('DD/MM/YYYY')}!`);
+      setSelectedSlotBlock(null);
+      cargarBloqueos();
+    } catch (err) {
+      const msg = err.response?.data?.mensaje || err.response?.data?.message || 'No se pudo deshabilitar este turno individual.';
+      triggerErrorModal(msg, 'Deshabilitar Turno');
+    } finally {
+      setBlocking(false);
     }
   };
 
@@ -197,7 +456,7 @@ const DoctorHorarios = () => {
     e.preventDefault();
     if (!selectedPlantillaId) return;
     setApplying(true);
-    setError('');
+    setErrorModal('');
     setSuccess('');
 
     try {
@@ -212,7 +471,8 @@ const DoctorHorarios = () => {
       setSuccess('¡Plantilla aplicada correctamente! Se han actualizado tus horarios.');
       cargarHorarios();
     } catch (err) {
-      setError('Error al aplicar la plantilla.');
+      const msg = err.response?.data?.mensaje || err.response?.data?.message || 'Error al aplicar la plantilla.';
+      triggerErrorModal(msg, 'Aplicar Plantilla');
     } finally {
       setApplying(false);
     }
@@ -221,14 +481,13 @@ const DoctorHorarios = () => {
   const handleConfirmEliminarHorario = async () => {
     if (!selectedHorarioDelete) return;
     setDeleting(true);
-    setError('');
     try {
       await doctorService.eliminarHorario(selectedHorarioDelete.id);
       setSelectedHorarioDelete(null);
-      setSuccess('Horario eliminado con éxito.');
+      setSuccess('Franja horaria eliminada con éxito.');
       cargarHorarios();
     } catch (err) {
-      setError('No se pudo eliminar el horario.');
+      triggerErrorModal('No se pudo eliminar la franja horaria.', 'Eliminar Franja');
     } finally {
       setDeleting(false);
     }
@@ -236,57 +495,198 @@ const DoctorHorarios = () => {
 
   return (
     <Box>
-      <Typography variant="h4" fontWeight={700} color="primary" mb={1}>
-        Gestión de Horarios de Atención
-      </Typography>
-      <Typography variant="body1" color="text.secondary" mb={2}>
-        Navegá semana a semana por tu calendario interactivo por horas y configurá tus disponibilidades de atención.
-      </Typography>
-
-      <Alert severity="info" icon={<InfoIcon />} sx={{ mb: 3 }}>
-        <strong>Prioridad de Fechas Puntuales:</strong> Si configurás un horario puntual para una fecha específica (ej: 12/08), esa fecha tomará prioridad por sobre el horario semanal estándar. No podés guardar franjas que se superpongan en el mismo día.
-      </Alert>
-
-      {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
-      {success && <Alert severity="success" sx={{ mb: 3 }}>{success}</Alert>}
-
-      {/* CALENDARIO INTERACTIVO FULLCALENDAR POR HORAS Y NAVEGACIÓN SEMANAL */}
-      <Paper sx={{ p: 3, mb: 4, bgcolor: 'background.paper' }}>
-        <Box display="flex" alignItems="center" gap={1.5} mb={2}>
-          <CalendarIcon color="primary" sx={{ fontSize: 30 }} />
-          <Typography variant="h6" fontWeight={700} color="primary">
-            Calendario Semanal de Atención Médica
+      <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2} mb={2}>
+        <Box>
+          <Typography variant="h4" fontWeight={700} color="primary" mb={0.5}>
+            Gestión de Horarios por Especialidad
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Planilla Excel interactiva. Los colores identifican las especialidades médicas.
           </Typography>
         </Box>
 
-        <Box sx={{ '.fc': { fontFamily: 'inherit' } }}>
-          <FullCalendar
-            ref={calendarRef}
-            plugins={[timeGridPlugin, dayGridPlugin, interactionPlugin]}
-            initialView="timeGridWeek"
-            headerToolbar={{
-              left: 'prev,next today',
-              center: 'title',
-              right: 'timeGridWeek,dayGridMonth',
-            }}
-            buttonText={{
-              today: 'Hoy',
-              week: 'Semana',
-              month: 'Mes',
-            }}
-            locale="es"
-            slotMinTime="07:00:00"
-            slotMaxTime="22:00:00"
-            allDaySlot={false}
-            events={calendarEvents}
-            datesSet={handleDatesSet}
-            height="520px"
-            eventClick={(info) => {
-              const original = info.event.extendedProps.originalData;
-              if (original) setSelectedHorarioDelete(original);
-            }}
-          />
+        <Chip
+          icon={<ScheduleIcon />}
+          label={`${totalTurnosSemana} turnos activos esta semana`}
+          color="primary"
+          sx={{ fontWeight: 700, fontSize: '0.95rem', py: 2, px: 1 }}
+        />
+      </Box>
+
+      <Alert severity="info" icon={<InfoIcon />} sx={{ mb: 3 }}>
+        <strong>Especialidades en el Calendario:</strong> Configurá franjas asignando tu especialidad correspondiente. En la planilla, cada turno indicará: <em>Turno de HH:mm a HH:mm — Especialidad</em>.
+      </Alert>
+
+      {/* POP-UP DIALOG MODAL DE ALERTA PROMINENTE */}
+      <Dialog open={!!errorModal} onClose={() => setErrorModal('')} maxWidth="xs" fullWidth>
+        <DialogTitle sx={{ color: 'error.main', display: 'flex', alignItems: 'center', gap: 1, fontWeight: 700 }}>
+          <WarningIcon color="error" /> {errorModalTitle}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ color: 'text.primary', fontWeight: 500 }}>
+            {errorModal}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setErrorModal('')} variant="contained" color="error" fullWidth>
+            Entendido
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {success && <Alert severity="success" sx={{ mb: 3 }}>{success}</Alert>}
+
+      {/* PLANILLA MATRIZ ESTILO EXCEL CON COLORES POR ESPECIALIDAD */}
+      <Paper sx={{ p: 3, mb: 4, bgcolor: 'background.paper', borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.06)', overflowX: 'auto' }}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2} mb={2.5}>
+          <Box display="flex" alignItems="center" gap={1}>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<ChevronLeftIcon />}
+              onClick={handlePrevWeek}
+            >
+              Anterior
+            </Button>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<TodayIcon />}
+              onClick={handleToday}
+            >
+              Semana Actual
+            </Button>
+            <Button
+              variant="outlined"
+              size="small"
+              endIcon={<ChevronRightIcon />}
+              onClick={handleNextWeek}
+            >
+              Siguiente
+            </Button>
+          </Box>
+
+          <Typography variant="h6" fontWeight={700} color="primary">
+            Semana del {currentWeekStart.format('DD/MM/YYYY')} al {currentWeekStart.add(6, 'day').format('DD/MM/YYYY')}
+          </Typography>
         </Box>
+
+        <TableContainer sx={{ maxHeight: 650, borderRadius: 2 }}>
+          <Table stickyHeader size="small" border={1} borderColor="#cbd5e1" sx={{ borderCollapse: 'collapse', bgcolor: '#f8fafc' }}>
+            <TableHead>
+              <TableRow>
+                <TableCell sx={{ bgcolor: '#0284c7', color: '#ffffff', fontWeight: 700, width: 90, zIndex: 11, textAlign: 'center' }}>
+                  Hora
+                </TableCell>
+                {weekDaysWithDates.map((dayInfo) => (
+                  <TableCell
+                    key={dayInfo.dateStr}
+                    align="center"
+                    sx={{
+                      bgcolor: '#0284c7',
+                      color: '#ffffff',
+                      fontWeight: 700,
+                      minWidth: 155,
+                      zIndex: 11,
+                    }}
+                  >
+                    <Typography variant="subtitle2" fontWeight={700}>
+                      {dayInfo.formattedHeader}
+                    </Typography>
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+
+            <TableBody>
+              {timeSlots.map((timeStr) => {
+                const rowStartMin = parseInt(timeStr.split(':')[0], 10) * 60 + parseInt(timeStr.split(':')[1], 10);
+                const rowEndMin = rowStartMin + 30;
+
+                return (
+                  <TableRow key={timeStr} hover style={{ height: 44 }}>
+                    <TableCell sx={{ fontWeight: 700, bgcolor: '#e2e8f0', color: '#0f172a', textAlign: 'center', py: 0.5 }}>
+                      {timeStr}
+                    </TableCell>
+
+                    {weekDaysWithDates.map((dayInfo) => {
+                      const daySlots = weekSlotsByDate[dayInfo.dateStr] || [];
+
+                      const startingSlots = daySlots.filter(
+                        (s) => s.startMinutes >= rowStartMin && s.startMinutes < rowEndMin
+                      );
+
+                      const isCoveredByPrevious = daySlots.some(
+                        (s) => s.startMinutes < rowStartMin && s.endMinutes > rowStartMin
+                      );
+
+                      if (isCoveredByPrevious) return null;
+
+                      if (startingSlots.length > 0) {
+                        const maxEndMin = Math.max(...startingSlots.map((s) => s.endMinutes));
+                        const durationCovered = maxEndMin - rowStartMin;
+                        const rowSpan = Math.max(1, Math.ceil(durationCovered / 30));
+
+                        return (
+                          <TableCell
+                            key={dayInfo.dateStr}
+                            rowSpan={rowSpan}
+                            align="center"
+                            sx={{ p: 0.5, verticalAlign: 'stretch', bgcolor: '#f8fafc', height: `${rowSpan * 44}px` }}
+                          >
+                            <Box display="flex" flexDirection="column" gap={0.5} justifyContent="stretch" height="100%">
+                              {startingSlots.map((slot) => {
+                                const slotHeightRatio = slot.durationMinutes / 30;
+                                const palette = slot.colorPalette;
+
+                                return (
+                                  <Box
+                                    key={slot.id}
+                                    onClick={() => setSelectedSlotBlock(slot)}
+                                    sx={{
+                                      flex: slotHeightRatio,
+                                      minHeight: `${Math.max(28, slot.durationMinutes * 1.1)}px`,
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      textAlign: 'center',
+                                      background: palette.bg,
+                                      color: palette.text,
+                                      border: `1.5px solid ${palette.border}`,
+                                      borderRadius: 1.5,
+                                      py: 0.5,
+                                      px: 0.8,
+                                      fontSize: '0.76rem',
+                                      fontWeight: 700,
+                                      cursor: 'pointer',
+                                      boxShadow: '0 2px 5px rgba(0,0,0,0.06)',
+                                      transition: '0.15s ease-in-out',
+                                      '&:hover': {
+                                        transform: 'scale(1.02)',
+                                        boxShadow: '0 4px 12px rgba(2, 132, 199, 0.3)',
+                                      },
+                                    }}
+                                  >
+                                    Turno de {slot.startText} a {slot.endText}
+                                    {slot.especialidadNombre ? ` — ${slot.especialidadNombre}` : ''}
+                                  </Box>
+                                );
+                              })}
+                            </Box>
+                          </TableCell>
+                        );
+                      }
+
+                      return (
+                        <TableCell key={dayInfo.dateStr} align="center" sx={{ p: 0.5, height: 44, bgcolor: '#f8fafc' }} />
+                      );
+                    })}
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </TableContainer>
       </Paper>
 
       <Grid container spacing={3}>
@@ -337,7 +737,7 @@ const DoctorHorarios = () => {
                       onChange={(e) => setDiaAplicar(e.target.value)}
                       label="Día de la Semana"
                     >
-                      {diasSemana.map((d) => (
+                      {['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO'].map((d) => (
                         <MenuItem key={d} value={d}>{d}</MenuItem>
                       ))}
                     </Select>
@@ -351,6 +751,7 @@ const DoctorHorarios = () => {
                     value={fechaAplicar}
                     onChange={(e) => setFechaAplicar(e.target.value)}
                     required
+                    inputProps={{ min: todayStr }}
                     InputLabelProps={{ shrink: true }}
                   />
                 )}
@@ -369,13 +770,30 @@ const DoctorHorarios = () => {
             </Paper>
           )}
 
-          {/* Opción 2: Agregar Horario Manual */}
+          {/* Opción 2: Agregar Horario Manual con Selección de Especialidad */}
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" fontWeight={600} mb={2}>
-              Agregar Horario Manual
+              Agregar Franja Horaria Manual
             </Typography>
 
             <Box component="form" onSubmit={handleGuardarHorario}>
+              {doctorInfo?.especialidades && doctorInfo.especialidades.length > 0 && (
+                <FormControl fullWidth margin="normal">
+                  <InputLabel>Especialidad Médica</InputLabel>
+                  <Select
+                    value={selectedEspecialidadId}
+                    onChange={(e) => setSelectedEspecialidadId(e.target.value)}
+                    label="Especialidad Médica"
+                  >
+                    {doctorInfo.especialidades.map((esp) => (
+                      <MenuItem key={esp.id} value={esp.id}>
+                        {esp.nombre}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+
               <FormControl fullWidth margin="normal">
                 <InputLabel>Tipo de Configuración</InputLabel>
                 <Select
@@ -389,18 +807,45 @@ const DoctorHorarios = () => {
               </FormControl>
 
               {tipoHorario === 'RECURRENTE' ? (
-                <FormControl fullWidth margin="normal">
-                  <InputLabel>Día de la Semana</InputLabel>
-                  <Select
-                    value={diaSemana}
-                    onChange={(e) => setDiaSemana(e.target.value)}
-                    label="Día de la Semana"
-                  >
-                    {diasSemana.map((d) => (
-                      <MenuItem key={d} value={d}>{d}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                <>
+                  <FormControl fullWidth margin="normal">
+                    <InputLabel>Día de la Semana</InputLabel>
+                    <Select
+                      value={diaSemana}
+                      onChange={(e) => setDiaSemana(e.target.value)}
+                      label="Día de la Semana"
+                    >
+                      {['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO'].map((d) => (
+                        <MenuItem key={d} value={d}>{d}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+
+                  <Grid container spacing={2} sx={{ mt: 0.5 }}>
+                    <Grid item xs={6}>
+                      <TextField
+                        fullWidth
+                        label="Vigencia Desde (Opcional)"
+                        type="date"
+                        value={fechaDesde}
+                        onChange={(e) => setFechaDesde(e.target.value)}
+                        inputProps={{ min: todayStr }}
+                        InputLabelProps={{ shrink: true }}
+                      />
+                    </Grid>
+                    <Grid item xs={6}>
+                      <TextField
+                        fullWidth
+                        label="Vigencia Hasta (Opcional)"
+                        type="date"
+                        value={fechaHasta}
+                        onChange={(e) => setFechaHasta(e.target.value)}
+                        inputProps={{ min: todayStr }}
+                        InputLabelProps={{ shrink: true }}
+                      />
+                    </Grid>
+                  </Grid>
+                </>
               ) : (
                 <TextField
                   fullWidth
@@ -410,6 +855,7 @@ const DoctorHorarios = () => {
                   value={fechaPuntual}
                   onChange={(e) => setFechaPuntual(e.target.value)}
                   required
+                  inputProps={{ min: todayStr }}
                   InputLabelProps={{ shrink: true }}
                 />
               )}
@@ -458,49 +904,68 @@ const DoctorHorarios = () => {
                 disabled={saving}
                 sx={{ mt: 3 }}
               >
-                {saving ? <CircularProgress size={24} color="inherit" /> : 'Guardar Horario Manual'}
+                {saving ? <CircularProgress size={24} color="inherit" /> : 'Guardar Franja Horaria'}
               </Button>
             </Box>
           </Paper>
         </Grid>
 
-        {/* Lista de Horarios Existentes */}
+        {/* Lista de Horarios Existentes Filtrados y Ordenados por Día y Hora */}
         <Grid item xs={12} md={7}>
           <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" fontWeight={600} mb={2}>
-              Franjas Horarias Configuradas ({horarios.length})
-            </Typography>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+              <Typography variant="h6" fontWeight={600}>
+                Franjas Vigentes en esta Semana ({horariosVisiblesEnSemana.length})
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                Ordenadas por día y hora • {currentWeekStart.format('DD/MM')} al {currentWeekStart.add(6, 'day').format('DD/MM')}
+              </Typography>
+            </Box>
 
             {loading ? (
               <CircularProgress />
-            ) : horarios.length === 0 ? (
-              <Alert severity="info">No hay horarios configurados.</Alert>
+            ) : horariosVisiblesEnSemana.length === 0 ? (
+              <Alert severity="info">No hay franjas horarias vigentes configuradas para la semana visible.</Alert>
             ) : (
               <Grid container spacing={2}>
-                {horarios.map((h) => (
+                {horariosVisiblesEnSemana.map((h) => (
                   <Grid item xs={12} key={h.id}>
                     <Card variant="outlined">
                       <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
                         <Box display="flex" justifyContent="space-between" alignItems="center">
-                          <Box display="flex" alignItems="center" gap={1}>
-                            <ScheduleIcon color={h.fecha ? 'secondary' : 'primary'} />
+                          <Box display="flex" alignItems="center" gap={1.5}>
+                            <MedicalIcon color="primary" />
                             <Box>
                               <Typography fontWeight={700}>
-                                {h.diaSemana ? `Todos los ${h.diaSemana}` : `Fecha Puntual: ${h.fecha}`}
+                                {h.especialidad ? h.especialidad.nombre : 'General'} — {h.diaSemana ? `Todos los ${h.diaSemana}` : `Fecha Puntual: ${h.fecha}`}
                               </Typography>
-                              <Typography variant="caption" color="text.secondary">
+                              <Typography variant="caption" color="text.secondary" display="block">
                                 {h.horaInicio} hs a {h.horaFin} hs ({h.duracionTurnoMinutos} min/turno)
                               </Typography>
+                              {(h.fechaDesde || h.fechaHasta) && (
+                                <Typography variant="caption" color="primary.main" fontWeight={600}>
+                                  📅 Vigencia: {h.fechaDesde || 'Inicio'} ➔ {h.fechaHasta || 'Indefinido'}
+                                </Typography>
+                              )}
                             </Box>
                           </Box>
 
-                          <IconButton
-                            color="error"
-                            onClick={() => setSelectedHorarioDelete(h)}
-                            title="Eliminar este horario"
-                          >
-                            <DeleteIcon />
-                          </IconButton>
+                          <Box display="flex" gap={0.5}>
+                            <IconButton
+                              color="primary"
+                              onClick={() => handleOpenEditModal(h)}
+                              title="Configurar / Editar Franja ⚙️"
+                            >
+                              <SettingsIcon />
+                            </IconButton>
+                            <IconButton
+                              color="error"
+                              onClick={() => setSelectedHorarioDelete(h)}
+                              title="Eliminar Franja Completa"
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                          </Box>
                         </Box>
                       </CardContent>
                     </Card>
@@ -512,18 +977,125 @@ const DoctorHorarios = () => {
         </Grid>
       </Grid>
 
-      {/* Modal Confirmar Eliminación */}
-      <Dialog open={!!selectedHorarioDelete} onClose={() => setSelectedHorarioDelete(null)}>
-        <DialogTitle>¿Eliminar este horario de atención?</DialogTitle>
+      {/* Modal Deshabilitar / Bloquear Slot Individual */}
+      <Dialog open={!!selectedSlotBlock} onClose={() => setSelectedSlotBlock(null)}>
+        <DialogTitle>¿Deshabilitar este turno individual?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Vas a borrar la franja horaria ({selectedHorarioDelete?.diaSemana || selectedHorarioDelete?.fecha}: {selectedHorarioDelete?.horaInicio} hs - {selectedHorarioDelete?.horaFin} hs). Esta acción eliminará los slots disponibles para esa franja.
+            Vas a deshabilitar el turno de <strong>{selectedSlotBlock?.especialidadNombre || 'General'}</strong> del día <strong>{dayjs(selectedSlotBlock?.dateStr).format('DD/MM/YYYY')}</strong> de <strong>{selectedSlotBlock?.startText} hs a {selectedSlotBlock?.endText} hs</strong>. Este slot no estará disponible para reserva del paciente.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSelectedSlotBlock(null)}>Cancelar</Button>
+          <Button onClick={handleBloquearSlotIndividual} color="warning" variant="contained" disabled={blocking} startIcon={<BlockIcon />}>
+            {blocking ? <CircularProgress size={20} color="inherit" /> : 'Deshabilitar Turno'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Modal Configurar / Editar Franja Horaria ⚙️ */}
+      <Dialog open={!!editingHorario} onClose={() => setEditingHorario(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>Configurar Parámetros de la Franja Horaria ⚙️</DialogTitle>
+        <DialogContent dividers>
+          <Grid container spacing={2}>
+            {doctorInfo?.especialidades && doctorInfo.especialidades.length > 0 && (
+              <Grid item xs={12}>
+                <FormControl fullWidth>
+                  <InputLabel>Especialidad Médica</InputLabel>
+                  <Select
+                    value={editFormData.especialidadId}
+                    onChange={(e) => setEditFormData({ ...editFormData, especialidadId: e.target.value })}
+                    label="Especialidad Médica"
+                  >
+                    {doctorInfo.especialidades.map((esp) => (
+                      <MenuItem key={esp.id} value={esp.id}>
+                        {esp.nombre}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+            )}
+
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Hora Inicio"
+                type="time"
+                value={editFormData.horaInicio}
+                onChange={(e) => setEditFormData({ ...editFormData, horaInicio: e.target.value })}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+            <Grid item xs={6}>
+              <TextField
+                fullWidth
+                label="Hora Fin"
+                type="time"
+                value={editFormData.horaFin}
+                onChange={(e) => setEditFormData({ ...editFormData, horaFin: e.target.value })}
+                InputLabelProps={{ shrink: true }}
+              />
+            </Grid>
+
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Duración de Turno (Minutos)"
+                type="number"
+                value={editFormData.duracionTurnoMinutos}
+                onChange={(e) => setEditFormData({ ...editFormData, duracionTurnoMinutos: e.target.value })}
+              />
+            </Grid>
+
+            {!editingHorario?.fecha && (
+              <>
+                <Grid item xs={6}>
+                  <TextField
+                    fullWidth
+                    label="Vigencia Desde (Opcional)"
+                    type="date"
+                    value={editFormData.fechaDesde}
+                    onChange={(e) => setEditFormData({ ...editFormData, fechaDesde: e.target.value })}
+                    inputProps={{ min: todayStr }}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+                <Grid item xs={6}>
+                  <TextField
+                    fullWidth
+                    label="Vigencia Hasta (Opcional)"
+                    type="date"
+                    value={editFormData.fechaHasta}
+                    onChange={(e) => setEditFormData({ ...editFormData, fechaHasta: e.target.value })}
+                    inputProps={{ min: todayStr }}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+              </>
+            )}
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditingHorario(null)}>Cancelar</Button>
+          <Button onClick={handleSaveEditHorario} variant="contained" disabled={saving}>
+            {saving ? <CircularProgress size={20} color="inherit" /> : 'Guardar Configuración'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Modal Confirmar Eliminación de Franja Completa */}
+      <Dialog open={!!selectedHorarioDelete} onClose={() => setSelectedHorarioDelete(null)}>
+        <DialogTitle>¿Eliminar esta franja horaria completa?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Vas a borrar toda la franja de <strong>{selectedHorarioDelete?.especialidad ? selectedHorarioDelete.especialidad.nombre : 'General'}</strong> ({selectedHorarioDelete?.diaSemana || selectedHorarioDelete?.fecha}: {selectedHorarioDelete?.horaInicio} hs - {selectedHorarioDelete?.horaFin} hs).
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setSelectedHorarioDelete(null)}>Cancelar</Button>
           <Button onClick={handleConfirmEliminarHorario} color="error" variant="contained" disabled={deleting}>
-            {deleting ? <CircularProgress size={20} color="inherit" /> : 'Sí, Eliminar'}
+            {deleting ? <CircularProgress size={20} color="inherit" /> : 'Sí, Eliminar Franja'}
           </Button>
         </DialogActions>
       </Dialog>

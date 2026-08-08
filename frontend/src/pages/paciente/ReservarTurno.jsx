@@ -86,17 +86,17 @@ const ReservarTurno = () => {
   const handleSelectDoctor = async (doctor) => {
     setSelectedDoctor(doctor);
     setActiveStep(2);
-    cargarDisponibilidad(doctor.id, selectedFecha);
+    cargarDisponibilidad(doctor.id, selectedFecha, selectedEspecialidad?.id);
   };
 
-  const cargarDisponibilidad = async (doctorId, fechaStr) => {
+  const cargarDisponibilidad = async (doctorId, fechaStr, especialidadId) => {
     setLoading(true);
     setError('');
     setSelectedSlot(null);
     try {
-      const data = await doctorService.obtenerDisponibilidad(doctorId, fechaStr);
+      const targetEspId = especialidadId || selectedEspecialidad?.id;
+      const data = await doctorService.obtenerDisponibilidad(doctorId, fechaStr, targetEspId);
 
-      // FIX BUG 5 & 6: El backend devuelve `s.hora` (LocalTime ej "09:00"). Mapear correctamente a `fechaHora` (LocalDateTime string)
       const slotsConFechaHora = data
         .filter((s) => s.disponible)
         .map((s) => {
@@ -123,7 +123,7 @@ const ReservarTurno = () => {
     const nuevaFecha = e.target.value;
     setSelectedFecha(nuevaFecha);
     if (selectedDoctor) {
-      cargarDisponibilidad(selectedDoctor.id, nuevaFecha);
+      cargarDisponibilidad(selectedDoctor.id, nuevaFecha, selectedEspecialidad?.id);
     }
   };
 
@@ -242,9 +242,6 @@ const ReservarTurno = () => {
                           <Typography variant="subtitle1" fontWeight={700}>
                             Dr/a. {doc.nombre} {doc.apellido}
                           </Typography>
-                          <Typography variant="caption" color="text.secondary" display="block">
-                            Matrícula: {doc.matricula}
-                          </Typography>
                         </Box>
                       </Box>
                     </CardContent>
@@ -256,12 +253,12 @@ const ReservarTurno = () => {
         </Box>
       )}
 
-      {/* PASO 2: Calendario Interactivo y Selección de Horario Libre */}
+      {/* PASO 2: Calendario Interactivo y Selección de Horario Libre por Especialidad */}
       {activeStep === 2 && (
         <Box>
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
             <Typography variant="h6" fontWeight={600}>
-              Elegí Fecha y Horario Disponible (Dr/a. {selectedDoctor?.nombre} {selectedDoctor?.apellido})
+              Elegí Fecha y Horario Disponible (Dr/a. {selectedDoctor?.nombre} {selectedDoctor?.apellido} — {selectedEspecialidad?.nombre})
             </Typography>
             <Button size="small" onClick={() => setActiveStep(1)}>
               Cambiar Doctor
@@ -282,25 +279,25 @@ const ReservarTurno = () => {
               </Grid>
               <Grid item xs={12} sm={6}>
                 <Typography variant="body2" color="text.secondary">
-                  📅 Mostrando disponibilidades para el <strong>{dayjs(selectedFecha).format('DD/MM/YYYY')}</strong>
+                  📅 Mostrando disponibilidades para <strong>{selectedEspecialidad?.nombre}</strong> el <strong>{dayjs(selectedFecha).format('DD/MM/YYYY')}</strong>
                 </Typography>
               </Grid>
             </Grid>
           </Paper>
 
-          {/* Matriz Visual de Slots Disponibles (Calendario Interactivo de Selección) */}
+          {/* Matriz Visual de Slots Disponibles */}
           <Paper sx={{ p: 3, mb: 3 }}>
             <Box display="flex" alignItems="center" gap={1} mb={2}>
               <TimeIcon color="primary" />
               <Typography variant="subtitle1" fontWeight={700}>
-                Horarios Libres Confirmados
+                Horarios Libres Confirmados para {selectedEspecialidad?.nombre}
               </Typography>
             </Box>
 
             {loading ? (
               <Box display="flex" justifyContent="center" py={4}><CircularProgress /></Box>
             ) : slotsDisponibles.length === 0 ? (
-              <Alert severity="info">El profesional no posee turnos libres configurados para la fecha seleccionada. Probá con otra fecha.</Alert>
+              <Alert severity="info">El profesional no posee turnos libres de {selectedEspecialidad?.nombre} configurados para la fecha seleccionada. Probá con otra fecha.</Alert>
             ) : (
               <Grid container spacing={1.5} mb={2}>
                 {slotsDisponibles.map((slot, index) => {
@@ -348,7 +345,7 @@ const ReservarTurno = () => {
 
           <Paper sx={{ p: 3, mb: 3 }}>
             <Typography variant="subtitle1" fontWeight={700} color="primary" gutterBottom>
-              {selectedEspecialidad?.nombre}
+              Especialidad: {selectedEspecialidad?.nombre}
             </Typography>
             <Divider sx={{ my: 1.5 }} />
             <Typography variant="body1" mb={1}>

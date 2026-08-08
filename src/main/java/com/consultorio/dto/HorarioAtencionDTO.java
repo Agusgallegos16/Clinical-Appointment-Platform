@@ -9,8 +9,11 @@ import java.time.LocalTime;
 
 @Data
 public class HorarioAtencionDTO {
-    private DiaSemana diaSemana; // Opcional: para horario semanal recurrente (ej. LUNES)
-    private LocalDate fecha;     // Opcional: para fecha concreta puntual (ej. 2026-08-10)
+    private Long especialidadId;
+    private DiaSemana diaSemana;
+    private LocalDate fecha;
+    private LocalDate fechaDesde;
+    private LocalDate fechaHasta;
 
     @NotNull(message = "La hora de inicio es obligatoria")
     private LocalTime horaInicio;

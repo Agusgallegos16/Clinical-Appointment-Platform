@@ -22,8 +22,12 @@ export const doctorService = {
     return response.data;
   },
 
-  obtenerDisponibilidad: async (id, fechaStr) => {
-    const response = await axiosClient.get(`/doctores/${id}/disponibilidad?fecha=${fechaStr}`);
+  obtenerDisponibilidad: async (id, fechaStr, especialidadId = null) => {
+    let url = `/doctores/${id}/disponibilidad?fecha=${fechaStr}`;
+    if (especialidadId) {
+      url += `&especialidadId=${especialidadId}`;
+    }
+    const response = await axiosClient.get(url);
     return response.data;
   },
 
@@ -37,6 +41,11 @@ export const doctorService = {
     return response.data;
   },
 
+  actualizarHorario: async (horarioId, horarioData) => {
+    const response = await axiosClient.put(`/doctores/horarios/${horarioId}`, horarioData);
+    return response.data;
+  },
+
   obtenerHorarios: async (id) => {
     const response = await axiosClient.get(`/doctores/${id}/horarios`);
     return response.data;
@@ -44,6 +53,21 @@ export const doctorService = {
 
   eliminarHorario: async (horarioId) => {
     const response = await axiosClient.delete(`/doctores/horarios/${horarioId}`);
+    return response.data;
+  },
+
+  bloquearSlot: async (doctorId, slotData) => {
+    const response = await axiosClient.post(`/doctores/${doctorId}/bloquear-slot`, slotData);
+    return response.data;
+  },
+
+  obtenerBloqueos: async (doctorId) => {
+    const response = await axiosClient.get(`/doctores/${doctorId}/bloqueos`);
+    return response.data;
+  },
+
+  eliminarBloqueo: async (bloqueoId) => {
+    const response = await axiosClient.delete(`/doctores/bloqueos/${bloqueoId}`);
     return response.data;
   },
 

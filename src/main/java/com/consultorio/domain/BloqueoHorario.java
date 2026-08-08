@@ -9,13 +9,13 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 
 @Entity
-@Table(name = "horarios_atencion")
+@Table(name = "bloqueos_horario")
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class HorarioAtencion {
+public class BloqueoHorario {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -26,18 +26,9 @@ public class HorarioAtencion {
     @JsonIgnore
     private Doctor doctor;
 
-    @ManyToOne(fetch = FetchType.EAGER)
-    @JoinColumn(name = "especialidad_id")
-    private Especialidad especialidad; // Especialidad asignada a este horario
-
-    @Enumerated(EnumType.STRING)
-    private DiaSemana diaSemana; // Opcional: para días semanales recurrentes (ej. LUNES)
-
-    private LocalDate fecha; // Opcional: para una fecha puntual en particular (ej. 2026-08-20)
-
-    private LocalDate fechaDesde; // Opcional: inicio de vigencia de la franja
-
-    private LocalDate fechaHasta; // Opcional: fin de vigencia de la franja
+    @NotNull(message = "La fecha es obligatoria")
+    @Column(nullable = false)
+    private LocalDate fecha;
 
     @NotNull(message = "La hora de inicio es obligatoria")
     @Column(nullable = false)
@@ -46,8 +37,4 @@ public class HorarioAtencion {
     @NotNull(message = "La hora de fin es obligatoria")
     @Column(nullable = false)
     private LocalTime horaFin;
-
-    @Builder.Default
-    @Column(nullable = false)
-    private int duracionTurnoMinutos = 30;
 }

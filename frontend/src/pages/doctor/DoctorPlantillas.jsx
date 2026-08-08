@@ -18,6 +18,10 @@ import {
   DialogContentText,
   DialogActions,
   Divider,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -28,9 +32,13 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { doctorService } from '../../api/doctorService';
+import dayjs from 'dayjs';
 
 const DoctorPlantillas = () => {
   const { entidadId } = useAuth();
+  const todayStr = dayjs().format('YYYY-MM-DD');
+
+  const [doctorInfo, setDoctorInfo] = useState(null);
   const [plantillas, setPlantillas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -40,8 +48,8 @@ const DoctorPlantillas = () => {
   const [nombre, setNombre] = useState('');
   const [descripcion, setDescripcion] = useState('');
   const [detalles, setDetalles] = useState([
-    { horaInicio: '08:00', horaFin: '12:00', duracionTurnoMinutos: 30 },
-    { horaInicio: '14:00', horaFin: '18:00', duracionTurnoMinutos: 30 },
+    { especialidadId: '', horaInicio: '08:00', horaFin: '12:00', duracionTurnoMinutos: 30 },
+    { especialidadId: '', horaInicio: '14:00', horaFin: '18:00', duracionTurnoMinutos: 30 },
   ]);
   const [saving, setSaving] = useState(false);
 
@@ -55,8 +63,27 @@ const DoctorPlantillas = () => {
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    if (entidadId) cargarPlantillas();
+    if (entidadId) {
+      cargarPerfilDoctor();
+      cargarPlantillas();
+    }
   }, [entidadId]);
+
+  const cargarPerfilDoctor = async () => {
+    try {
+      const doc = await doctorService.obtenerPorId(entidadId);
+      setDoctorInfo(doc);
+      if (doc.especialidades && doc.especialidades.length > 0) {
+        const defaultEspId = doc.especialidades[0].id;
+        setDetalles([
+          { especialidadId: defaultEspId, horaInicio: '08:00', horaFin: '12:00', duracionTurnoMinutos: 30 },
+          { especialidadId: defaultEspId, horaInicio: '14:00', horaFin: '18:00', duracionTurnoMinutos: 30 },
+        ]);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const cargarPlantillas = async () => {
     try {
@@ -71,9 +98,10 @@ const DoctorPlantillas = () => {
 
   // Agregar nueva franja dinámica
   const handleAgregarFranja = () => {
+    const defaultEspId = doctorInfo?.especialidades?.[0]?.id || '';
     setDetalles([
       ...detalles,
-      { horaInicio: '18:00', horaFin: '20:00', duracionTurnoMinutos: 30 },
+      { especialidadId: defaultEspId, horaInicio: '18:00', horaFin: '20:00', duracionTurnoMinutos: 30 },
     ]);
   };
 
@@ -88,7 +116,6 @@ const DoctorPlantillas = () => {
 
   // Validar superposición de franjas horarias
   const validarSuperposicion = (franjas) => {
-    // Ordenar por hora inicio
     const ordenadas = [...franjas].sort((a, b) => a.horaInicio.localeCompare(b.horaInicio));
 
     for (let i = 0; i < ordenadas.length; i++) {
@@ -112,7 +139,6 @@ const DoctorPlantillas = () => {
     setError('');
     setSuccess('');
 
-    // Validar superposiciones
     const errorSuperposicion = validarSuperposicion(detalles);
     if (errorSuperposicion) {
       setError(errorSuperposicion);
@@ -122,18 +148,26 @@ const DoctorPlantillas = () => {
     setSaving(true);
 
     try {
+      const payloadDetalles = detalles.map((d) => ({
+        especialidadId: d.especialidadId ? Number(d.especialidadId) : null,
+        horaInicio: d.horaInicio,
+        horaFin: d.horaFin,
+        duracionTurnoMinutos: Number(d.duracionTurnoMinutos),
+      }));
+
       await doctorService.crearPlantilla(entidadId, {
         nombre,
         descripcion,
-        detalles,
+        detalles: payloadDetalles,
       });
 
       setSuccess(`¡Plantilla "${nombre}" creada con éxito!`);
       setNombre('');
       setDescripcion('');
+      const defaultEspId = doctorInfo?.especialidades?.[0]?.id || '';
       setDetalles([
-        { horaInicio: '08:00', horaFin: '12:00', duracionTurnoMinutos: 30 },
-        { horaInicio: '14:00', horaFin: '18:00', duracionTurnoMinutos: 30 },
+        { especialidadId: defaultEspId, horaInicio: '08:00', horaFin: '12:00', duracionTurnoMinutos: 30 },
+        { especialidadId: defaultEspId, horaInicio: '14:00', horaFin: '18:00', duracionTurnoMinutos: 30 },
       ]);
       cargarPlantillas();
     } catch (err) {
@@ -155,7 +189,7 @@ const DoctorPlantillas = () => {
         fecha: fechaAplicar,
       });
 
-      setSuccess(`¡Plantilla "${selectedPlantillaApply.nombre}" aplicada con éxito para el día ${fechaAplicar}!`);
+      setSuccess(`¡Plantilla "${selectedPlantillaApply.nombre}" aplicada con éxito para el día ${dayjs(fechaAplicar).format('DD/MM/YYYY')}!`);
       setSelectedPlantillaApply(null);
       setFechaAplicar('');
     } catch (err) {
@@ -187,7 +221,7 @@ const DoctorPlantillas = () => {
         Plantillas de Agenda Personalizables
       </Typography>
       <Typography variant="body1" color="text.secondary" mb={3}>
-        Diseñá estructuras de jornada con múltiples franjas horarias sin superposición y aplicalas en 1 clic.
+        Diseñá estructuras de jornada especificando la especialidad correspondiente para cada franja horaria.
       </Typography>
 
       {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
@@ -208,7 +242,7 @@ const DoctorPlantillas = () => {
                 label="Nombre de la Plantilla"
                 value={nombre}
                 onChange={(e) => setNombre(e.target.value)}
-                placeholder="Ej: Jornada Completa con Prácticas"
+                placeholder="Ej: Jornada Completa por Especialidades"
                 required
               />
 
@@ -218,7 +252,7 @@ const DoctorPlantillas = () => {
                 label="Descripción"
                 value={descripcion}
                 onChange={(e) => setDescripcion(e.target.value)}
-                placeholder="Ej: Mañana 15m, Tarde 30m, Vespertino 45m"
+                placeholder="Ej: Mañana Cardiología 30m, Tarde Pediatría 30m"
               />
 
               <Box display="flex" justifyContent="space-between" alignItems="center" mt={2} mb={1}>
@@ -247,6 +281,27 @@ const DoctorPlantillas = () => {
                       </IconButton>
                     )}
                   </Box>
+
+                  {doctorInfo?.especialidades && doctorInfo.especialidades.length > 0 && (
+                    <FormControl fullWidth size="small" sx={{ mb: 1.5 }}>
+                      <InputLabel>Especialidad Médica</InputLabel>
+                      <Select
+                        value={d.especialidadId}
+                        onChange={(e) => {
+                          const updated = [...detalles];
+                          updated[idx].especialidadId = e.target.value;
+                          setDetalles(updated);
+                        }}
+                        label="Especialidad Médica"
+                      >
+                        {doctorInfo.especialidades.map((esp) => (
+                          <MenuItem key={esp.id} value={esp.id}>
+                            {esp.nombre}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  )}
 
                   <Grid container spacing={1.5}>
                     <Grid item xs={4}>
@@ -312,7 +367,7 @@ const DoctorPlantillas = () => {
           </Paper>
         </Grid>
 
-        {/* Lista de Plantillas Guardadas con Opción de Eliminar */}
+        {/* Lista de Plantillas Guardadas con Especialidad */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" fontWeight={600} mb={2}>
@@ -364,10 +419,11 @@ const DoctorPlantillas = () => {
                           {p.detalles?.map((d, idx) => (
                             <Chip
                               key={idx}
-                              label={`${d.horaInicio} - ${d.horaFin} (${d.duracionTurnoMinutos}m)`}
+                              label={`${d.especialidad ? d.especialidad.nombre + ': ' : ''}${d.horaInicio} - ${d.horaFin} (${d.duracionTurnoMinutos}m)`}
                               size="small"
                               variant="outlined"
                               color="primary"
+                              sx={{ fontWeight: 600 }}
                             />
                           ))}
                         </Box>
@@ -394,6 +450,7 @@ const DoctorPlantillas = () => {
             label="Fecha de Aplicación"
             value={fechaAplicar}
             onChange={(e) => setFechaAplicar(e.target.value)}
+            inputProps={{ min: todayStr }}
             InputLabelProps={{ shrink: true }}
           />
         </DialogContent>

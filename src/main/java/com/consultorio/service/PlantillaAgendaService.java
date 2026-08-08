@@ -5,6 +5,7 @@ import com.consultorio.dto.AplicarPlantillaDTO;
 import com.consultorio.dto.CrearPlantillaDTO;
 import com.consultorio.dto.DetallePlantillaDTO;
 import com.consultorio.repository.DoctorRepository;
+import com.consultorio.repository.EspecialidadRepository;
 import com.consultorio.repository.HorarioAtencionRepository;
 import com.consultorio.repository.PlantillaAgendaRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,14 +20,17 @@ public class PlantillaAgendaService {
 
     private final PlantillaAgendaRepository plantillaAgendaRepository;
     private final DoctorRepository doctorRepository;
+    private final EspecialidadRepository especialidadRepository;
     private final HorarioAtencionRepository horarioAtencionRepository;
 
     @Autowired
     public PlantillaAgendaService(PlantillaAgendaRepository plantillaAgendaRepository,
                                   DoctorRepository doctorRepository,
+                                  EspecialidadRepository especialidadRepository,
                                   HorarioAtencionRepository horarioAtencionRepository) {
         this.plantillaAgendaRepository = plantillaAgendaRepository;
         this.doctorRepository = doctorRepository;
+        this.especialidadRepository = especialidadRepository;
         this.horarioAtencionRepository = horarioAtencionRepository;
     }
 
@@ -43,8 +47,14 @@ public class PlantillaAgendaService {
 
         List<DetallePlantilla> detalles = new ArrayList<>();
         for (DetallePlantillaDTO dDto : dto.getDetalles()) {
+            Especialidad especialidad = null;
+            if (dDto.getEspecialidadId() != null) {
+                especialidad = especialidadRepository.findById(dDto.getEspecialidadId()).orElse(null);
+            }
+
             detalles.add(DetallePlantilla.builder()
                     .plantilla(plantilla)
+                    .especialidad(especialidad)
                     .horaInicio(dDto.getHoraInicio())
                     .horaFin(dDto.getHoraFin())
                     .duracionTurnoMinutos(dDto.getDuracionTurnoMinutos() > 0 ? dDto.getDuracionTurnoMinutos() : 30)
@@ -82,6 +92,7 @@ public class PlantillaAgendaService {
         for (DetallePlantilla detalle : plantilla.getDetalles()) {
             HorarioAtencion h = HorarioAtencion.builder()
                     .doctor(doctor)
+                    .especialidad(detalle.getEspecialidad())
                     .diaSemana(dto.getDiaSemana())
                     .fecha(dto.getFecha())
                     .horaInicio(detalle.getHoraInicio())
