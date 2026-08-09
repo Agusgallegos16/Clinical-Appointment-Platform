@@ -38,6 +38,8 @@ const ReservarTurno = () => {
   const { entidadId } = useAuth();
   const navigate = useNavigate();
 
+  const todayStr = dayjs().format('YYYY-MM-DD');
+
   // Estados de datos
   const [especialidades, setEspecialidades] = useState([]);
   const [doctores, setDoctores] = useState([]);
@@ -46,7 +48,7 @@ const ReservarTurno = () => {
   // Selecciones del usuario
   const [selectedEspecialidad, setSelectedEspecialidad] = useState(null);
   const [selectedDoctor, setSelectedDoctor] = useState(null);
-  const [selectedFecha, setSelectedFecha] = useState(dayjs().format('YYYY-MM-DD'));
+  const [selectedFecha, setSelectedFecha] = useState(todayStr);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [motivoConsulta, setMotivoConsulta] = useState('');
 
@@ -97,6 +99,9 @@ const ReservarTurno = () => {
       const targetEspId = especialidadId || selectedEspecialidad?.id;
       const data = await doctorService.obtenerDisponibilidad(doctorId, fechaStr, targetEspId);
 
+      const now = dayjs();
+      const isToday = fechaStr === todayStr;
+
       const slotsConFechaHora = data
         .filter((s) => s.disponible)
         .map((s) => {
@@ -104,11 +109,21 @@ const ReservarTurno = () => {
             ? (s.hora.length === 5 ? `${s.hora}:00` : s.hora)
             : `${String(s.hora[0]).padStart(2, '0')}:${String(s.hora[1]).padStart(2, '0')}:00`;
 
+          const slotDateTime = dayjs(`${fechaStr}T${horaFormateada}`);
+
           return {
             ...s,
             horaTexto: horaFormateada.substring(0, 5),
             fechaHoraIso: `${fechaStr}T${horaFormateada}`,
+            slotDateTime,
           };
+        })
+        .filter((s) => {
+          // Si la fecha elegida es el día de hoy, filtrar los slots cuyas horas ya transcurrieron
+          if (isToday) {
+            return s.slotDateTime.isAfter(now);
+          }
+          return true;
         });
 
       setSlotsDisponibles(slotsConFechaHora);
@@ -121,6 +136,12 @@ const ReservarTurno = () => {
 
   const handleFechaChange = (e) => {
     const nuevaFecha = e.target.value;
+    // Impedir seleccionar fechas pasadas
+    if (dayjs(nuevaFecha).isBefore(dayjs(todayStr), 'day')) {
+      setError('No podés seleccionar una fecha anterior a la actual.');
+      return;
+    }
+    setError('');
     setSelectedFecha(nuevaFecha);
     if (selectedDoctor) {
       cargarDisponibilidad(selectedDoctor.id, nuevaFecha, selectedEspecialidad?.id);
@@ -274,6 +295,7 @@ const ReservarTurno = () => {
                   type="date"
                   value={selectedFecha}
                   onChange={handleFechaChange}
+                  inputProps={{ min: todayStr }}
                   InputLabelProps={{ shrink: true }}
                 />
               </Grid>

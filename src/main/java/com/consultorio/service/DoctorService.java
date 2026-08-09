@@ -1,7 +1,6 @@
 package com.consultorio.service;
 
 import com.consultorio.domain.*;
-import com.consultorio.dto.BloqueoHorarioDTO;
 import com.consultorio.dto.HorarioAtencionDTO;
 import com.consultorio.dto.RegistroDoctorDTO;
 import com.consultorio.repository.*;
@@ -13,7 +12,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class DoctorService {
@@ -22,7 +23,7 @@ public class DoctorService {
     private final EspecialidadRepository especialidadRepository;
     private final UsuarioRepository usuarioRepository;
     private final HorarioAtencionRepository horarioAtencionRepository;
-    private final BloqueoHorarioRepository bloqueoHorarioRepository;
+    private final SlotHorarioRepository slotHorarioRepository;
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
 
@@ -31,14 +32,14 @@ public class DoctorService {
                          EspecialidadRepository especialidadRepository,
                          UsuarioRepository usuarioRepository,
                          HorarioAtencionRepository horarioAtencionRepository,
-                         BloqueoHorarioRepository bloqueoHorarioRepository,
+                         SlotHorarioRepository slotHorarioRepository,
                          EmailService emailService,
                          PasswordEncoder passwordEncoder) {
         this.doctorRepository = doctorRepository;
         this.especialidadRepository = especialidadRepository;
         this.usuarioRepository = usuarioRepository;
         this.horarioAtencionRepository = horarioAtencionRepository;
-        this.bloqueoHorarioRepository = bloqueoHorarioRepository;
+        this.slotHorarioRepository = slotHorarioRepository;
         this.emailService = emailService;
         this.passwordEncoder = passwordEncoder;
     }
@@ -60,7 +61,7 @@ public class DoctorService {
 
         var especialidades = (dto.getEspecialidadIds() != null && !dto.getEspecialidadIds().isEmpty())
                 ? especialidadRepository.findAllById(dto.getEspecialidadIds())
-                : List.<com.consultorio.domain.Especialidad>of();
+                : List.<Especialidad>of();
 
         Doctor doctor = Doctor.builder()
                 .usuario(usuario)
@@ -119,16 +120,14 @@ public class DoctorService {
     @Transactional
     public HorarioAtencion agregarHorarioAtencion(Long doctorId, HorarioAtencionDTO dto) {
         Doctor doctor = obtenerPorId(doctorId);
-
         LocalDate hoy = LocalDate.now();
 
-        // VALIDACIÓN DE FECHAS PASADAS
         if (dto.getFecha() != null && dto.getFecha().isBefore(hoy)) {
             throw new IllegalArgumentException("No se pueden configurar horarios para fechas pasadas.");
         }
 
         if (dto.getFechaHasta() != null && dto.getFechaHasta().isBefore(hoy)) {
-            throw new IllegalArgumentException("La fecha límite de vigencia (fecha hasta) no puede ser anterior a la fecha actual.");
+            throw new IllegalArgumentException("La fecha límite de vigencia no puede ser anterior a la fecha actual.");
         }
 
         if (dto.getDiaSemana() == null && dto.getFecha() == null) {
@@ -139,13 +138,12 @@ public class DoctorService {
             throw new IllegalArgumentException("La hora de inicio debe ser anterior a la hora de fin.");
         }
 
-        // VALIDACIÓN DE SUPERPOSICIÓN STRICTA
-        validarSuperposicionHorarios(doctorId, dto, null);
-
         Especialidad especialidad = null;
         if (dto.getEspecialidadId() != null) {
             especialidad = especialidadRepository.findById(dto.getEspecialidadId()).orElse(null);
         }
+
+        int duracion = dto.getDuracionTurnoMinutos() > 0 ? dto.getDuracionTurnoMinutos() : 30;
 
         HorarioAtencion horario = HorarioAtencion.builder()
                 .doctor(doctor)
@@ -156,10 +154,19 @@ public class DoctorService {
                 .fechaHasta(dto.getFechaHasta())
                 .horaInicio(dto.getHoraInicio())
                 .horaFin(dto.getHoraFin())
-                .duracionTurnoMinutos(dto.getDuracionTurnoMinutos() > 0 ? dto.getDuracionTurnoMinutos() : 30)
+                .duracionTurnoMinutos(duracion)
                 .build();
 
-        return horarioAtencionRepository.save(horario);
+        HorarioAtencion guardado = horarioAtencionRepository.save(horario);
+
+        // Generar slots instanciados concretos
+        if (dto.getFecha() != null) {
+            generarSlotsParaFecha(doctor, dto.getFecha(), dto.getHoraInicio(), dto.getHoraFin(), duracion, especialidad, true);
+        } else if (dto.getDiaSemana() != null) {
+            instanciarSlotsSemanales(doctor, dto.getDiaSemana(), dto.getHoraInicio(), dto.getHoraFin(), duracion, especialidad, dto.getFechaDesde(), dto.getFechaHasta());
+        }
+
+        return guardado;
     }
 
     @Transactional
@@ -169,98 +176,141 @@ public class DoctorService {
 
         LocalDate hoy = LocalDate.now();
 
-        // VALIDACIÓN DE FECHAS PASADAS
         if (dto.getFecha() != null && dto.getFecha().isBefore(hoy)) {
             throw new IllegalArgumentException("No se pueden configurar horarios para fechas pasadas.");
-        }
-
-        if (dto.getFechaHasta() != null && dto.getFechaHasta().isBefore(hoy)) {
-            throw new IllegalArgumentException("La fecha límite de vigencia (fecha hasta) no puede ser anterior a la fecha actual.");
         }
 
         if (dto.getHoraInicio().isAfter(dto.getHoraFin()) || dto.getHoraInicio().equals(dto.getHoraFin())) {
             throw new IllegalArgumentException("La hora de inicio debe ser anterior a la hora de fin.");
         }
 
-        // VALIDACIÓN DE SUPERPOSICIÓN STRICTA EXCLUYENDO EL ID ACTUAL
-        validarSuperposicionHorarios(horario.getDoctor().getId(), dto, horarioId);
-
+        Especialidad especialidad = null;
         if (dto.getEspecialidadId() != null) {
-            Especialidad especialidad = especialidadRepository.findById(dto.getEspecialidadId()).orElse(null);
-            horario.setEspecialidad(especialidad);
-        } else {
-            horario.setEspecialidad(null);
+            especialidad = especialidadRepository.findById(dto.getEspecialidadId()).orElse(null);
         }
 
+        int duracion = dto.getDuracionTurnoMinutos() > 0 ? dto.getDuracionTurnoMinutos() : 30;
+
+        horario.setEspecialidad(especialidad);
         horario.setDiaSemana(dto.getDiaSemana());
         horario.setFecha(dto.getFecha());
         horario.setFechaDesde(dto.getFechaDesde());
         horario.setFechaHasta(dto.getFechaHasta());
         horario.setHoraInicio(dto.getHoraInicio());
         horario.setHoraFin(dto.getHoraFin());
-        horario.setDuracionTurnoMinutos(dto.getDuracionTurnoMinutos() > 0 ? dto.getDuracionTurnoMinutos() : 30);
+        horario.setDuracionTurnoMinutos(duracion);
 
-        return horarioAtencionRepository.save(horario);
+        HorarioAtencion guardado = horarioAtencionRepository.save(horario);
+
+        // Regenerar los slots correspondientes
+        if (dto.getFecha() != null) {
+            generarSlotsParaFecha(horario.getDoctor(), dto.getFecha(), dto.getHoraInicio(), dto.getHoraFin(), duracion, especialidad, true);
+        } else if (dto.getDiaSemana() != null) {
+            instanciarSlotsSemanales(horario.getDoctor(), dto.getDiaSemana(), dto.getHoraInicio(), dto.getHoraFin(), duracion, especialidad, dto.getFechaDesde(), dto.getFechaHasta());
+        }
+
+        return guardado;
     }
 
-    private void validarSuperposicionHorarios(Long doctorId, HorarioAtencionDTO dto, Long idAExcluir) {
-        List<HorarioAtencion> existentes = horarioAtencionRepository.findByDoctorId(doctorId);
+    private void instanciarSlotsSemanales(Doctor doctor, DiaSemana diaSemana, LocalTime horaInicio, LocalTime horaFin, int duracionMinutos, Especialidad especialidad, LocalDate fechaDesde, LocalDate fechaHasta) {
+        LocalDate inicio = (fechaDesde != null && !fechaDesde.isBefore(LocalDate.now())) ? fechaDesde : LocalDate.now();
+        LocalDate fin = (fechaHasta != null) ? fechaHasta : inicio.plusWeeks(8);
 
-        LocalTime newStart = dto.getHoraInicio();
-        LocalTime newEnd = dto.getHoraFin();
-
-        DiaSemana newDiaSemana = dto.getDiaSemana();
-        LocalDate newFecha = dto.getFecha();
-        if (newFecha != null && newDiaSemana == null) {
-            newDiaSemana = mapearDiaSemana(newFecha.getDayOfWeek());
-        }
-
-        for (HorarioAtencion h : existentes) {
-            if (idAExcluir != null && h.getId().equals(idAExcluir)) {
-                continue;
-            }
-
-            DiaSemana hDiaSemana = h.getDiaSemana();
-            LocalDate hFecha = h.getFecha();
-            if (hFecha != null && hDiaSemana == null) {
-                hDiaSemana = mapearDiaSemana(hFecha.getDayOfWeek());
-            }
-
-            boolean coincidenEnDia = false;
-
-            if (newFecha != null && hFecha != null) {
-                coincidenEnDia = newFecha.equals(hFecha);
-            } else if (newFecha != null && hDiaSemana != null) {
-                boolean enVigencia = (h.getFechaDesde() == null || !newFecha.isBefore(h.getFechaDesde())) &&
-                                     (h.getFechaHasta() == null || !newFecha.isAfter(h.getFechaHasta()));
-                coincidenEnDia = (newDiaSemana == hDiaSemana) && enVigencia;
-            } else if (newDiaSemana != null && hFecha != null) {
-                boolean enVigencia = (dto.getFechaDesde() == null || !hFecha.isBefore(dto.getFechaDesde())) &&
-                                     (dto.getFechaHasta() == null || !hFecha.isAfter(dto.getFechaHasta()));
-                coincidenEnDia = (newDiaSemana == hDiaSemana) && enVigencia;
-            } else if (newDiaSemana != null && hDiaSemana != null) {
-                if (newDiaSemana == hDiaSemana) {
-                    boolean v1Desde = dto.getFechaDesde() != null;
-                    boolean v1Hasta = dto.getFechaHasta() != null;
-                    boolean v2Desde = h.getFechaDesde() != null;
-                    boolean v2Hasta = h.getFechaHasta() != null;
-
-                    boolean noSeCruzan = (v1Hasta && v2Desde && dto.getFechaHasta().isBefore(h.getFechaDesde())) ||
-                                         (v1Desde && v2Hasta && dto.getFechaDesde().isAfter(h.getFechaHasta()));
-                    coincidenEnDia = !noSeCruzan;
-                }
-            }
-
-            if (coincidenEnDia) {
-                if (newStart.isBefore(h.getHoraFin()) && newEnd.isAfter(h.getHoraInicio())) {
-                    String diaStr = (hFecha != null) ? "para el día " + hFecha : "para los " + hDiaSemana;
-                    throw new IllegalArgumentException(String.format(
-                            "Conflicto de horario: La franja (%s - %s) se superpone con un horario ya configurado %s (%s - %s).",
-                            newStart, newEnd, diaStr, h.getHoraInicio(), h.getHoraFin()
-                    ));
-                }
+        for (LocalDate date = inicio; !date.isAfter(fin); date = date.plusDays(1)) {
+            if (mapearDiaSemana(date.getDayOfWeek()) == diaSemana) {
+                generarSlotsParaFecha(doctor, date, horaInicio, horaFin, duracionMinutos, especialidad, false);
             }
         }
+    }
+
+    private void generarSlotsParaFecha(Doctor doctor, LocalDate fecha, LocalTime horaInicio, LocalTime horaFin, int duracionMinutos, Especialidad especialidad, boolean esPuntual) {
+        List<SlotHorario> existentes = slotHorarioRepository.findByDoctorIdAndFecha(doctor.getId(), fecha);
+
+        if (esPuntual) {
+            // Horario puntual sobreescribe cualquier slot existente en ese rango
+            List<SlotHorario> colisionantes = existentes.stream()
+                    .filter(s -> horaInicio.isBefore(s.getHoraFin()) && horaFin.isAfter(s.getHoraInicio()))
+                    .collect(Collectors.toList());
+            if (!colisionantes.isEmpty()) {
+                slotHorarioRepository.deleteAll(colisionantes);
+            }
+        } else {
+            // Horario semanal borra solo los slots semanales previos colisionantes
+            List<SlotHorario> semanalesColisionantes = existentes.stream()
+                    .filter(s -> !s.isEsPuntual() && horaInicio.isBefore(s.getHoraFin()) && horaFin.isAfter(s.getHoraInicio()))
+                    .collect(Collectors.toList());
+            if (!semanalesColisionantes.isEmpty()) {
+                slotHorarioRepository.deleteAll(semanalesColisionantes);
+            }
+        }
+
+        // Obtener remanentes actualizados
+        List<SlotHorario> remanentes = slotHorarioRepository.findByDoctorIdAndFecha(doctor.getId(), fecha);
+
+        LocalTime actual = horaInicio;
+        int duracion = duracionMinutos > 0 ? duracionMinutos : 30;
+
+        List<SlotHorario> nuevosSlots = new ArrayList<>();
+        while (actual.plusMinutes(duracion).isBefore(horaFin) || actual.plusMinutes(duracion).equals(horaFin)) {
+            LocalTime slotStart = actual;
+            LocalTime slotEnd = actual.plusMinutes(duracion);
+
+            // Si es semanal, no chocar con un slot puntual existente
+            boolean chocaConPuntual = !esPuntual && remanentes.stream()
+                    .anyMatch(s -> s.isEsPuntual() && slotStart.isBefore(s.getHoraFin()) && slotEnd.isAfter(s.getHoraInicio()));
+
+            if (!chocaConPuntual) {
+                SlotHorario slot = SlotHorario.builder()
+                        .doctor(doctor)
+                        .especialidad(especialidad)
+                        .fecha(fecha)
+                        .horaInicio(slotStart)
+                        .horaFin(slotEnd)
+                        .duracionMinutos(duracion)
+                        .esPuntual(esPuntual)
+                        .build();
+                nuevosSlots.add(slot);
+            }
+
+            actual = actual.plusMinutes(duracion);
+        }
+
+        if (!nuevosSlots.isEmpty()) {
+            slotHorarioRepository.saveAll(nuevosSlots);
+        }
+    }
+
+    @Transactional
+    public void limpiarHorariosSemana(Long doctorId, LocalDate desde, LocalDate hasta) {
+        slotHorarioRepository.deleteByDoctorIdAndFechaBetween(doctorId, desde, hasta);
+
+        List<HorarioAtencion> horarios = horarioAtencionRepository.findByDoctorId(doctorId);
+        for (HorarioAtencion h : horarios) {
+            if (h.getFecha() != null && !h.getFecha().isBefore(desde) && !h.getFecha().isAfter(hasta)) {
+                horarioAtencionRepository.delete(h);
+            }
+        }
+    }
+
+    public List<SlotHorario> obtenerSlotsDoctor(Long doctorId, LocalDate desde, LocalDate hasta) {
+        if (desde != null && hasta != null) {
+            return slotHorarioRepository.findByDoctorIdAndFechaBetween(doctorId, desde, hasta);
+        }
+        return slotHorarioRepository.findByDoctorId(doctorId);
+    }
+
+    @Transactional
+    public void eliminarSlotIndividual(Long slotId) {
+        slotHorarioRepository.deleteById(slotId);
+    }
+
+    public List<HorarioAtencion> obtenerHorariosDoctor(Long doctorId) {
+        return horarioAtencionRepository.findByDoctorId(doctorId);
+    }
+
+    @Transactional
+    public void eliminarHorarioAtencion(Long horarioId) {
+        horarioAtencionRepository.deleteById(horarioId);
     }
 
     private DiaSemana mapearDiaSemana(DayOfWeek dayOfWeek) {
@@ -274,41 +324,5 @@ public class DoctorService {
             case SUNDAY: return DiaSemana.DOMINGO;
             default: throw new IllegalArgumentException("Día de la semana no soportado: " + dayOfWeek);
         }
-    }
-
-    public List<HorarioAtencion> obtenerHorariosDoctor(Long doctorId) {
-        return horarioAtencionRepository.findByDoctorId(doctorId);
-    }
-
-    @Transactional
-    public void eliminarHorarioAtencion(Long horarioId) {
-        horarioAtencionRepository.deleteById(horarioId);
-    }
-
-    @Transactional
-    public BloqueoHorario bloquearSlotIndividual(Long doctorId, BloqueoHorarioDTO dto) {
-        Doctor doctor = obtenerPorId(doctorId);
-
-        if (dto.getFecha().isBefore(LocalDate.now())) {
-            throw new IllegalArgumentException("No se pueden deshabilitar turnos de fechas pasadas.");
-        }
-
-        BloqueoHorario bloqueo = BloqueoHorario.builder()
-                .doctor(doctor)
-                .fecha(dto.getFecha())
-                .horaInicio(dto.getHoraInicio())
-                .horaFin(dto.getHoraFin())
-                .build();
-
-        return bloqueoHorarioRepository.save(bloqueo);
-    }
-
-    public List<BloqueoHorario> obtenerBloqueosDoctor(Long doctorId) {
-        return bloqueoHorarioRepository.findByDoctorId(doctorId);
-    }
-
-    @Transactional
-    public void eliminarBloqueoSlot(Long bloqueoId) {
-        bloqueoHorarioRepository.deleteById(bloqueoId);
     }
 }

@@ -56,23 +56,32 @@ export const doctorService = {
     return response.data;
   },
 
-  bloquearSlot: async (doctorId, slotData) => {
-    const response = await axiosClient.post(`/doctores/${doctorId}/bloquear-slot`, slotData);
+  limpiarHorariosSemana: async (id, desdeStr, hastaStr) => {
+    const response = await axiosClient.delete(`/doctores/${id}/horarios/semana?desde=${desdeStr}&hasta=${hastaStr}`);
     return response.data;
   },
 
-  obtenerBloqueos: async (doctorId) => {
-    const response = await axiosClient.get(`/doctores/${doctorId}/bloqueos`);
+  obtenerSlots: async (doctorId, desdeStr = null, hastaStr = null) => {
+    let url = `/doctores/${doctorId}/slots`;
+    if (desdeStr && hastaStr) {
+      url += `?desde=${desdeStr}&hasta=${hastaStr}`;
+    }
+    const response = await axiosClient.get(url);
     return response.data;
   },
 
-  eliminarBloqueo: async (bloqueoId) => {
-    const response = await axiosClient.delete(`/doctores/bloqueos/${bloqueoId}`);
+  eliminarSlot: async (slotId) => {
+    const response = await axiosClient.delete(`/doctores/slots/${slotId}`);
     return response.data;
   },
 
   crearPlantilla: async (id, plantillaData) => {
     const response = await axiosClient.post(`/doctores/${id}/plantillas`, plantillaData);
+    return response.data;
+  },
+
+  actualizarPlantilla: async (plantillaId, plantillaData) => {
+    const response = await axiosClient.put(`/doctores/plantillas/${plantillaId}`, plantillaData);
     return response.data;
   },
 

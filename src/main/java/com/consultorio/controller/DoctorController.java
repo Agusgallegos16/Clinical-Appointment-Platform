@@ -1,7 +1,6 @@
 package com.consultorio.controller;
 
 import com.consultorio.domain.*;
-import com.consultorio.dto.BloqueoHorarioDTO;
 import com.consultorio.dto.AplicarPlantillaDTO;
 import com.consultorio.dto.CrearPlantillaDTO;
 import com.consultorio.dto.HorarioAtencionDTO;
@@ -125,39 +124,53 @@ public class DoctorController {
         return ResponseEntity.noContent().build();
     }
 
-    // ENDPOINTS DE BLOQUEO DE SLOTS INDIVIDUALES
-    @PostMapping("/{id}/bloquear-slot")
+    @DeleteMapping("/{id}/horarios/semana")
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
-    @Operation(summary = "Deshabilitar/Bloquear un slot individual de turno para una fecha (DOCTOR / ADMIN)")
-    public ResponseEntity<BloqueoHorario> bloquearSlot(
+    @Operation(summary = "Limpiar/Borrar todos los turnos configurados para una semana específica (DOCTOR / ADMIN)")
+    public ResponseEntity<Void> limpiarHorariosSemana(
             @PathVariable Long id,
-            @Valid @RequestBody BloqueoHorarioDTO dto) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(doctorService.bloquearSlotIndividual(id, dto));
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta) {
+        doctorService.limpiarHorariosSemana(id, desde, hasta);
+        return ResponseEntity.noContent().build();
     }
 
-    @GetMapping("/{id}/bloqueos")
+    // ENDPOINTS DE SLOTS INDIVIDUALES
+    @GetMapping("/{id}/slots")
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
-    @Operation(summary = "Obtener la lista de slots bloqueados por el doctor (DOCTOR / ADMIN)")
-    public ResponseEntity<List<BloqueoHorario>> obtenerBloqueos(@PathVariable Long id) {
-        return ResponseEntity.ok(doctorService.obtenerBloqueosDoctor(id));
+    @Operation(summary = "Obtener la lista de slots instanciados concretos del doctor (DOCTOR / ADMIN)")
+    public ResponseEntity<List<SlotHorario>> obtenerSlots(
+            @PathVariable Long id,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta) {
+        return ResponseEntity.ok(doctorService.obtenerSlotsDoctor(id, desde, hasta));
     }
 
-    @DeleteMapping("/bloqueos/{bloqueoId}")
+    @DeleteMapping("/slots/{slotId}")
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
-    @Operation(summary = "Eliminar un bloqueo de slot individual (DOCTOR / ADMIN)")
-    public ResponseEntity<Void> eliminarBloqueo(@PathVariable Long bloqueoId) {
-        doctorService.eliminarBloqueoSlot(bloqueoId);
+    @Operation(summary = "Eliminar/Deshabilitar un slot individual concreto (DOCTOR / ADMIN)")
+    public ResponseEntity<Void> eliminarSlot(@PathVariable Long slotId) {
+        doctorService.eliminarSlotIndividual(slotId);
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/plantillas")
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
-    @Operation(summary = "Crear una nueva plantilla de agenda personalizada (ej. Día de Prácticas) (DOCTOR / ADMIN)")
+    @Operation(summary = "Crear una nueva plantilla de agenda personalizada (DOCTOR / ADMIN)")
     public ResponseEntity<PlantillaAgenda> crearPlantilla(
             @PathVariable Long id,
             @Valid @RequestBody CrearPlantillaDTO dto) {
         PlantillaAgenda plantilla = plantillaAgendaService.crearPlantilla(id, dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(plantilla);
+    }
+
+    @PutMapping("/plantillas/{plantillaId}")
+    @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
+    @Operation(summary = "Actualizar/Editar una plantilla de agenda existente (DOCTOR / ADMIN)")
+    public ResponseEntity<PlantillaAgenda> actualizarPlantilla(
+            @PathVariable Long plantillaId,
+            @Valid @RequestBody CrearPlantillaDTO dto) {
+        return ResponseEntity.ok(plantillaAgendaService.actualizarPlantilla(plantillaId, dto));
     }
 
     @GetMapping("/{id}/plantillas")

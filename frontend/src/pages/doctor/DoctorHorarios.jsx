@@ -32,6 +32,7 @@ import {
   Add as AddIcon,
   Schedule as ScheduleIcon,
   Delete as DeleteIcon,
+  DeleteSweep as DeleteSweepIcon,
   Settings as SettingsIcon,
   FolderCopy as TemplateIcon,
   Info as InfoIcon,
@@ -41,6 +42,7 @@ import {
   Block as BlockIcon,
   Warning as WarningIcon,
   MedicalServices as MedicalIcon,
+  History as HistoryIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { doctorService } from '../../api/doctorService';
@@ -48,6 +50,27 @@ import dayjs from 'dayjs';
 
 const diasSemanaEnum = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO'];
 const diasNombreEs = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+// Funciones de normalización defensiva para datos de bloqueos
+// Maneja tanto arrays numéricos [2026,8,11] como strings ISO "2026-08-11"
+const normalizeFecha = (f) => {
+  if (f == null) return null;
+  if (Array.isArray(f)) {
+    const [y, m, d] = f;
+    return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  }
+  return String(f);
+};
+
+const normalizeHora = (h) => {
+  if (h == null) return '00:00';
+  if (Array.isArray(h)) {
+    const hh = String(h[0] || 0).padStart(2, '0');
+    const mm = String(h[1] || 0).padStart(2, '0');
+    return `${hh}:${mm}`;
+  }
+  return String(h).substring(0, 5);
+};
 
 // Paletas de color por especialidad
 const getSpecialtyColorPalette = (espId) => {
@@ -79,11 +102,13 @@ const generateTimeSlots = () => {
 const DoctorHorarios = () => {
   const { entidadId } = useAuth();
   const todayStr = dayjs().format('YYYY-MM-DD');
+  const now = dayjs();
+  const currentMinutesToday = now.hour() * 60 + now.minute();
 
   const [doctorInfo, setDoctorInfo] = useState(null);
   const [horarios, setHorarios] = useState([]);
   const [plantillas, setPlantillas] = useState([]);
-  const [bloqueos, setBloqueos] = useState([]);
+  const [slots, setSlots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -130,6 +155,10 @@ const DoctorHorarios = () => {
     duracionTurnoMinutos: 30,
   });
 
+  // Modal para borrar horarios de toda la semana visible
+  const [showClearWeekModal, setShowClearWeekModal] = useState(false);
+  const [clearingWeek, setClearingWeek] = useState(false);
+
   // Modal para eliminar franja horaria completa
   const [selectedHorarioDelete, setSelectedHorarioDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
@@ -139,9 +168,9 @@ const DoctorHorarios = () => {
       cargarPerfilDoctor();
       cargarHorarios();
       cargarPlantillas();
-      cargarBloqueos();
+      cargarSlots();
     }
-  }, [entidadId]);
+  }, [entidadId, currentWeekStart]);
 
   const cargarPerfilDoctor = async () => {
     try {
@@ -158,7 +187,16 @@ const DoctorHorarios = () => {
   const cargarHorarios = async () => {
     try {
       const data = await doctorService.obtenerHorarios(entidadId);
-      setHorarios(data);
+      // Normalizar fechas y horas para manejar ambos formatos (array/string) de Jackson
+      const normalized = data.map((h) => ({
+        ...h,
+        fecha: normalizeFecha(h.fecha),
+        fechaDesde: normalizeFecha(h.fechaDesde),
+        fechaHasta: normalizeFecha(h.fechaHasta),
+        horaInicio: normalizeHora(h.horaInicio),
+        horaFin: normalizeHora(h.horaFin),
+      }));
+      setHorarios(normalized);
     } catch (err) {
       triggerErrorModal('Error al obtener la lista de horarios.', 'Error de Carga');
     } finally {
@@ -175,10 +213,12 @@ const DoctorHorarios = () => {
     }
   };
 
-  const cargarBloqueos = async () => {
+  const cargarSlots = async () => {
     try {
-      const data = await doctorService.obtenerBloqueos(entidadId);
-      setBloqueos(data);
+      const desdeStr = currentWeekStart.format('YYYY-MM-DD');
+      const hastaStr = currentWeekStart.add(6, 'day').format('YYYY-MM-DD');
+      const data = await doctorService.obtenerSlots(entidadId, desdeStr, hastaStr);
+      setSlots(data);
     } catch (err) {
       console.error(err);
     }
@@ -191,112 +231,73 @@ const DoctorHorarios = () => {
 
   const timeSlots = useMemo(() => generateTimeSlots(), []);
 
-  // Días de la semana visible con sus fechas reales (Domingo a Sábado)
+  // Días de la semana visible con sus fechas reales (Domingo a Sábado) y estado de fecha pasada
   const weekDaysWithDates = useMemo(() => {
+    const todayStart = dayjs().startOf('day');
+
     return [0, 1, 2, 3, 4, 5, 6].map((offset) => {
       const dateObj = currentWeekStart.add(offset, 'day');
+      const isPastDay = dateObj.isBefore(todayStart);
+      const isTodayDay = dateObj.isSame(todayStart, 'day');
+
       return {
         dayNum: offset,
         enumName: diasSemanaEnum[offset],
         nameEs: diasNombreEs[offset],
         dateStr: dateObj.format('YYYY-MM-DD'),
         formattedHeader: `${diasNombreEs[offset]} ${dateObj.format('DD/MM')}`,
+        isPastDay,
+        isTodayDay,
       };
     });
   }, [currentWeekStart]);
 
-  // Generar desgloses de slots individuales
+  // Renderizar la grilla con los slots instanciados concretos directamente cargados desde la BD
   const weekSlotsByDate = useMemo(() => {
     const slotsMap = {};
 
     weekDaysWithDates.forEach((dayInfo) => {
-      const { dateStr, enumName } = dayInfo;
+      const { dateStr } = dayInfo;
       slotsMap[dateStr] = [];
+    });
 
-      const fechaObj = dayjs(dateStr);
+    slots.forEach((s) => {
+      const dateStr = normalizeFecha(s.fecha);
+      if (slotsMap[dateStr]) {
+        const startText = normalizeHora(s.horaInicio);
+        const endText = normalizeHora(s.horaFin);
+        const startMinutes = dayjs(`${dateStr}T${startText}`).hour() * 60 + dayjs(`${dateStr}T${startText}`).minute();
+        const endMinutes = dayjs(`${dateStr}T${endText}`).hour() * 60 + dayjs(`${dateStr}T${endText}`).minute();
 
-      const puntualesDelDia = horarios.filter((h) => h.fecha === dateStr);
-      const semanalesDelDia = horarios.filter((h) => {
-        if (h.diaSemana !== enumName || h.fecha) return false;
-        if (h.fechaDesde && fechaObj.isBefore(dayjs(h.fechaDesde), 'day')) return false;
-        if (h.fechaHasta && fechaObj.isAfter(dayjs(h.fechaHasta), 'day')) return false;
-        return true;
-      });
-
-      const bloqueosDelDia = bloqueos.filter((b) => b.fecha === dateStr);
-
-      const desglosarFranja = (h, isPuntual) => {
-        const duracion = h.duracionTurnoMinutos > 0 ? h.duracionTurnoMinutos : 30;
-        let actual = dayjs(`${dateStr}T${h.horaInicio}`);
-        const fin = dayjs(`${dateStr}T${h.horaFin}`);
-
-        const espNombre = h.especialidad ? h.especialidad.nombre : null;
-        const espId = h.especialidad ? h.especialidad.id : null;
+        const espNombre = s.especialidad ? s.especialidad.nombre : null;
+        const espId = s.especialidad ? s.especialidad.id : null;
         const colorPalette = getSpecialtyColorPalette(espId);
 
-        const result = [];
-        while (actual.add(duracion, 'minute').isBefore(fin) || actual.add(duracion, 'minute').isSame(fin)) {
-          const next = actual.add(duracion, 'minute');
-          const startText = actual.format('HH:mm');
-          const endText = next.format('HH:mm');
-
-          const startMinutes = actual.hour() * 60 + actual.minute();
-          const endMinutes = next.hour() * 60 + next.minute();
-
-          const estaBloqueado = bloqueosDelDia.some(
-            (b) => startText >= b.horaInicio.substring(0, 5) && startText < b.horaFin.substring(0, 5)
-          );
-
-          if (!estaBloqueado) {
-            result.push({
-              id: `slot-${h.id}-${dateStr}-${startText}`,
-              originalData: h,
-              dateStr,
-              isPuntual,
-              startText,
-              endText,
-              startMinutes,
-              endMinutes,
-              durationMinutes: duracion,
-              especialidadNombre: espNombre,
-              colorPalette,
-            });
-          }
-
-          actual = next;
-        }
-        return result;
-      };
-
-      puntualesDelDia.forEach((he) => {
-        slotsMap[dateStr].push(...desglosarFranja(he, true));
-      });
-
-      semanalesDelDia.forEach((hs) => {
-        const candidateSlots = desglosarFranja(hs, false);
-        candidateSlots.forEach((slot) => {
-          let superpuesto = false;
-          for (const he of puntualesDelDia) {
-            const heStartMin = dayjs(`${dateStr}T${he.horaInicio}`).hour() * 60 + dayjs(`${dateStr}T${he.horaInicio}`).minute();
-            const heEndMin = dayjs(`${dateStr}T${he.horaFin}`).hour() * 60 + dayjs(`${dateStr}T${he.horaFin}`).minute();
-
-            if (slot.startMinutes < heEndMin && slot.endMinutes > heStartMin) {
-              superpuesto = true;
-              break;
-            }
-          }
-
-          if (!superpuesto) {
-            slotsMap[dateStr].push(slot);
-          }
+        slotsMap[dateStr].push({
+          slotId: s.id,
+          id: `slot-${s.id}`,
+          originalData: s,
+          dateStr,
+          isPuntual: s.esPuntual,
+          startText,
+          endText,
+          startMinutes,
+          endMinutes,
+          durationMinutes: s.duracionMinutos || 30,
+          especialidadNombre: espNombre,
+          colorPalette,
         });
-      });
+      }
+    });
+
+    Object.keys(slotsMap).forEach((d) => {
+      slotsMap[d].sort((a, b) => a.startMinutes - b.startMinutes);
     });
 
     return slotsMap;
-  }, [horarios, bloqueos, weekDaysWithDates]);
+  }, [slots, weekDaysWithDates]);
 
-  // FILTRADO Y ORDENAMIENTO DINÁMICO DE LA LISTA INFERIOR (POR DÍA Y LUEGO POR HORA DE INICIO)
+  // FILTRADO Y ORDENAMIENTO DINÁMICO DE LA LISTA INFERIOR
   const horariosVisiblesEnSemana = useMemo(() => {
     const weekStart = currentWeekStart.startOf('day');
     const weekEnd = currentWeekStart.add(6, 'day').endOf('day');
@@ -324,7 +325,6 @@ const DoctorHorarios = () => {
       return true;
     });
 
-    // Ordenar estrictamente por Día de la Semana y luego por Hora de Inicio
     return filtrados.sort((a, b) => {
       const diaA = a.fecha ? dayjs(a.fecha).day() : (diasOrden[a.diaSemana] ?? 0);
       const diaB = b.fecha ? dayjs(b.fecha).day() : (diasOrden[b.diaSemana] ?? 0);
@@ -368,10 +368,11 @@ const DoctorHorarios = () => {
       }
 
       await doctorService.agregarHorario(entidadId, payload);
-      setSuccess('¡Horario de atención agregado exitosamente!');
+      setSuccess('¡Horario de atención agregado y slots generados exitosamente!');
       setFechaDesde('');
       setFechaHasta('');
       cargarHorarios();
+      cargarSlots();
     } catch (err) {
       const msg = err.response?.data?.mensaje || err.response?.data?.message || 'Error al guardar el horario.';
       triggerErrorModal(msg, 'Conflicto de Horario');
@@ -420,6 +421,7 @@ const DoctorHorarios = () => {
       setSuccess('¡Franja horaria actualizada correctamente!');
       setEditingHorario(null);
       cargarHorarios();
+      cargarSlots();
     } catch (err) {
       const msg = err.response?.data?.mensaje || err.response?.data?.message || 'Error al actualizar la franja horaria.';
       triggerErrorModal(msg, 'Conflicto de Horario');
@@ -432,18 +434,12 @@ const DoctorHorarios = () => {
     if (!selectedSlotBlock) return;
     setBlocking(true);
     try {
-      const hStart = selectedSlotBlock.startText.length === 5 ? `${selectedSlotBlock.startText}:00` : selectedSlotBlock.startText;
-      const hEnd = selectedSlotBlock.endText.length === 5 ? `${selectedSlotBlock.endText}:00` : selectedSlotBlock.endText;
-
-      await doctorService.bloquearSlot(entidadId, {
-        fecha: selectedSlotBlock.dateStr,
-        horaInicio: hStart,
-        horaFin: hEnd,
-      });
-
-      setSuccess(`¡Turno de ${selectedSlotBlock.startText} a ${selectedSlotBlock.endText} deshabilitado para el ${dayjs(selectedSlotBlock.dateStr).format('DD/MM/YYYY')}!`);
+      if (selectedSlotBlock.slotId) {
+        await doctorService.eliminarSlot(selectedSlotBlock.slotId);
+      }
+      setSuccess(`¡Turno deshabilitado/eliminado con éxito!`);
       setSelectedSlotBlock(null);
-      cargarBloqueos();
+      cargarSlots();
     } catch (err) {
       const msg = err.response?.data?.mensaje || err.response?.data?.message || 'No se pudo deshabilitar este turno individual.';
       triggerErrorModal(msg, 'Deshabilitar Turno');
@@ -470,6 +466,7 @@ const DoctorHorarios = () => {
       await doctorService.aplicarPlantilla(entidadId, payload);
       setSuccess('¡Plantilla aplicada correctamente! Se han actualizado tus horarios.');
       cargarHorarios();
+      cargarSlots();
     } catch (err) {
       const msg = err.response?.data?.mensaje || err.response?.data?.message || 'Error al aplicar la plantilla.';
       triggerErrorModal(msg, 'Aplicar Plantilla');
@@ -493,6 +490,27 @@ const DoctorHorarios = () => {
     }
   };
 
+  const handleLimpiarSemanaActual = async () => {
+    setClearingWeek(true);
+    setErrorModal('');
+    setSuccess('');
+    try {
+      const desdeStr = currentWeekStart.format('YYYY-MM-DD');
+      const hastaStr = currentWeekStart.add(6, 'day').format('YYYY-MM-DD');
+
+      await doctorService.limpiarHorariosSemana(entidadId, desdeStr, hastaStr);
+
+      setSuccess(`¡Se limpiaron todos los turnos para la semana del ${currentWeekStart.format('DD/MM')} al ${currentWeekStart.add(6, 'day').format('DD/MM')}!`);
+      setShowClearWeekModal(false);
+      cargarHorarios();
+      cargarSlots();
+    } catch (err) {
+      triggerErrorModal('Error al borrar los turnos de la semana visible.', 'Limpiar Semana');
+    } finally {
+      setClearingWeek(false);
+    }
+  };
+
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2} mb={2}>
@@ -501,7 +519,7 @@ const DoctorHorarios = () => {
             Gestión de Horarios por Especialidad
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Planilla Excel interactiva. Los colores identifican las especialidades médicas.
+            Planilla Excel interactiva. Los días y horas pasados se muestran en gris mudo.
           </Typography>
         </Box>
 
@@ -536,7 +554,7 @@ const DoctorHorarios = () => {
 
       {success && <Alert severity="success" sx={{ mb: 3 }}>{success}</Alert>}
 
-      {/* PLANILLA MATRIZ ESTILO EXCEL CON COLORES POR ESPECIALIDAD */}
+      {/* PLANILLA MATRIZ ESTILO EXCEL CON FILTRO GRIS EN DÍAS/HORAS PASADOS */}
       <Paper sx={{ p: 3, mb: 4, bgcolor: 'background.paper', borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.06)', overflowX: 'auto' }}>
         <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2} mb={2.5}>
           <Box display="flex" alignItems="center" gap={1}>
@@ -566,9 +584,22 @@ const DoctorHorarios = () => {
             </Button>
           </Box>
 
-          <Typography variant="h6" fontWeight={700} color="primary">
-            Semana del {currentWeekStart.format('DD/MM/YYYY')} al {currentWeekStart.add(6, 'day').format('DD/MM/YYYY')}
-          </Typography>
+          <Box display="flex" alignItems="center" gap={2}>
+            <Typography variant="h6" fontWeight={700} color="primary">
+              Semana del {currentWeekStart.format('DD/MM/YYYY')} al {currentWeekStart.add(6, 'day').format('DD/MM/YYYY')}
+            </Typography>
+
+            <Button
+              variant="outlined"
+              color="error"
+              size="small"
+              startIcon={<DeleteSweepIcon />}
+              onClick={() => setShowClearWeekModal(true)}
+              sx={{ fontWeight: 700 }}
+            >
+              Borrar Turnos de esta Semana
+            </Button>
+          </Box>
         </Box>
 
         <TableContainer sx={{ maxHeight: 650, borderRadius: 2 }}>
@@ -583,15 +614,16 @@ const DoctorHorarios = () => {
                     key={dayInfo.dateStr}
                     align="center"
                     sx={{
-                      bgcolor: '#0284c7',
+                      bgcolor: dayInfo.isPastDay ? '#64748b' : '#0284c7',
                       color: '#ffffff',
                       fontWeight: 700,
                       minWidth: 155,
                       zIndex: 11,
+                      opacity: dayInfo.isPastDay ? 0.85 : 1,
                     }}
                   >
                     <Typography variant="subtitle2" fontWeight={700}>
-                      {dayInfo.formattedHeader}
+                      {dayInfo.formattedHeader} {dayInfo.isPastDay ? '(Pasado)' : ''}
                     </Typography>
                   </TableCell>
                 ))}
@@ -611,6 +643,9 @@ const DoctorHorarios = () => {
 
                     {weekDaysWithDates.map((dayInfo) => {
                       const daySlots = weekSlotsByDate[dayInfo.dateStr] || [];
+
+                      // Evaluación de si la celda es del pasado (día pasado o hora pasada en el día de hoy)
+                      const isPastCell = dayInfo.isPastDay || (dayInfo.isTodayDay && rowEndMin <= currentMinutesToday);
 
                       const startingSlots = daySlots.filter(
                         (s) => s.startMinutes >= rowStartMin && s.startMinutes < rowEndMin
@@ -632,12 +667,18 @@ const DoctorHorarios = () => {
                             key={dayInfo.dateStr}
                             rowSpan={rowSpan}
                             align="center"
-                            sx={{ p: 0.5, verticalAlign: 'stretch', bgcolor: '#f8fafc', height: `${rowSpan * 44}px` }}
+                            sx={{
+                              p: 0.5,
+                              verticalAlign: 'stretch',
+                              bgcolor: isPastCell ? '#e2e8f0' : '#f8fafc',
+                              height: `${rowSpan * 44}px`,
+                            }}
                           >
                             <Box display="flex" flexDirection="column" gap={0.5} justifyContent="stretch" height="100%">
                               {startingSlots.map((slot) => {
                                 const slotHeightRatio = slot.durationMinutes / 30;
                                 const palette = slot.colorPalette;
+                                const isPastSlot = isPastCell;
 
                                 return (
                                   <Box
@@ -650,15 +691,16 @@ const DoctorHorarios = () => {
                                       alignItems: 'center',
                                       justifyContent: 'center',
                                       textAlign: 'center',
-                                      background: palette.bg,
-                                      color: palette.text,
-                                      border: `1.5px solid ${palette.border}`,
+                                      background: isPastSlot ? 'linear-gradient(135deg, #cbd5e1 0%, #94a3b8 100%)' : palette.bg,
+                                      color: isPastSlot ? '#475569' : palette.text,
+                                      border: `1.5px solid ${isPastSlot ? '#64748b' : palette.border}`,
                                       borderRadius: 1.5,
                                       py: 0.5,
                                       px: 0.8,
                                       fontSize: '0.76rem',
                                       fontWeight: 700,
                                       cursor: 'pointer',
+                                      opacity: isPastSlot ? 0.65 : 1,
                                       boxShadow: '0 2px 5px rgba(0,0,0,0.06)',
                                       transition: '0.15s ease-in-out',
                                       '&:hover': {
@@ -669,6 +711,7 @@ const DoctorHorarios = () => {
                                   >
                                     Turno de {slot.startText} a {slot.endText}
                                     {slot.especialidadNombre ? ` — ${slot.especialidadNombre}` : ''}
+                                    {isPastSlot ? ' (Pasado)' : ''}
                                   </Box>
                                 );
                               })}
@@ -678,7 +721,15 @@ const DoctorHorarios = () => {
                       }
 
                       return (
-                        <TableCell key={dayInfo.dateStr} align="center" sx={{ p: 0.5, height: 44, bgcolor: '#f8fafc' }} />
+                        <TableCell
+                          key={dayInfo.dateStr}
+                          align="center"
+                          sx={{
+                            p: 0.5,
+                            height: 44,
+                            bgcolor: isPastCell ? '#f1f5f9' : '#f8fafc',
+                          }}
+                        />
                       );
                     })}
                   </TableRow>
@@ -976,6 +1027,22 @@ const DoctorHorarios = () => {
           </Paper>
         </Grid>
       </Grid>
+
+      {/* Modal Confirmar Limpieza de Semana Completa */}
+      <Dialog open={showClearWeekModal} onClose={() => setShowClearWeekModal(false)}>
+        <DialogTitle>¿Borrar todos los turnos de esta semana?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Se deshabilitarán y eliminarán todos los turnos configurados exclusivamente para la semana del <strong>{currentWeekStart.format('DD/MM/YYYY')}</strong> al <strong>{currentWeekStart.add(6, 'day').format('DD/MM/YYYY')}</strong>. Las demás semanas se conservarán intactas.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowClearWeekModal(false)}>Cancelar</Button>
+          <Button onClick={handleLimpiarSemanaActual} color="error" variant="contained" disabled={clearingWeek} startIcon={<DeleteSweepIcon />}>
+            {clearingWeek ? <CircularProgress size={20} color="inherit" /> : 'Sí, Borrar Turnos de esta Semana'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Modal Deshabilitar / Bloquear Slot Individual */}
       <Dialog open={!!selectedSlotBlock} onClose={() => setSelectedSlotBlock(null)}>

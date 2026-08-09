@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -21,6 +21,7 @@ import {
   Cancel as CancelIcon,
   Event as EventIcon,
   CheckCircle as CheckCircleIcon,
+  PersonOff as PersonOffIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { turnoService } from '../../api/turnoService';
@@ -31,7 +32,7 @@ const MisTurnos = () => {
   const [turnos, setTurnos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filterTab, setFilterTab] = useState(0); // 0: Todos, 1: Activos, 2: Cancelados/Completados
+  const [filterTab, setFilterTab] = useState(0); // 0: Turnos Activos (por defecto), 1: Todos, 2: Finalizados / Cancelados
 
   // Estado para modal de cancelación
   const [selectedTurnoCancel, setSelectedTurnoCancel] = useState(null);
@@ -66,11 +67,26 @@ const MisTurnos = () => {
     }
   };
 
-  const turnosFiltrados = turnos.filter((t) => {
-    if (filterTab === 1) return t.estado === 'CONFIRMADO' || t.estado === 'PENDIENTE';
-    if (filterTab === 2) return t.estado === 'CANCELADO' || t.estado === 'COMPLETADO';
-    return true;
-  });
+  // Filtrado y Ordenamiento Estricto por Fecha y Hora (Próximos turnos primero)
+  const turnosFiltradosYOrdenados = useMemo(() => {
+    const filtrados = turnos.filter((t) => {
+      if (filterTab === 0) return t.estado === 'CONFIRMADO' || t.estado === 'PENDIENTE';
+      if (filterTab === 2) return t.estado === 'CANCELADO' || t.estado === 'COMPLETADO' || t.estado === 'AUSENTE';
+      return true;
+    });
+
+    return filtrados.sort((a, b) => {
+      const dateA = dayjs(a.fechaHora);
+      const dateB = dayjs(b.fechaHora);
+
+      // Si estamos en activos (0), los más próximos van primero (ascendente)
+      if (filterTab === 0) {
+        return dateA.diff(dateB);
+      }
+      // En historial o todos, orden descendente por fecha
+      return dateB.diff(dateA);
+    });
+  }, [turnos, filterTab]);
 
   const getChipColor = (estado) => {
     switch (estado) {
@@ -79,6 +95,8 @@ const MisTurnos = () => {
         return 'primary';
       case 'COMPLETADO':
         return 'success';
+      case 'AUSENTE':
+        return 'warning';
       case 'CANCELADO':
         return 'error';
       default:
@@ -92,24 +110,24 @@ const MisTurnos = () => {
         Mis Turnos Agendados
       </Typography>
       <Typography variant="body1" color="text.secondary" mb={3}>
-        Consultá el historial completo de tus citas médicas y gestioná tus turnos activos.
+        Consultá tus próximas citas médicas y gestioná tus turnos activos.
       </Typography>
 
       {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
       <Tabs value={filterTab} onChange={(e, val) => setFilterTab(val)} sx={{ mb: 3 }}>
+        <Tab label="Turnos Activos" />
         <Tab label="Todos los Turnos" />
-        <Tab label="Activos" />
-        <Tab label="Finalizados / Cancelados" />
+        <Tab label="Finalizados / Cancelados / Ausentes" />
       </Tabs>
 
       {loading ? (
         <Box display="flex" justifyContent="center" py={4}><CircularProgress /></Box>
-      ) : turnosFiltrados.length === 0 ? (
+      ) : turnosFiltradosYOrdenados.length === 0 ? (
         <Alert severity="info">No tenés turnos registrados en esta categoría.</Alert>
       ) : (
         <Grid container spacing={2.5}>
-          {turnosFiltrados.map((turno) => (
+          {turnosFiltradosYOrdenados.map((turno) => (
             <Grid item xs={12} md={6} key={turno.id}>
               <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                 <CardContent>

@@ -17,6 +17,7 @@ import {
   CheckCircle as CheckIcon,
   Cancel as CancelIcon,
   Person as PersonIcon,
+  PersonOff as PersonOffIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { doctorService } from '../../api/doctorService';
@@ -57,6 +58,15 @@ const DoctorAgenda = () => {
       setError('No se pudo actualizar el estado del turno.');
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const getChipColor = (estado) => {
+    switch (estado) {
+      case 'COMPLETADO': return 'success';
+      case 'AUSENTE': return 'warning';
+      case 'CANCELADO': return 'error';
+      default: return 'primary';
     }
   };
 
@@ -108,7 +118,7 @@ const DoctorAgenda = () => {
                       </Typography>
                       <Chip
                         label={turno.estado}
-                        color={turno.estado === 'COMPLETADO' ? 'success' : 'primary'}
+                        color={getChipColor(turno.estado)}
                         size="small"
                         sx={{ fontWeight: 600 }}
                       />
@@ -125,8 +135,8 @@ const DoctorAgenda = () => {
                     </Typography>
                   </Box>
 
-                  {turno.estado !== 'COMPLETADO' && turno.estado !== 'CANCELADO' && (
-                    <Box display="flex" gap={1}>
+                  {turno.estado !== 'COMPLETADO' && turno.estado !== 'CANCELADO' && turno.estado !== 'AUSENTE' && (
+                    <Box display="flex" gap={1} flexWrap="wrap">
                       <Button
                         variant="contained"
                         color="success"
@@ -137,6 +147,18 @@ const DoctorAgenda = () => {
                       >
                         Completar
                       </Button>
+
+                      <Button
+                        variant="outlined"
+                        color="warning"
+                        size="small"
+                        startIcon={<PersonOffIcon />}
+                        disabled={updatingId === turno.id}
+                        onClick={() => handleCambiarEstado(turno.id, 'AUSENTE')}
+                      >
+                        Marcar Ausente
+                      </Button>
+
                       <Button
                         variant="outlined"
                         color="error"

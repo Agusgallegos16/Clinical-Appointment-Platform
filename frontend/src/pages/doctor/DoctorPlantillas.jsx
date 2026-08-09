@@ -28,6 +28,7 @@ import {
   FolderCopy as TemplateIcon,
   PlayArrow as ApplyIcon,
   Delete as DeleteIcon,
+  Edit as EditIcon,
   RemoveCircleOutline as RemoveIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
@@ -52,6 +53,12 @@ const DoctorPlantillas = () => {
     { especialidadId: '', horaInicio: '14:00', horaFin: '18:00', duracionTurnoMinutos: 30 },
   ]);
   const [saving, setSaving] = useState(false);
+
+  // Modal Editar Plantilla Existente ✏️
+  const [editingPlantilla, setEditingPlantilla] = useState(null);
+  const [editNombre, setEditNombre] = useState('');
+  const [editDescripcion, setEditDescripcion] = useState('');
+  const [editDetalles, setEditDetalles] = useState([]);
 
   // Modal Aplicar Plantilla
   const [selectedPlantillaApply, setSelectedPlantillaApply] = useState(null);
@@ -96,7 +103,6 @@ const DoctorPlantillas = () => {
     }
   };
 
-  // Agregar nueva franja dinámica
   const handleAgregarFranja = () => {
     const defaultEspId = doctorInfo?.especialidades?.[0]?.id || '';
     setDetalles([
@@ -105,7 +111,6 @@ const DoctorPlantillas = () => {
     ]);
   };
 
-  // Eliminar franja
   const handleRemoverFranja = (index) => {
     if (detalles.length <= 1) {
       setError('Una plantilla debe contener al menos una franja horaria.');
@@ -114,7 +119,22 @@ const DoctorPlantillas = () => {
     setDetalles(detalles.filter((_, idx) => idx !== index));
   };
 
-  // Validar superposición de franjas horarias
+  const handleAgregarFranjaEdicion = () => {
+    const defaultEspId = doctorInfo?.especialidades?.[0]?.id || '';
+    setEditDetalles([
+      ...editDetalles,
+      { especialidadId: defaultEspId, horaInicio: '18:00', horaFin: '20:00', duracionTurnoMinutos: 30 },
+    ]);
+  };
+
+  const handleRemoverFranjaEdicion = (index) => {
+    if (editDetalles.length <= 1) {
+      setError('Una plantilla debe contener al menos una franja horaria.');
+      return;
+    }
+    setEditDetalles(editDetalles.filter((_, idx) => idx !== index));
+  };
+
   const validarSuperposicion = (franjas) => {
     const ordenadas = [...franjas].sort((a, b) => a.horaInicio.localeCompare(b.horaInicio));
 
@@ -150,8 +170,8 @@ const DoctorPlantillas = () => {
     try {
       const payloadDetalles = detalles.map((d) => ({
         especialidadId: d.especialidadId ? Number(d.especialidadId) : null,
-        horaInicio: d.horaInicio,
-        horaFin: d.horaFin,
+        horaInicio: d.horaInicio.length === 5 ? d.horaInicio : d.horaInicio.substring(0, 5),
+        horaFin: d.horaFin.length === 5 ? d.horaFin : d.horaFin.substring(0, 5),
         duracionTurnoMinutos: Number(d.duracionTurnoMinutos),
       }));
 
@@ -172,6 +192,57 @@ const DoctorPlantillas = () => {
       cargarPlantillas();
     } catch (err) {
       setError('Error al crear la plantilla.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleOpenEditModal = (p) => {
+    setEditingPlantilla(p);
+    setEditNombre(p.nombre);
+    setEditDescripcion(p.descripcion || '');
+    setEditDetalles(
+      p.detalles?.map((d) => ({
+        especialidadId: d.especialidad ? d.especialidad.id : '',
+        horaInicio: d.horaInicio ? d.horaInicio.substring(0, 5) : '08:00',
+        horaFin: d.horaFin ? d.horaFin.substring(0, 5) : '12:00',
+        duracionTurnoMinutos: d.duracionTurnoMinutos || 30,
+      })) || []
+    );
+  };
+
+  const handleGuardarEdicionPlantilla = async () => {
+    if (!editingPlantilla) return;
+    setError('');
+    setSuccess('');
+
+    const errorSuperposicion = validarSuperposicion(editDetalles);
+    if (errorSuperposicion) {
+      setError(errorSuperposicion);
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      const payloadDetalles = editDetalles.map((d) => ({
+        especialidadId: d.especialidadId ? Number(d.especialidadId) : null,
+        horaInicio: d.horaInicio.length === 5 ? d.horaInicio : d.horaInicio.substring(0, 5),
+        horaFin: d.horaFin.length === 5 ? d.horaFin : d.horaFin.substring(0, 5),
+        duracionTurnoMinutos: Number(d.duracionTurnoMinutos),
+      }));
+
+      await doctorService.actualizarPlantilla(editingPlantilla.id, {
+        nombre: editNombre,
+        descripcion: editDescripcion,
+        detalles: payloadDetalles,
+      });
+
+      setSuccess(`¡Plantilla "${editNombre}" actualizada correctamente!`);
+      setEditingPlantilla(null);
+      cargarPlantillas();
+    } catch (err) {
+      setError('Error al actualizar la plantilla.');
     } finally {
       setSaving(false);
     }
@@ -221,7 +292,7 @@ const DoctorPlantillas = () => {
         Plantillas de Agenda Personalizables
       </Typography>
       <Typography variant="body1" color="text.secondary" mb={3}>
-        Diseñá estructuras de jornada especificando la especialidad correspondiente para cada franja horaria.
+        Diseñá y modificá estructuras de jornada especificando la especialidad correspondiente para cada franja horaria.
       </Typography>
 
       {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
@@ -367,7 +438,7 @@ const DoctorPlantillas = () => {
           </Paper>
         </Grid>
 
-        {/* Lista de Plantillas Guardadas con Especialidad */}
+        {/* Lista de Plantillas Guardadas con Opción de Editar ✏️ */}
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" fontWeight={600} mb={2}>
@@ -401,6 +472,14 @@ const DoctorPlantillas = () => {
                             >
                               Aplicar
                             </Button>
+                            <IconButton
+                              color="primary"
+                              size="small"
+                              onClick={() => handleOpenEditModal(p)}
+                              title="Editar Plantilla ✏️"
+                            >
+                              <EditIcon />
+                            </IconButton>
                             <IconButton
                               color="error"
                               size="small"
@@ -436,6 +515,126 @@ const DoctorPlantillas = () => {
           </Paper>
         </Grid>
       </Grid>
+
+      {/* Modal Editar Plantilla ✏️ */}
+      <Dialog open={!!editingPlantilla} onClose={() => setEditingPlantilla(null)} maxWidth="sm" fullWidth>
+        <DialogTitle>Editar Plantilla de Agenda ✏️</DialogTitle>
+        <DialogContent dividers>
+          <TextField
+            fullWidth
+            margin="normal"
+            label="Nombre de la Plantilla"
+            value={editNombre}
+            onChange={(e) => setEditNombre(e.target.value)}
+            required
+          />
+          <TextField
+            fullWidth
+            margin="normal"
+            label="Descripción"
+            value={editDescripcion}
+            onChange={(e) => setEditDescripcion(e.target.value)}
+          />
+
+          <Box display="flex" justifyContent="space-between" alignItems="center" mt={2} mb={1}>
+            <Typography variant="subtitle2" fontWeight={600}>
+              Franjas Horarias ({editDetalles.length}):
+            </Typography>
+            <Button size="small" startIcon={<AddIcon />} onClick={handleAgregarFranjaEdicion} variant="outlined">
+              + Agregar Franja
+            </Button>
+          </Box>
+
+          {editDetalles.map((d, idx) => (
+            <Box key={idx} p={2} border="1px solid #cbd5e1" borderRadius={2} mb={1.5} bgcolor="background.paper">
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                <Typography variant="subtitle2" color="primary" fontWeight={700}>
+                  Franja #{idx + 1}
+                </Typography>
+                {editDetalles.length > 1 && (
+                  <IconButton size="small" color="error" onClick={() => handleRemoverFranjaEdicion(idx)}>
+                    <RemoveIcon />
+                  </IconButton>
+                )}
+              </Box>
+
+              {doctorInfo?.especialidades && doctorInfo.especialidades.length > 0 && (
+                <FormControl fullWidth size="small" sx={{ mb: 1.5 }}>
+                  <InputLabel>Especialidad Médica</InputLabel>
+                  <Select
+                    value={d.especialidadId}
+                    onChange={(e) => {
+                      const updated = [...editDetalles];
+                      updated[idx].especialidadId = e.target.value;
+                      setEditDetalles(updated);
+                    }}
+                    label="Especialidad Médica"
+                  >
+                    {doctorInfo.especialidades.map((esp) => (
+                      <MenuItem key={esp.id} value={esp.id}>
+                        {esp.nombre}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+
+              <Grid container spacing={1.5}>
+                <Grid item xs={4}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Hora Inicio"
+                    type="time"
+                    value={d.horaInicio}
+                    onChange={(e) => {
+                      const updated = [...editDetalles];
+                      updated[idx].horaInicio = e.target.value;
+                      setEditDetalles(updated);
+                    }}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+                <Grid item xs={4}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Hora Fin"
+                    type="time"
+                    value={d.horaFin}
+                    onChange={(e) => {
+                      const updated = [...editDetalles];
+                      updated[idx].horaFin = e.target.value;
+                      setEditDetalles(updated);
+                    }}
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+                <Grid item xs={4}>
+                  <TextField
+                    fullWidth
+                    size="small"
+                    label="Min/Turno"
+                    type="number"
+                    value={d.duracionTurnoMinutos}
+                    onChange={(e) => {
+                      const updated = [...editDetalles];
+                      updated[idx].duracionTurnoMinutos = Number(e.target.value);
+                      setEditDetalles(updated);
+                    }}
+                  />
+                </Grid>
+              </Grid>
+            </Box>
+          ))}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setEditingPlantilla(null)}>Cancelar</Button>
+          <Button onClick={handleGuardarEdicionPlantilla} variant="contained" disabled={saving || !editNombre}>
+            {saving ? <CircularProgress size={20} color="inherit" /> : 'Guardar Cambios'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Modal Aplicar Plantilla a Fecha */}
       <Dialog open={!!selectedPlantillaApply} onClose={() => setSelectedPlantillaApply(null)}>

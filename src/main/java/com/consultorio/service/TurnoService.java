@@ -53,6 +53,10 @@ public class TurnoService {
 
     @Transactional
     public TurnoResponseDTO reservarTurno(TurnoReservaDTO dto) {
+        if (dto.getFechaHora() == null || dto.getFechaHora().isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("No se pueden reservar turnos para fechas o momentos del pasado.");
+        }
+
         Paciente paciente = pacienteRepository.findById(dto.getPacienteId())
                 .orElseThrow(() -> new IllegalArgumentException("Paciente no encontrado"));
 
@@ -189,12 +193,10 @@ public class TurnoService {
                 .collect(Collectors.toList());
     }
 
-    // Retorna únicamente los turnos activos asignados al doctor (excluye CANCELADOS)
     public List<TurnoResponseDTO> obtenerAgendaDoctor(Long doctorId, LocalDate fecha) {
         Doctor doctor = doctorRepository.findById(doctorId)
                 .orElseThrow(() -> new IllegalArgumentException("Doctor no encontrado con id: " + doctorId));
 
-        // Control de Seguridad IDOR: El doctor solo puede ver su propia agenda (salvo ADMIN)
         String emailAutenticado = securityUtils.obtenerEmailUsuarioAutenticado();
         if (emailAutenticado == null) {
             throw new AccessDeniedException("Debe incluir un Token JWT válido en el encabezado Authorization para realizar esta acción.");
@@ -215,7 +217,6 @@ public class TurnoService {
                 .collect(Collectors.toList());
     }
 
-    // Retorna todos los turnos del rango (incluyendo COMPLETADOS y CANCELADOS) para reportes de métricas
     public List<TurnoResponseDTO> obtenerTurnosRangoDoctor(Long doctorId, LocalDate desde, LocalDate hasta) {
         LocalDateTime inicio = desde.atStartOfDay();
         LocalDateTime fin = hasta.atTime(23, 59, 59);
