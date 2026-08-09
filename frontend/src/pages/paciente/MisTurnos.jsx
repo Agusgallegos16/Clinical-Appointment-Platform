@@ -27,6 +27,8 @@ import { useAuth } from '../../context/AuthContext';
 import { turnoService } from '../../api/turnoService';
 import dayjs from 'dayjs';
 
+import GoogleCalendarButton from '../../components/GoogleCalendarButton';
+
 const MisTurnos = () => {
   const { entidadId } = useAuth();
   const [turnos, setTurnos] = useState([]);
@@ -106,12 +108,17 @@ const MisTurnos = () => {
 
   return (
     <Box>
-      <Typography variant="h4" fontWeight={700} color="primary" mb={1}>
-        Mis Turnos Agendados
-      </Typography>
-      <Typography variant="body1" color="text.secondary" mb={3}>
-        Consultá tus próximas citas médicas y gestioná tus turnos activos.
-      </Typography>
+      <Box display="flex" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={2} mb={3}>
+        <Box>
+          <Typography variant="h4" fontWeight={700} color="primary" mb={1}>
+            Mis Turnos Agendados
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Consultá tus próximas citas médicas y gestioná tus turnos activos.
+          </Typography>
+        </Box>
+        <GoogleCalendarButton />
+      </Box>
 
       {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
@@ -146,9 +153,19 @@ const MisTurnos = () => {
                     📅 {dayjs(turno.fechaHora).format('DD/MM/YYYY')} a las {dayjs(turno.fechaHora).format('HH:mm')} hs
                   </Typography>
 
-                  <Typography variant="body2" color="text.secondary">
+                  <Typography variant="body2" color="text.secondary" mb={0.5}>
                     💬 <strong>Motivo:</strong> {turno.motivoConsulta || 'Consulta General'}
                   </Typography>
+
+                  {turno.googleEventId && (
+                    <Chip
+                      label="📅 Sincronizado en Google Calendar"
+                      size="small"
+                      color="info"
+                      variant="outlined"
+                      sx={{ mt: 1, fontWeight: 500 }}
+                    />
+                  )}
                 </CardContent>
 
                 {(turno.estado === 'CONFIRMADO' || turno.estado === 'PENDIENTE') && (

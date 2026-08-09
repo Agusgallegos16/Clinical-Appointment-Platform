@@ -21,13 +21,14 @@ const Register = () => {
     apellido: '',
     email: '',
     password: '',
+    confirmarPassword: '',
     dni: '',
     telefono: '',
   });
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -40,6 +41,12 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (formData.password !== formData.confirmarPassword) {
+      setError('Las contraseñas no coinciden. Por favor verifíquelas.');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -48,12 +55,14 @@ const Register = () => {
         dni: Number(formData.dni),
       });
 
-      setSuccess(true);
-      setTimeout(() => {
-        navigate('/login');
-      }, 2000);
+      setSuccessMessage(
+        '¡Registro iniciado exitosamente! Te enviamos un correo con el enlace de confirmación a ' +
+        formData.email +
+        '. Por favor revisá tu bandeja de entrada para activar tu cuenta antes de iniciar sesión.'
+      );
     } catch (err) {
       setError(
+        err.response?.data?.mensaje ||
         err.response?.data?.message ||
         'Error al registrar el usuario. Verifique si el email o DNI ya están registrados.'
       );
@@ -77,95 +86,118 @@ const Register = () => {
           </Box>
 
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-          {success && <Alert severity="success" sx={{ mb: 2 }}>¡Cuenta creada exitosamente! Redirigiendo al Login...</Alert>}
+          {successMessage && (
+            <Alert severity="info" sx={{ mb: 3, fontWeight: 500 }}>
+              {successMessage}
+            </Alert>
+          )}
 
-          <Box component="form" onSubmit={handleSubmit}>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Nombre"
-                  name="nombre"
-                  value={formData.nombre}
-                  onChange={handleChange}
-                  required
-                />
+          {!successMessage && (
+            <Box component="form" onSubmit={handleSubmit}>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Nombre"
+                    name="nombre"
+                    value={formData.nombre}
+                    onChange={handleChange}
+                    required
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Apellido"
+                    name="apellido"
+                    value={formData.apellido}
+                    onChange={handleChange}
+                    required
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="DNI / Identificación"
+                    name="dni"
+                    type="number"
+                    value={formData.dni}
+                    onChange={handleChange}
+                    required
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Teléfono"
+                    name="telefono"
+                    value={formData.telefono}
+                    onChange={handleChange}
+                    required
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Correo Electrónico"
+                    name="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    required
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Contraseña"
+                    name="password"
+                    type="password"
+                    value={formData.password}
+                    onChange={handleChange}
+                    required
+                    helperText="Mínimo 6 caracteres"
+                  />
+                </Grid>
+                <Grid item xs={12} sm={6}>
+                  <TextField
+                    fullWidth
+                    label="Confirmar Contraseña"
+                    name="confirmarPassword"
+                    type="password"
+                    value={formData.confirmarPassword}
+                    onChange={handleChange}
+                    required
+                    error={formData.confirmarPassword !== '' && formData.password !== formData.confirmarPassword}
+                    helperText={
+                      formData.confirmarPassword !== '' && formData.password !== formData.confirmarPassword
+                        ? 'Las contraseñas no coinciden'
+                        : ''
+                    }
+                  />
+                </Grid>
               </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Apellido"
-                  name="apellido"
-                  value={formData.apellido}
-                  onChange={handleChange}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="DNI / Identificación"
-                  name="dni"
-                  type="number"
-                  value={formData.dni}
-                  onChange={handleChange}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  fullWidth
-                  label="Teléfono"
-                  name="telefono"
-                  value={formData.telefono}
-                  onChange={handleChange}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Correo Electrónico"
-                  name="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Contraseña"
-                  name="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={handleChange}
-                  required
-                  helperText="Mínimo 6 caracteres"
-                />
-              </Grid>
-            </Grid>
 
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              size="large"
-              disabled={loading || success}
-              sx={{ mt: 3, mb: 2, py: 1.2 }}
-            >
-              {loading ? <CircularProgress size={24} color="inherit" /> : 'Crear Cuenta'}
-            </Button>
-
-            <Box textAlign="center" mt={1}>
-              <Typography variant="body2" color="text.secondary">
-                ¿Ya tenés una cuenta?{' '}
-                <Link to="/login" style={{ color: '#0284c7', textDecoration: 'none', fontWeight: 600 }}>
-                  Iniciá Sesión
-                </Link>
-              </Typography>
+              <Button
+                type="submit"
+                fullWidth
+                variant="contained"
+                size="large"
+                disabled={loading}
+                sx={{ mt: 3, mb: 2, py: 1.2 }}
+              >
+                {loading ? <CircularProgress size={24} color="inherit" /> : 'Crear Cuenta'}
+              </Button>
             </Box>
+          )}
+
+          <Box textAlign="center" mt={2}>
+            <Typography variant="body2" color="text.secondary">
+              ¿Ya tenés una cuenta?{' '}
+              <Link to="/login" style={{ color: '#0284c7', textDecoration: 'none', fontWeight: 600 }}>
+                Iniciá Sesión
+              </Link>
+            </Typography>
           </Box>
         </CardContent>
       </Card>

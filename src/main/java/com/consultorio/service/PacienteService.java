@@ -11,7 +11,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class PacienteService {
@@ -34,6 +36,9 @@ public class PacienteService {
 
     @Transactional
     public Paciente registrarPaciente(RegistroPacienteDTO dto) {
+        if (dto.getConfirmarPassword() != null && !dto.getPassword().equals(dto.getConfirmarPassword())) {
+            throw new IllegalArgumentException("Las contraseñas no coinciden. Por favor verifíquelas.");
+        }
         if (usuarioRepository.existsByEmail(dto.getEmail())) {
             throw new IllegalArgumentException("Ya existe un usuario registrado con el email: " + dto.getEmail());
         }
@@ -41,11 +46,16 @@ public class PacienteService {
             throw new IllegalArgumentException("Ya existe un paciente registrado con el DNI: " + dto.getDni());
         }
 
+        String tokenVerificacion = UUID.randomUUID().toString();
+
         Usuario usuario = Usuario.builder()
                 .email(dto.getEmail())
                 .password(passwordEncoder.encode(dto.getPassword()))
                 .rol(Rol.PACIENTE)
-                .activo(true)
+                .activo(false) // Inactivo hasta que confirme por email
+                .emailVerificado(false)
+                .tokenVerificacionEmail(tokenVerificacion)
+                .tokenVerificacionExpiracion(LocalDateTime.now().plusHours(24))
                 .build();
 
         Paciente paciente = Paciente.builder()
@@ -58,10 +68,32 @@ public class PacienteService {
 
         Paciente guardado = pacienteRepository.save(paciente);
 
-        // Notificación por email al crearse la cuenta
-        emailService.enviarEmailBienvenida(guardado.getUsuario().getEmail(), guardado.getNombre());
+        // Enviar correo de verificación de cuenta (Double Opt-In)
+        emailService.enviarEmailVerificacion(guardado.getUsuario().getEmail(), guardado.getNombre(), tokenVerificacion);
 
         return guardado;
+    }
+
+    @Transactional
+    public boolean confirmarEmail(String token) {
+        Usuario usuario = usuarioRepository.findByTokenVerificacionEmail(token)
+                .orElseThrow(() -> new IllegalArgumentException("El token de activación es inválido o no existe."));
+
+        if (usuario.getTokenVerificacionExpiracion() != null && usuario.getTokenVerificacionExpiracion().isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("El token de activación ha expirado. Por favor solicite un nuevo registro.");
+        }
+
+        usuario.setActivo(true);
+        usuario.setEmailVerificado(true);
+        usuario.setTokenVerificacionEmail(null);
+        usuario.setTokenVerificacionExpiracion(null);
+        usuarioRepository.save(usuario);
+
+        // Enviar correo de bienvenida tras activar exitosamente
+        pacienteRepository.findByUsuarioEmail(usuario.getEmail())
+                .ifPresent(p -> emailService.enviarEmailBienvenida(usuario.getEmail(), p.getNombre()));
+
+        return true;
     }
 
     public Paciente obtenerPorId(Long id) {

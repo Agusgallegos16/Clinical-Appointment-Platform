@@ -11,7 +11,27 @@ export const authService = {
     return response.data;
   },
 
+  confirmarEmail: async (token) => {
+    const response = await axiosClient.get('/auth/confirmar-email', { params: { token } });
+    return response.data;
+  },
+
+  solicitarRestablecimientoPassword: async (data) => {
+    const response = await axiosClient.post('/auth/solicitar-restablecimiento-password', data);
+    return response.data;
+  },
+
+  confirmarRestablecimientoPassword: async (token) => {
+    const response = await axiosClient.get('/auth/confirmar-restablecimiento-password', { params: { token } });
+    return response.data;
+  },
+
   registroDoctor: async (doctorData) => {
+    const response = await axiosClient.post('/auth/registro-doctor', doctorData);
+    return response.data;
+  },
+
+  registrarDoctor: async (doctorData) => {
     const response = await axiosClient.post('/auth/registro-doctor', doctorData);
     return response.data;
   },

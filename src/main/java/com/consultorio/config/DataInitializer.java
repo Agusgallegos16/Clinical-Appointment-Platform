@@ -40,12 +40,14 @@ public class DataInitializer implements CommandLineRunner {
     @Override
     public void run(String... args) throws Exception {
         // 0. Crear Usuario Administrador de Prueba
+        // 0. Crear Usuario Administrador de Prueba
         if (!usuarioRepository.existsByEmail("admin@consultorio.com")) {
             Usuario admin = Usuario.builder()
                     .email("admin@consultorio.com")
                     .password(passwordEncoder.encode("123456"))
                     .rol(Rol.ADMIN)
                     .activo(true)
+                    .emailVerificado(true)
                     .build();
             usuarioRepository.save(admin);
         }
@@ -107,12 +109,20 @@ public class DataInitializer implements CommandLineRunner {
         RegistroPacienteDTO pacienteDTO = new RegistroPacienteDTO();
         pacienteDTO.setEmail("paciente.gomez@gmail.com");
         pacienteDTO.setPassword("123456");
+        pacienteDTO.setConfirmarPassword("123456");
         pacienteDTO.setNombre("María");
         pacienteDTO.setApellido("Gómez");
         pacienteDTO.setDni(38491029L);
         pacienteDTO.setTelefono("+5491122334455");
 
-        pacienteService.registrarPaciente(pacienteDTO);
+        Paciente pacienteDemo = pacienteService.registrarPaciente(pacienteDTO);
+        Usuario usuarioDemo = pacienteDemo.getUsuario();
+        usuarioDemo.setActivo(true);
+        usuarioDemo.setEmailVerificado(true);
+        usuarioDemo.setTokenVerificacionEmail(null);
+        usuarioRepository.save(usuarioDemo);
+
+        System.out.println("✅ Datos de prueba iniciales (Admin, Doctor y Paciente) cargados correctamente en H2 Database.");
 
         System.out.println("✅ Datos de prueba iniciales (Admin, Doctor y Paciente) cargados correctamente en H2 Database.");
     }

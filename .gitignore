@@ -38,3 +38,11 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Secret credentials & Environment files ###
+google-credentials*.json
+*.pem
+.env
+.env.*
+application-local.properties
+application-dev.properties

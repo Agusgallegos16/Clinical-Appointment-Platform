@@ -110,7 +110,14 @@ const AdminDoctores = () => {
       setSelectedDoctorEdit(null);
       cargarDoctores();
     } catch (err) {
-      setError(err.response?.data?.mensaje || err.response?.data?.message || 'Error al actualizar el profesional.');
+      let msg = 'Error al actualizar el profesional.';
+      if (err.response?.data?.mensaje) msg = err.response.data.mensaje;
+      else if (err.response?.data?.message) msg = err.response.data.message;
+      else if (err.response?.data?.detalles) {
+        const d = err.response.data.detalles;
+        msg = typeof d === 'object' ? Object.values(d).join(', ') : String(d);
+      }
+      setError(msg);
     } finally {
       setUpdating(false);
     }

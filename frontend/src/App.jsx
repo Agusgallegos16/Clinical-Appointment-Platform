@@ -31,6 +31,11 @@ import AdminDoctores from './pages/admin/AdminDoctores';
 import AdminNuevoDoctor from './pages/admin/AdminNuevoDoctor';
 import AdminReportes from './pages/admin/AdminReportes';
 
+import ConfirmarEmail from './pages/auth/ConfirmarEmail';
+import RecuperarPassword from './pages/auth/RecuperarPassword';
+import ConfirmarRestablecimiento from './pages/auth/ConfirmarRestablecimiento';
+import GoogleCalendarSuccess from './pages/GoogleCalendarSuccess';
+
 // Redirección inteligente en la raíz '/' según rol
 const RootRedirect = () => {
   const { isAuthenticated, role } = useAuth();
@@ -53,6 +58,10 @@ const AppContent = () => {
           {/* Rutas Públicas */}
           <Route path="/login" element={<Login />} />
           <Route path="/registro" element={<Register />} />
+          <Route path="/recuperar-password" element={<RecuperarPassword />} />
+          <Route path="/confirmar-email" element={<ConfirmarEmail />} />
+          <Route path="/confirmar-restablecimiento" element={<ConfirmarRestablecimiento />} />
+          <Route path="/google-calendar/success" element={<GoogleCalendarSuccess />} />
           <Route path="/" element={<RootRedirect />} />
 
           {/* Rutas Protegidas dentro del MainLayout */}

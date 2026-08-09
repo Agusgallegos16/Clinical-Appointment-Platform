@@ -11,6 +11,7 @@ import com.consultorio.repository.UsuarioRepository;
 import com.consultorio.security.JwtUtils;
 import com.consultorio.service.DoctorService;
 import com.consultorio.service.PacienteService;
+import com.consultorio.service.UsuarioService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -24,15 +25,17 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/auth")
-@Tag(name = "Autenticación y Registro", description = "Endpoints para registro de usuarios y obtención de Token JWT de sesión.")
+@Tag(name = "Autenticación y Registro", description = "Endpoints para registro, verificación de email, restablecimiento de clave y Token JWT.")
 public class AuthController {
 
     private final PacienteService pacienteService;
     private final DoctorService doctorService;
+    private final UsuarioService usuarioService;
     private final AuthenticationManager authenticationManager;
     private final JwtUtils jwtUtils;
     private final UsuarioRepository usuarioRepository;
@@ -42,6 +45,7 @@ public class AuthController {
     @Autowired
     public AuthController(PacienteService pacienteService,
                           DoctorService doctorService,
+                          UsuarioService usuarioService,
                           AuthenticationManager authenticationManager,
                           JwtUtils jwtUtils,
                           UsuarioRepository usuarioRepository,
@@ -49,6 +53,7 @@ public class AuthController {
                           DoctorRepository doctorRepository) {
         this.pacienteService = pacienteService;
         this.doctorService = doctorService;
+        this.usuarioService = usuarioService;
         this.authenticationManager = authenticationManager;
         this.jwtUtils = jwtUtils;
         this.usuarioRepository = usuarioRepository;
@@ -71,17 +76,42 @@ public class AuthController {
         return ResponseEntity.status(HttpStatus.CREATED).body(doctor);
     }
 
+    @GetMapping("/confirmar-email")
+    @Operation(summary = "Confirmación de correo electrónico vía token (Público)")
+    public ResponseEntity<Map<String, String>> confirmarEmail(@RequestParam("token") String token) {
+        pacienteService.confirmarEmail(token);
+        return ResponseEntity.ok(Map.of("message", "¡Correo electrónico verificado exitosamente! Tu cuenta ha sido activada."));
+    }
+
+    @PostMapping("/solicitar-restablecimiento-password")
+    @Operation(summary = "Solicitar restablecimiento de contraseña vía email (Público)")
+    public ResponseEntity<Map<String, String>> solicitarRestablecimientoPassword(@Valid @RequestBody SolicitudRestablecerPasswordDTO dto) {
+        usuarioService.solicitarRestablecimientoPassword(dto);
+        return ResponseEntity.ok(Map.of("message", "Se ha enviado un enlace de confirmación a tu correo electrónico para cambiar la contraseña."));
+    }
+
+    @GetMapping("/confirmar-restablecimiento-password")
+    @Operation(summary = "Confirmar el cambio de contraseña vía token (Público)")
+    public ResponseEntity<Map<String, String>> confirmarRestablecimientoPassword(@RequestParam("token") String token) {
+        usuarioService.confirmarRestablecimientoPassword(token);
+        return ResponseEntity.ok(Map.of("message", "Contraseña cambiada con éxito. Ya puedes iniciar sesión con tu nueva contraseña."));
+    }
+
     @PostMapping("/login")
     @Operation(summary = "Iniciar Sesión y obtener Token JWT Bearer")
     public ResponseEntity<JwtResponseDTO> login(@Valid @RequestBody LoginDTO loginDTO) {
+        Usuario usuario = usuarioRepository.findByEmail(loginDTO.getEmail())
+                .orElseThrow(() -> new IllegalArgumentException("Credenciales inválidas."));
+
+        if (!usuario.isEmailVerificado() || !usuario.isActivo()) {
+            throw new IllegalArgumentException("Debe confirmar su correo electrónico antes de iniciar sesión. Por favor revise su bandeja de entrada.");
+        }
+
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(loginDTO.getEmail(), loginDTO.getPassword())
         );
 
         SecurityContextHolder.getContext().setAuthentication(authentication);
-
-        Usuario usuario = usuarioRepository.findByEmail(loginDTO.getEmail())
-                .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
 
         String token = jwtUtils.generarToken(usuario.getEmail(), usuario.getRol().name());
 

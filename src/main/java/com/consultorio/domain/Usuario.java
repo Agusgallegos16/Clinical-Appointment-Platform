@@ -8,6 +8,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
+import java.time.LocalDateTime;
+
 @Entity
 @Table(name = "usuarios")
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
@@ -40,4 +42,41 @@ public class Usuario {
     @Builder.Default
     @Column(nullable = false)
     private boolean activo = true;
+
+    @Builder.Default
+    @Column(name = "email_verificado", nullable = false)
+    private boolean emailVerificado = false;
+
+    @Column(name = "token_verificacion_email")
+    @JsonIgnore
+    private String tokenVerificacionEmail;
+
+    @Column(name = "token_verificacion_expiracion")
+    private LocalDateTime tokenVerificacionExpiracion;
+
+    @Column(name = "token_restablecimiento_password")
+    @JsonIgnore
+    private String tokenRestablecimientoPassword;
+
+    @Column(name = "token_restablecimiento_expiracion")
+    private LocalDateTime tokenRestablecimientoExpiracion;
+
+    @Column(name = "nueva_password_pendiente")
+    @JsonIgnore
+    private String nuevaPasswordPendiente;
+
+    @Column(name = "google_access_token", length = 2048)
+    @JsonIgnore
+    private String googleAccessToken;
+
+    @Column(name = "google_refresh_token", length = 2048)
+    @JsonIgnore
+    private String googleRefreshToken;
+
+    @Column(name = "google_token_expiry")
+    private Long googleTokenExpiry;
+
+    @Builder.Default
+    @Column(name = "google_calendar_connected", nullable = false)
+    private boolean googleCalendarConnected = false;
 }

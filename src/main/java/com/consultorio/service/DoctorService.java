@@ -57,14 +57,18 @@ public class DoctorService {
                 .password(passwordEncoder.encode(rawPassword))
                 .rol(Rol.DOCTOR)
                 .activo(true)
+                .emailVerificado(true)
                 .build();
 
-        var especialidades = (dto.getEspecialidadIds() != null && !dto.getEspecialidadIds().isEmpty())
-                ? especialidadRepository.findAllById(dto.getEspecialidadIds())
-                : List.<Especialidad>of();
+        Usuario usuarioGuardado = usuarioRepository.save(usuario);
+
+        List<Especialidad> especialidades = new ArrayList<>();
+        if (dto.getEspecialidadIds() != null && !dto.getEspecialidadIds().isEmpty()) {
+            especialidades = new ArrayList<>(especialidadRepository.findAllById(dto.getEspecialidadIds()));
+        }
 
         Doctor doctor = Doctor.builder()
-                .usuario(usuario)
+                .usuario(usuarioGuardado)
                 .nombre(dto.getNombre())
                 .apellido(dto.getApellido())
                 .especialidades(especialidades)

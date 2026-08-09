@@ -7,6 +7,11 @@ export const doctorService = {
     return response.data;
   },
 
+  registrarDoctor: async (doctorData) => {
+    const response = await axiosClient.post('/auth/registro-doctor', doctorData);
+    return response.data;
+  },
+
   obtenerPorId: async (id) => {
     const response = await axiosClient.get(`/doctores/${id}`);
     return response.data;

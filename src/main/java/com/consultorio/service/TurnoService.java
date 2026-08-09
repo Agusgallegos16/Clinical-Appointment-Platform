@@ -105,16 +105,31 @@ public class TurnoService {
 
         Turno guardado = turnoRepository.save(turno);
 
-        // Agendar evento de calendario usando el Adapter (Resiliente y desacoplado)
+        // Sincronizar en el Google Calendar personal del Paciente (si lo tiene vinculado)
         try {
-            String googleEventId = calendarioAdapter.agendarEvento(guardado);
-            if (googleEventId != null) {
-                guardado.setGoogleEventId(googleEventId);
-                guardado = turnoRepository.save(guardado);
+            if (paciente.getUsuario().isGoogleCalendarConnected()) {
+                String eventIdPaciente = calendarioAdapter.agendarEventoParaUsuario(guardado, paciente.getUsuario());
+                if (eventIdPaciente != null) {
+                    guardado.setGoogleEventId(eventIdPaciente);
+                }
             }
         } catch (Exception e) {
-            log.error("No se pudo agendar en el calendario remoto: {}", e.getMessage());
+            log.error("No se pudo agendar en el Google Calendar del paciente: {}", e.getMessage());
         }
+
+        // Sincronizar en el Google Calendar personal del Doctor (si lo tiene vinculado)
+        try {
+            if (doctor.getUsuario().isGoogleCalendarConnected()) {
+                String eventIdDoctor = calendarioAdapter.agendarEventoParaUsuario(guardado, doctor.getUsuario());
+                if (eventIdDoctor != null) {
+                    guardado.setGoogleEventIdDoctor(eventIdDoctor);
+                }
+            }
+        } catch (Exception e) {
+            log.error("No se pudo agendar en el Google Calendar del doctor: {}", e.getMessage());
+        }
+
+        guardado = turnoRepository.save(guardado);
 
         TurnoResponseDTO responseDTO = mapearResponseDTO(guardado);
 
@@ -150,12 +165,21 @@ public class TurnoService {
         turno.setEstado(EstadoTurno.CANCELADO);
         Turno actualizado = turnoRepository.save(turno);
 
-        // Cancelar evento en Google Calendar usando el Adapter
+        // Cancelar evento en el Google Calendar del Paciente
         if (actualizado.getGoogleEventId() != null) {
             try {
-                calendarioAdapter.cancelarEvento(actualizado.getGoogleEventId());
+                calendarioAdapter.cancelarEventoParaUsuario(actualizado.getGoogleEventId(), actualizado.getPaciente().getUsuario());
             } catch (Exception e) {
-                log.error("No se pudo cancelar el evento en el calendario remoto: {}", e.getMessage());
+                log.error("No se pudo cancelar el evento en el calendario del paciente: {}", e.getMessage());
+            }
+        }
+
+        // Cancelar evento en el Google Calendar del Doctor
+        if (actualizado.getGoogleEventIdDoctor() != null) {
+            try {
+                calendarioAdapter.cancelarEventoParaUsuario(actualizado.getGoogleEventIdDoctor(), actualizado.getDoctor().getUsuario());
+            } catch (Exception e) {
+                log.error("No se pudo cancelar el evento en el calendario del doctor: {}", e.getMessage());
             }
         }
 
@@ -244,6 +268,7 @@ public class TurnoService {
                 .fechaHora(turno.getFechaHora())
                 .estado(turno.getEstado())
                 .motivoConsulta(turno.getMotivoConsulta())
+                .googleEventId(turno.getGoogleEventId())
                 .build();
     }
 }

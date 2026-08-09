@@ -24,6 +24,8 @@ import { doctorService } from '../../api/doctorService';
 import { turnoService } from '../../api/turnoService';
 import dayjs from 'dayjs';
 
+import GoogleCalendarButton from '../../components/GoogleCalendarButton';
+
 const DoctorAgenda = () => {
   const { entidadId } = useAuth();
   const [fecha, setFecha] = useState(dayjs().format('YYYY-MM-DD'));
@@ -72,12 +74,17 @@ const DoctorAgenda = () => {
 
   return (
     <Box>
-      <Typography variant="h4" fontWeight={700} color="primary" mb={1}>
-        Mi Agenda Médica
-      </Typography>
-      <Typography variant="body1" color="text.secondary" mb={3}>
-        Consultá la lista de pacientes y turnos confirmados para el día seleccionado.
-      </Typography>
+      <Box display="flex" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={2} mb={3}>
+        <Box>
+          <Typography variant="h4" fontWeight={700} color="primary" mb={1}>
+            Mi Agenda Médica
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
+            Consultá la lista de pacientes y turnos confirmados para el día seleccionado.
+          </Typography>
+        </Box>
+        <GoogleCalendarButton />
+      </Box>
 
       <Paper sx={{ p: 2.5, mb: 4 }}>
         <Grid container spacing={2} alignItems="center">
@@ -133,6 +140,15 @@ const DoctorAgenda = () => {
                     <Typography variant="body2" color="text.secondary" mt={0.5}>
                       💬 <strong>Motivo:</strong> {turno.motivoConsulta || 'Sin especificar'}
                     </Typography>
+                    {turno.googleEventId && (
+                      <Chip
+                        label="📅 Sincronizado en Google Calendar"
+                        size="small"
+                        color="info"
+                        variant="outlined"
+                        sx={{ mt: 1, fontWeight: 500 }}
+                      />
+                    )}
                   </Box>
 
                   {turno.estado !== 'COMPLETADO' && turno.estado !== 'CANCELADO' && turno.estado !== 'AUSENTE' && (

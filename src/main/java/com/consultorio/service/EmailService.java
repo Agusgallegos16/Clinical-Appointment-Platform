@@ -25,6 +25,41 @@ public class EmailService {
         this.mailSender = mailSenderProvider.getIfAvailable();
     }
 
+    // Email de Verificación de Correo Electrónico (Enlace de activación)
+    public void enviarEmailVerificacion(String emailDestino, String nombreUsuario, String token) {
+        String urlVerificacion = "http://localhost:5173/confirmar-email?token=" + token;
+        String asunto = "Confirma tu correo electrónico - Consultorio Médico";
+        String cuerpo = String.format(
+                "Hola %s,\n\n" +
+                "Gracias por registrarte en nuestro sistema de gestión de turnos.\n" +
+                "Para activar tu cuenta y poder iniciar sesión, por favor confirma tu correo electrónico ingresando al siguiente enlace:\n\n" +
+                "%s\n\n" +
+                "Este enlace expira en 24 horas.\n\n" +
+                "Saludos cordiales,\nEquipo del Consultorio Médico.",
+                nombreUsuario, urlVerificacion
+        );
+
+        enviarCorreo(emailDestino, asunto, cuerpo);
+    }
+
+    // Email de Confirmación de Restablecimiento de Contraseña
+    public void enviarEmailRestablecerPassword(String emailDestino, String token) {
+        String urlConfirmacion = "http://localhost:5173/confirmar-restablecimiento?token=" + token;
+        String asunto = "Confirmación de cambio de contraseña - Consultorio Médico";
+        String cuerpo = String.format(
+                "Hola,\n\n" +
+                "Hemos recibido una solicitud para cambiar la contraseña de tu cuenta.\n" +
+                "Para confirmar el cambio e ingresar con tu nueva contraseña, por favor accede al siguiente enlace:\n\n" +
+                "%s\n\n" +
+                "Si no realizaste esta solicitud, puedes ignorar este correo y tu contraseña actual seguirá siendo la misma.\n" +
+                "Este enlace expira en 1 hora.\n\n" +
+                "Saludos cordiales,\nEquipo del Consultorio Médico.",
+                urlConfirmacion
+        );
+
+        enviarCorreo(emailDestino, asunto, cuerpo);
+    }
+
     // 1. Email de Bienvenida al crearse la cuenta
     public void enviarEmailBienvenida(String emailDestino, String nombreUsuario) {
         String asunto = "¡Bienvenido al Sistema de Gestión de Turnos!";

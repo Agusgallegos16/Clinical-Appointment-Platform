@@ -131,6 +131,15 @@ const Login = () => {
               {loading ? <CircularProgress size={24} color="inherit" /> : 'Iniciar Sesión'}
             </Button>
 
+            <Box textAlign="rigth" mt={2}>
+              <Typography variant="body2" color="text.secondary">
+                ¿Olvidaste tu contraseña?{' '}
+                <Link to="/recuperar-password" style={{ color: '#0284c7', textDecoration: 'none', fontWeight: 600 }}>
+                  Reestablecerla
+                </Link>
+              </Typography>
+            </Box>
+
             <Box textAlign="center" mt={2}>
               <Typography variant="body2" color="text.secondary">
                 ¿No tenés una cuenta?{' '}
