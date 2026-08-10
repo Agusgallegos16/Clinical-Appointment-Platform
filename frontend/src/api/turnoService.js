@@ -22,4 +22,11 @@ export const turnoService = {
     });
     return response.data;
   },
+
+  cambiarEstado: async (turnoId, nuevoEstado) => {
+    const response = await axiosClient.put(`/turnos/${turnoId}/estado`, null, {
+      params: { nuevoEstado },
+    });
+    return response.data;
+  },
 };

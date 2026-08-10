@@ -27,10 +27,21 @@ import { useAuth } from '../../context/AuthContext';
 import { turnoService } from '../../api/turnoService';
 import dayjs from 'dayjs';
 
+import { useSearchParams } from 'react-router-dom';
+import { pacienteMenorService } from '../../api/pacienteMenorService';
+
 import GoogleCalendarButton from '../../components/GoogleCalendarButton';
 
 const MisTurnos = () => {
   const { entidadId } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const queryPacienteId = searchParams.get('pacienteId') ? Number(searchParams.get('pacienteId')) : null;
+  const queryNombre = searchParams.get('nombre');
+
+  const [selectedPacienteId, setSelectedPacienteId] = useState(queryPacienteId || entidadId);
+  const [menores, setMenores] = useState([]);
+
   const [turnos, setTurnos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -41,12 +52,32 @@ const MisTurnos = () => {
   const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
-    if (entidadId) cargarTurnos();
+    if (entidadId) {
+      cargarMenoresTutor();
+    }
   }, [entidadId]);
 
-  const cargarTurnos = async () => {
+  useEffect(() => {
+    const idAUsar = queryPacienteId || selectedPacienteId || entidadId;
+    if (idAUsar) {
+      cargarTurnos(idAUsar);
+    }
+  }, [selectedPacienteId, queryPacienteId, entidadId]);
+
+  const cargarMenoresTutor = async () => {
     try {
-      const data = await turnoService.obtenerPorPaciente(entidadId);
+      const data = await pacienteMenorService.listarMenores();
+      setMenores(data);
+    } catch (err) {
+      // Opcional
+    }
+  };
+
+  const cargarTurnos = async (pacienteIdTarget) => {
+    setLoading(true);
+    setError('');
+    try {
+      const data = await turnoService.obtenerPorPaciente(pacienteIdTarget);
       setTurnos(data);
     } catch (err) {
       setError('Error al consultar la lista de turnos.');
@@ -58,12 +89,13 @@ const MisTurnos = () => {
   const handleConfirmCancelar = async () => {
     if (!selectedTurnoCancel) return;
     setCancelling(true);
+    const targetId = queryPacienteId || selectedPacienteId || entidadId;
     try {
       await turnoService.cancelar(selectedTurnoCancel.id);
       setSelectedTurnoCancel(null);
-      cargarTurnos();
+      await cargarTurnos(targetId);
     } catch (err) {
-      setError('No se pudo cancelar el turno.');
+      setError(err.response?.data?.mensaje || err.response?.data?.message || 'No se pudo cancelar el turno.');
     } finally {
       setCancelling(false);
     }
@@ -122,6 +154,29 @@ const MisTurnos = () => {
 
       {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
+      {menores.length > 0 && (
+        <Box mb={3}>
+          <Typography variant="subtitle2" fontWeight={700} color="text.secondary" mb={1}>
+            👤 Seleccionar Paciente:
+          </Typography>
+          <Tabs
+            value={selectedPacienteId || entidadId}
+            onChange={(e, newId) => {
+              setSelectedPacienteId(newId);
+              setSearchParams({ pacienteId: newId });
+            }}
+            variant="scrollable"
+            scrollButtons="auto"
+            sx={{ bgcolor: 'background.paper', borderRadius: 3, p: 0.5 }}
+          >
+            <Tab value={entidadId} label="Mis Turnos (Titular)" sx={{ fontWeight: 700 }} />
+            {menores.map((m) => (
+              <Tab key={m.id} value={m.id} label={`🧒 ${m.nombre} ${m.apellido}`} sx={{ fontWeight: 600 }} />
+            ))}
+          </Tabs>
+        </Box>
+      )}
+
       <Tabs value={filterTab} onChange={(e, val) => setFilterTab(val)} sx={{ mb: 3 }}>
         <Tab label="Turnos Activos" />
         <Tab label="Todos los Turnos" />
@@ -156,6 +211,12 @@ const MisTurnos = () => {
                   <Typography variant="body2" color="text.secondary" mb={0.5}>
                     💬 <strong>Motivo:</strong> {turno.motivoConsulta || 'Consulta General'}
                   </Typography>
+
+                  {turno.estado === 'CANCELADO' && turno.motivoCancelacion && (
+                    <Alert severity="error" sx={{ mt: 1.5, py: 0.5, px: 1.5, fontSize: '0.85rem', fontWeight: 600 }}>
+                      ❌ <strong>Motivo de Cancelación del Médico:</strong> {turno.motivoCancelacion}
+                    </Alert>
+                  )}
 
                   {turno.googleEventId && (
                     <Chip

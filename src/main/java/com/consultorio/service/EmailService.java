@@ -211,8 +211,11 @@ public class EmailService {
     }
 
     private void enviarCorreo(String destino, String asunto, String cuerpo) {
-        log.info("\n📧 === [NOTIFICACIÓN POR EMAIL] ===\nPara: {}\nAsunto: {}\nContenido:\n{}\n==================================",
+        String logMessage = String.format("\n📧 ==================== [NOTIFICACIÓN POR EMAIL] ====================\nPara: %s\nAsunto: %s\nContenido:\n%s\n====================================================================",
                 destino, asunto, cuerpo);
+
+        System.out.println(logMessage);
+        log.info(logMessage);
 
         if (mailSender != null) {
             try {

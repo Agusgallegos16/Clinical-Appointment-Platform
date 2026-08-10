@@ -360,17 +360,23 @@ const DoctorAgenda = () => {
                 </Box>
                 <Divider sx={{ my: 1.5 }} />
                 <Grid container spacing={2}>
-                  <Grid item xs={6} sm={4}>
+                  <Grid item xs={6} sm={3}>
                     <Typography variant="caption" color="text.secondary" display="block">DNI</Typography>
                     <Typography variant="subtitle2" fontWeight={700}>{pacienteStats.dni || '-'}</Typography>
                   </Grid>
-                  <Grid item xs={6} sm={4}>
+                  <Grid item xs={6} sm={3}>
+                    <Typography variant="caption" color="text.secondary" display="block">Nacimiento</Typography>
+                    <Typography variant="subtitle2" fontWeight={700}>
+                      {pacienteStats.fechaNacimiento ? dayjs(pacienteStats.fechaNacimiento).format('DD/MM/YYYY') : '-'}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={6} sm={3}>
                     <Typography variant="caption" color="text.secondary" display="block">Edad</Typography>
                     <Typography variant="subtitle2" fontWeight={700}>
                       {pacienteStats.edad !== null && pacienteStats.edad !== undefined ? `${pacienteStats.edad} años` : 'Sin registrar'}
                     </Typography>
                   </Grid>
-                  <Grid item xs={12} sm={4}>
+                  <Grid item xs={6} sm={3}>
                     <Typography variant="caption" color="text.secondary" display="block">Teléfono</Typography>
                     <Typography variant="subtitle2" fontWeight={700}>{pacienteStats.telefono || '-'}</Typography>
                   </Grid>

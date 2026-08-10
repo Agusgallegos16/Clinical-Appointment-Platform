@@ -22,8 +22,12 @@ public class Paciente {
     private Long id;
 
     @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
-    @JoinColumn(name = "usuario_id", referencedColumnName = "id", nullable = false)
+    @JoinColumn(name = "usuario_id", referencedColumnName = "id", nullable = true)
     private Usuario usuario;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "tutor_id")
+    private Paciente tutor;
 
     @NotBlank(message = "El nombre es obligatorio")
     private String nombre;
@@ -36,13 +40,24 @@ public class Paciente {
     @Column(unique = true, nullable = false)
     private Long dni;
 
-    @NotBlank(message = "El teléfono es obligatorio")
     private String telefono;
 
     private java.time.LocalDate fechaNacimiento;
 
+    public String getTelefono() {
+        if (this.telefono != null && !this.telefono.trim().isEmpty()) {
+            return this.telefono;
+        }
+        return this.tutor != null ? this.tutor.getTelefono() : null;
+    }
+
     public Integer getEdad() {
         if (this.fechaNacimiento == null) return null;
         return java.time.Period.between(this.fechaNacimiento, java.time.LocalDate.now()).getYears();
+    }
+
+    public boolean esMenor() {
+        Integer edad = getEdad();
+        return edad != null && edad < 18;
     }
 }

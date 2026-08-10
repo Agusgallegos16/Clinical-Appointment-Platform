@@ -17,6 +17,7 @@ import Register from './pages/auth/Register';
 import PacienteDashboard from './pages/paciente/PacienteDashboard';
 import ReservarTurno from './pages/paciente/ReservarTurno';
 import MisTurnos from './pages/paciente/MisTurnos';
+import GestionMenores from './pages/paciente/GestionMenores';
 
 // Doctor Pages
 import DoctorDashboard from './pages/doctor/DoctorDashboard';
@@ -71,6 +72,7 @@ const AppContent = () => {
               <Route path="/paciente" element={<PacienteDashboard />} />
               <Route path="/paciente/reservar" element={<ReservarTurno />} />
               <Route path="/paciente/turnos" element={<MisTurnos />} />
+              <Route path="/paciente/menores" element={<GestionMenores />} />
             </Route>
 
             {/* Módulo Doctor */}

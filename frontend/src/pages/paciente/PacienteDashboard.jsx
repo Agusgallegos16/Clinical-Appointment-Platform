@@ -14,6 +14,7 @@ import {
   EventNote as EventNoteIcon,
   CalendarMonth as CalendarIcon,
   ArrowForward as ArrowForwardIcon,
+  ChildCare as ChildCareIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { turnoService } from '../../api/turnoService';
@@ -147,6 +148,30 @@ const PacienteDashboard = () => {
             <Box textAlign="left">
               <Typography variant="h6" fontWeight={700}>
                 Mis Turnos Agendados ({turnos.length})
+              </Typography>
+            </Box>
+          </Button>
+
+          <Button
+            variant="outlined"
+            color="primary"
+            size="large"
+            fullWidth
+            onClick={() => navigate('/paciente/menores')}
+            startIcon={<ChildCareIcon sx={{ fontSize: 36 }} />}
+            endIcon={<ArrowForwardIcon />}
+            sx={{
+              py: 2.8,
+              px: 3.5,
+              justifyContent: 'space-between',
+              fontSize: '1.15rem',
+              fontWeight: 700,
+              borderRadius: 3,
+            }}
+          >
+            <Box textAlign="left">
+              <Typography variant="h6" fontWeight={700}>
+                Gestionar Menores a Cargo
               </Typography>
             </Box>
           </Button>

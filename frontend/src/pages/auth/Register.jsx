@@ -14,6 +14,7 @@ import {
 } from '@mui/material';
 import { LocalHospital as HospitalIcon } from '@mui/icons-material';
 import { authService } from '../../api/authService';
+import dayjs from 'dayjs';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -24,6 +25,7 @@ const Register = () => {
     confirmarPassword: '',
     dni: '',
     telefono: '',
+    fechaNacimiento: '',
   });
 
   const [loading, setLoading] = useState(false);
@@ -41,6 +43,11 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (!formData.fechaNacimiento) {
+      setError('Por favor seleccioná tu fecha de nacimiento.');
+      return;
+    }
 
     if (formData.password !== formData.confirmarPassword) {
       setError('Las contraseñas no coinciden. Por favor verifíquelas.');
@@ -133,6 +140,19 @@ const Register = () => {
                     name="telefono"
                     value={formData.telefono}
                     onChange={handleChange}
+                    required
+                  />
+                </Grid>
+                <Grid item xs={12}>
+                  <TextField
+                    fullWidth
+                    label="Fecha de Nacimiento *"
+                    name="fechaNacimiento"
+                    type="date"
+                    value={formData.fechaNacimiento}
+                    onChange={handleChange}
+                    InputLabelProps={{ shrink: true }}
+                    inputProps={{ max: dayjs().format('YYYY-MM-DD') }}
                     required
                   />
                 </Grid>

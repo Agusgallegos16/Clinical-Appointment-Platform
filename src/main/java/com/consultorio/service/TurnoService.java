@@ -73,8 +73,11 @@ public class TurnoService {
         }
 
         boolean esAdmin = esUsuarioAdmin(emailAutenticado);
-        if (!esAdmin && !paciente.getUsuario().getEmail().equalsIgnoreCase(emailAutenticado)) {
-            throw new AccessDeniedException("Acceso denegado: No tiene permisos para agendar turnos a nombre de otro paciente.");
+        boolean esSuPaciente = paciente.getUsuario() != null && paciente.getUsuario().getEmail().equalsIgnoreCase(emailAutenticado);
+        boolean esTutor = paciente.getTutor() != null && paciente.getTutor().getUsuario() != null && paciente.getTutor().getUsuario().getEmail().equalsIgnoreCase(emailAutenticado);
+
+        if (!esAdmin && !esSuPaciente && !esTutor) {
+            throw new AccessDeniedException("Acceso denegado: No tiene permisos para agendar turnos a nombre de este paciente.");
         }
 
         // Validar que el doctor efectivamente ejerza esa especialidad
@@ -107,7 +110,7 @@ public class TurnoService {
 
         // Sincronizar en el Google Calendar personal del Paciente (si lo tiene vinculado)
         try {
-            if (paciente.getUsuario().isGoogleCalendarConnected()) {
+            if (paciente.getUsuario() != null && paciente.getUsuario().isGoogleCalendarConnected()) {
                 String eventIdPaciente = calendarioAdapter.agendarEventoParaUsuario(guardado, paciente.getUsuario());
                 if (eventIdPaciente != null) {
                     guardado.setGoogleEventId(eventIdPaciente);
@@ -133,8 +136,11 @@ public class TurnoService {
 
         TurnoResponseDTO responseDTO = mapearResponseDTO(guardado);
 
-        // Notificación por email al paciente confirmando la reserva
-        emailService.enviarConfirmacionTurno(paciente.getUsuario().getEmail(), responseDTO);
+        // Notificación por email al paciente/tutor confirmando la reserva
+        String emailDestino = obtenerEmailNotificacionPaciente(paciente);
+        if (emailDestino != null) {
+            emailService.enviarConfirmacionTurno(emailDestino, responseDTO);
+        }
 
         return responseDTO;
     }
@@ -144,17 +150,18 @@ public class TurnoService {
         Turno turno = turnoRepository.findById(turnoId)
                 .orElseThrow(() -> new IllegalArgumentException("Turno no encontrado con ID: " + turnoId));
 
-        // Control de Seguridad IDOR: Solo el paciente, doctor dueño del turno o ADMIN pueden cancelarlo
+        // Control de Seguridad IDOR: Solo el paciente, su tutor, doctor dueño del turno o ADMIN pueden cancelarlo
         String emailAutenticado = securityUtils.obtenerEmailUsuarioAutenticado();
         if (emailAutenticado == null) {
             throw new AccessDeniedException("Debe incluir un Token JWT válido en el encabezado Authorization para realizar esta acción.");
         }
 
         boolean esAdmin = esUsuarioAdmin(emailAutenticado);
-        boolean esSuPaciente = turno.getPaciente().getUsuario().getEmail().equalsIgnoreCase(emailAutenticado);
+        boolean esSuPaciente = turno.getPaciente().getUsuario() != null && turno.getPaciente().getUsuario().getEmail().equalsIgnoreCase(emailAutenticado);
+        boolean esTutor = turno.getPaciente().getTutor() != null && turno.getPaciente().getTutor().getUsuario() != null && turno.getPaciente().getTutor().getUsuario().getEmail().equalsIgnoreCase(emailAutenticado);
         boolean esSuDoctor = turno.getDoctor().getUsuario().getEmail().equalsIgnoreCase(emailAutenticado);
 
-        if (!esAdmin && !esSuPaciente && !esSuDoctor) {
+        if (!esAdmin && !esSuPaciente && !esTutor && !esSuDoctor) {
             throw new AccessDeniedException("Acceso denegado: No tiene permisos para cancelar este turno.");
         }
 
@@ -165,8 +172,8 @@ public class TurnoService {
         turno.setEstado(EstadoTurno.CANCELADO);
         Turno actualizado = turnoRepository.save(turno);
 
-        // Cancelar evento en el Google Calendar del Paciente
-        if (actualizado.getGoogleEventId() != null) {
+        // Cancelar evento en el Google Calendar del Paciente (si posee cuenta propia vinculada)
+        if (actualizado.getGoogleEventId() != null && actualizado.getPaciente().getUsuario() != null) {
             try {
                 calendarioAdapter.cancelarEventoParaUsuario(actualizado.getGoogleEventId(), actualizado.getPaciente().getUsuario());
             } catch (Exception e) {
@@ -175,7 +182,7 @@ public class TurnoService {
         }
 
         // Cancelar evento en el Google Calendar del Doctor
-        if (actualizado.getGoogleEventIdDoctor() != null) {
+        if (actualizado.getGoogleEventIdDoctor() != null && actualizado.getDoctor().getUsuario() != null) {
             try {
                 calendarioAdapter.cancelarEventoParaUsuario(actualizado.getGoogleEventIdDoctor(), actualizado.getDoctor().getUsuario());
             } catch (Exception e) {
@@ -216,14 +223,14 @@ public class TurnoService {
         Turno actualizado = turnoRepository.save(turno);
 
         // Cancelar eventos de Google Calendar si existían
-        if (actualizado.getGoogleEventId() != null) {
+        if (actualizado.getGoogleEventId() != null && actualizado.getPaciente().getUsuario() != null) {
             try {
                 calendarioAdapter.cancelarEventoParaUsuario(actualizado.getGoogleEventId(), actualizado.getPaciente().getUsuario());
             } catch (Exception e) {
                 log.error("No se pudo cancelar el evento en el calendario del paciente: {}", e.getMessage());
             }
         }
-        if (actualizado.getGoogleEventIdDoctor() != null) {
+        if (actualizado.getGoogleEventIdDoctor() != null && actualizado.getDoctor().getUsuario() != null) {
             try {
                 calendarioAdapter.cancelarEventoParaUsuario(actualizado.getGoogleEventIdDoctor(), actualizado.getDoctor().getUsuario());
             } catch (Exception e) {
@@ -233,15 +240,19 @@ public class TurnoService {
 
         TurnoResponseDTO dto = mapearResponseDTO(actualizado);
 
-        // Notificación por correo electrónico al paciente con disculpas y la justificación obligatoria
-        try {
-            emailService.enviarEmailCancelacionDoctor(
-                    actualizado.getPaciente().getUsuario().getEmail(),
-                    dto,
-                    motivoCancelacion.trim()
-            );
-        } catch (Exception e) {
-            log.error("Error al enviar email de cancelación por médico: {}", e.getMessage());
+        // Notificación por correo electrónico al paciente/tutor con disculpas y la justificación obligatoria
+        String emailDestino = obtenerEmailNotificacionPaciente(actualizado.getPaciente());
+
+        if (emailDestino != null) {
+            try {
+                emailService.enviarEmailCancelacionDoctor(
+                        emailDestino,
+                        dto,
+                        motivoCancelacion.trim()
+                );
+            } catch (Exception e) {
+                log.error("Error al enviar email de cancelación por médico: {}", e.getMessage());
+            }
         }
 
         return dto;
@@ -268,8 +279,11 @@ public class TurnoService {
         }
 
         boolean esAdmin = esUsuarioAdmin(emailAutenticado);
-        if (!esAdmin && !paciente.getUsuario().getEmail().equalsIgnoreCase(emailAutenticado)) {
-            throw new AccessDeniedException("Acceso denegado: No tiene permiso para consultar los turnos de otro paciente.");
+        boolean esSuPaciente = paciente.getUsuario() != null && paciente.getUsuario().getEmail().equalsIgnoreCase(emailAutenticado);
+        boolean esTutor = paciente.getTutor() != null && paciente.getTutor().getUsuario() != null && paciente.getTutor().getUsuario().getEmail().equalsIgnoreCase(emailAutenticado);
+
+        if (!esAdmin && !esSuPaciente && !esTutor) {
+            throw new AccessDeniedException("Acceso denegado: No tiene permiso para consultar los turnos de este paciente.");
         }
 
         return turnoRepository.findByPacienteIdOrderByFechaHoraDesc(pacienteId)
@@ -316,6 +330,23 @@ public class TurnoService {
         return usuarioRepository.findByEmail(email)
                 .map(u -> u.getRol() == Rol.ADMIN)
                 .orElse(false);
+    }
+
+    private String obtenerEmailNotificacionPaciente(Paciente paciente) {
+        if (paciente == null) return null;
+
+        if (paciente.getUsuario() != null && paciente.getUsuario().getEmail() != null && !paciente.getUsuario().getEmail().trim().isEmpty()) {
+            return paciente.getUsuario().getEmail();
+        }
+
+        if (paciente.getTutor() != null && paciente.getTutor().getId() != null) {
+            Paciente tutorCompleto = pacienteRepository.findById(paciente.getTutor().getId()).orElse(null);
+            if (tutorCompleto != null && tutorCompleto.getUsuario() != null && tutorCompleto.getUsuario().getEmail() != null) {
+                return tutorCompleto.getUsuario().getEmail();
+            }
+        }
+
+        return null;
     }
 
     private TurnoResponseDTO mapearResponseDTO(Turno turno) {

@@ -34,6 +34,7 @@ import {
   LightMode as LightModeIcon,
   DarkMode as DarkModeIcon,
   Logout as LogoutIcon,
+  ChildCare as ChildIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import { useColorMode } from '../context/ColorModeContext';
@@ -65,6 +66,7 @@ const MainLayout = () => {
           { text: 'Inicio', icon: <DashboardIcon />, path: '/paciente' },
           { text: 'Reservar Turno', icon: <EventNoteIcon />, path: '/paciente/reservar' },
           { text: 'Mis Turnos', icon: <CalendarIcon />, path: '/paciente/turnos' },
+          { text: 'Gestionar menores a cargo', icon: <ChildIcon />, path: '/paciente/menores' },
         ];
       case 'DOCTOR':
         return [
