@@ -115,6 +115,7 @@ public class DataInitializer implements CommandLineRunner {
         pacienteDTO.setApellido("Gómez");
         pacienteDTO.setDni(38491029L);
         pacienteDTO.setTelefono("+5491122334455");
+        pacienteDTO.setFechaNacimiento(java.time.LocalDate.of(1994, 5, 15));
 
         Paciente pacienteDemo = pacienteService.registrarPaciente(pacienteDTO);
         Usuario usuarioDemo = pacienteDemo.getUsuario();

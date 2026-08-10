@@ -38,4 +38,11 @@ public class Paciente {
 
     @NotBlank(message = "El teléfono es obligatorio")
     private String telefono;
+
+    private java.time.LocalDate fechaNacimiento;
+
+    public Integer getEdad() {
+        if (this.fechaNacimiento == null) return null;
+        return java.time.Period.between(this.fechaNacimiento, java.time.LocalDate.now()).getYears();
+    }
 }

@@ -5,4 +5,9 @@ export const pacienteService = {
     const response = await axiosClient.get(`/pacientes/${id}`);
     return response.data;
   },
+
+  obtenerEstadisticas: async (id) => {
+    const response = await axiosClient.get(`/pacientes/${id}/estadisticas`);
+    return response.data;
+  },
 };

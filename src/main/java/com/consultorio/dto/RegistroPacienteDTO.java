@@ -27,4 +27,6 @@ public class RegistroPacienteDTO {
 
     @NotBlank(message = "El teléfono es obligatorio")
     private String telefono;
+
+    private java.time.LocalDate fechaNacimiento;
 }

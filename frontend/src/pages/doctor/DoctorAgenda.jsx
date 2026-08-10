@@ -16,6 +16,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Avatar,
 } from '@mui/material';
 import {
   CheckCircle as CheckIcon,
@@ -26,6 +27,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { doctorService } from '../../api/doctorService';
 import { turnoService } from '../../api/turnoService';
+import { pacienteService } from '../../api/pacienteService';
 import dayjs from 'dayjs';
 
 import GoogleCalendarButton from '../../components/GoogleCalendarButton';
@@ -44,6 +46,12 @@ const DoctorAgenda = () => {
   const [motivoCancelacion, setMotivoCancelacion] = useState('');
   const [cancelError, setCancelError] = useState('');
   const [submittingCancel, setSubmittingCancel] = useState(false);
+
+  // Estado para modal de ficha y estadísticas del paciente
+  const [pacienteModalOpen, setPacienteModalOpen] = useState(false);
+  const [pacienteStats, setPacienteStats] = useState(null);
+  const [loadingStats, setLoadingStats] = useState(false);
+  const [statsError, setStatsError] = useState('');
 
   useEffect(() => {
     if (entidadId) cargarAgenda(fecha);
@@ -106,6 +114,26 @@ const DoctorAgenda = () => {
     } finally {
       setSubmittingCancel(false);
     }
+  };
+
+  const handleOpenPacienteModal = async (pacienteId) => {
+    setPacienteModalOpen(true);
+    setLoadingStats(true);
+    setStatsError('');
+    setPacienteStats(null);
+    try {
+      const data = await pacienteService.obtenerEstadisticas(pacienteId);
+      setPacienteStats(data);
+    } catch (err) {
+      setStatsError('No se pudo cargar la información y estadísticas del paciente.');
+    } finally {
+      setLoadingStats(false);
+    }
+  };
+
+  const handleClosePacienteModal = () => {
+    setPacienteModalOpen(false);
+    setPacienteStats(null);
   };
 
   const getChipColor = (estado) => {
@@ -176,9 +204,24 @@ const DoctorAgenda = () => {
                       />
                     </Box>
 
-                    <Typography variant="subtitle1" fontWeight={600}>
+                    <Typography
+                      variant="subtitle1"
+                      fontWeight={700}
+                      onClick={() => handleOpenPacienteModal(turno.pacienteId)}
+                      sx={{
+                        cursor: 'pointer',
+                        color: 'primary.main',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 0.6,
+                        transition: '0.2s',
+                        '&:hover': { textDecoration: 'underline', color: 'primary.dark' },
+                      }}
+                      title="Ver ficha del paciente e historial de asistencias"
+                    >
                       👤 Paciente: {turno.pacienteNombre}
                     </Typography>
+
                     <Typography variant="body2" color="text.secondary">
                       🏥 Especialidad: {turno.especialidadNombre}
                     </Typography>
@@ -284,6 +327,155 @@ const DoctorAgenda = () => {
             disabled={submittingCancel || !motivoCancelacion.trim()}
           >
             {submittingCancel ? <CircularProgress size={24} color="inherit" /> : 'Confirmar y Notificar al Paciente'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Modal Emergente de Ficha y Estadísticas del Paciente */}
+      <Dialog open={pacienteModalOpen} onClose={handleClosePacienteModal} maxWidth="sm" fullWidth>
+        <DialogTitle fontWeight={700} color="primary" sx={{ pb: 1 }}>
+          Ficha del Paciente
+        </DialogTitle>
+        <DialogContent>
+          {loadingStats ? (
+            <Box display="flex" justifyContent="center" py={5}><CircularProgress size={44} /></Box>
+          ) : statsError ? (
+            <Alert severity="error">{statsError}</Alert>
+          ) : pacienteStats ? (
+            <Box pt={1}>
+              {/* Header con Nombre, DNI, Edad y Teléfono */}
+              <Paper sx={{ p: 2.5, mb: 3, bgcolor: 'background.default', borderRadius: 3 }}>
+                <Box display="flex" alignItems="center" gap={2} mb={2}>
+                  <Avatar sx={{ width: 56, height: 56, bgcolor: 'primary.main', fontWeight: 700, fontSize: '1.4rem' }}>
+                    {pacienteStats.nombre ? pacienteStats.nombre.charAt(0).toUpperCase() : 'P'}
+                  </Avatar>
+                  <Box>
+                    <Typography variant="h6" fontWeight={700}>
+                      {pacienteStats.nombre} {pacienteStats.apellido}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      📧 {pacienteStats.email || 'Sin correo registrado'}
+                    </Typography>
+                  </Box>
+                </Box>
+                <Divider sx={{ my: 1.5 }} />
+                <Grid container spacing={2}>
+                  <Grid item xs={6} sm={4}>
+                    <Typography variant="caption" color="text.secondary" display="block">DNI</Typography>
+                    <Typography variant="subtitle2" fontWeight={700}>{pacienteStats.dni || '-'}</Typography>
+                  </Grid>
+                  <Grid item xs={6} sm={4}>
+                    <Typography variant="caption" color="text.secondary" display="block">Edad</Typography>
+                    <Typography variant="subtitle2" fontWeight={700}>
+                      {pacienteStats.edad !== null && pacienteStats.edad !== undefined ? `${pacienteStats.edad} años` : 'Sin registrar'}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} sm={4}>
+                    <Typography variant="caption" color="text.secondary" display="block">Teléfono</Typography>
+                    <Typography variant="subtitle2" fontWeight={700}>{pacienteStats.telefono || '-'}</Typography>
+                  </Grid>
+                </Grid>
+              </Paper>
+
+              {/* Título de Métricas */}
+              <Typography variant="subtitle1" fontWeight={700} mb={2}>
+                📊 Historial de Asistencia ({pacienteStats.totalTurnos} turnos en total)
+              </Typography>
+
+              {/* Barra Gráfica de Proporciones Visuales */}
+              <Box mb={3}>
+                <Box
+                  sx={{
+                    width: '100%',
+                    height: 28,
+                    borderRadius: 3,
+                    overflow: 'hidden',
+                    display: 'flex',
+                    bgcolor: 'action.disabledBackground',
+                    boxShadow: 'inset 0 1px 4px rgba(0,0,0,0.12)',
+                  }}
+                >
+                  {pacienteStats.porcentajeCompletados > 0 && (
+                    <Box sx={{ width: `${pacienteStats.porcentajeCompletados}%`, bgcolor: '#22c55e', transition: 'width 0.5s' }} title={`Completados: ${pacienteStats.porcentajeCompletados}% (${pacienteStats.totalCompletados})`} />
+                  )}
+                  {pacienteStats.porcentajeAusentes > 0 && (
+                    <Box sx={{ width: `${pacienteStats.porcentajeAusentes}%`, bgcolor: '#f59e0b', transition: 'width 0.5s' }} title={`Ausentes: ${pacienteStats.porcentajeAusentes}% (${pacienteStats.totalAusentes})`} />
+                  )}
+                  {pacienteStats.porcentajeCancelados > 0 && (
+                    <Box sx={{ width: `${pacienteStats.porcentajeCancelados}%`, bgcolor: '#ef4444', transition: 'width 0.5s' }} title={`Cancelados: ${pacienteStats.porcentajeCancelados}% (${pacienteStats.totalCancelados})`} />
+                  )}
+                  {pacienteStats.porcentajePendientes > 0 && (
+                    <Box sx={{ width: `${pacienteStats.porcentajePendientes}%`, bgcolor: '#0284c7', transition: 'width 0.5s' }} title={`Pendientes: ${pacienteStats.porcentajePendientes}% (${pacienteStats.totalPendientes})`} />
+                  )}
+                </Box>
+              </Box>
+
+              {/* Leyenda de Colores con Porcentajes y Cantidades */}
+              <Paper sx={{ p: 2, bgcolor: 'background.default', borderRadius: 3 }}>
+                <Grid container spacing={2} justifyContent="space-around">
+                  <Grid item xs={6} sm={3}>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <span style={{ width: 14, height: 14, borderRadius: '50%', backgroundColor: '#22c55e', display: 'inline-block', flexShrink: 0 }}></span>
+                      <Box>
+                        <Typography variant="body2" fontWeight={700}>
+                          {pacienteStats.porcentajeCompletados}%
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Completados ({pacienteStats.totalCompletados})
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Grid>
+
+                  <Grid item xs={6} sm={3}>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <span style={{ width: 14, height: 14, borderRadius: '50%', backgroundColor: '#f59e0b', display: 'inline-block', flexShrink: 0 }}></span>
+                      <Box>
+                        <Typography variant="body2" fontWeight={700}>
+                          {pacienteStats.porcentajeAusentes}%
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Ausentes ({pacienteStats.totalAusentes})
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Grid>
+
+                  <Grid item xs={6} sm={3}>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <span style={{ width: 14, height: 14, borderRadius: '50%', backgroundColor: '#ef4444', display: 'inline-block', flexShrink: 0 }}></span>
+                      <Box>
+                        <Typography variant="body2" fontWeight={700}>
+                          {pacienteStats.porcentajeCancelados}%
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Cancelados ({pacienteStats.totalCancelados})
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Grid>
+
+                  <Grid item xs={6} sm={3}>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <span style={{ width: 14, height: 14, borderRadius: '50%', backgroundColor: '#0284c7', display: 'inline-block', flexShrink: 0 }}></span>
+                      <Box>
+                        <Typography variant="body2" fontWeight={700}>
+                          {pacienteStats.porcentajePendientes}%
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Pendientes ({pacienteStats.totalPendientes})
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Grid>
+                </Grid>
+              </Paper>
+            </Box>
+          ) : null}
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={handleClosePacienteModal} variant="contained">
+            Cerrar
           </Button>
         </DialogActions>
       </Dialog>

@@ -135,7 +135,7 @@ const Login = () => {
               <Typography variant="body2" color="text.secondary">
                 ¿Olvidaste tu contraseña?{' '}
                 <Link to="/recuperar-password" style={{ color: '#0284c7', textDecoration: 'none', fontWeight: 600 }}>
-                  Reestablecerla
+                  Reestablecerla aquí
                 </Link>
               </Typography>
             </Box>
