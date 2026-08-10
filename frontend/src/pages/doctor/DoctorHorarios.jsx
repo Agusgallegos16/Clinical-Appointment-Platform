@@ -519,7 +519,7 @@ const DoctorHorarios = () => {
             Gestión de Horarios por Especialidad
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Planilla Excel interactiva. Los días y horas pasados se muestran en gris mudo.
+            Configurá y gestioná tus días y horarios de atención médica.
           </Typography>
         </Box>
 
@@ -530,10 +530,6 @@ const DoctorHorarios = () => {
           sx={{ fontWeight: 700, fontSize: '0.95rem', py: 2, px: 1 }}
         />
       </Box>
-
-      <Alert severity="info" icon={<InfoIcon />} sx={{ mb: 3 }}>
-        <strong>Especialidades en el Calendario:</strong> Configurá franjas asignando tu especialidad correspondiente. En la planilla, cada turno indicará: <em>Turno de HH:mm a HH:mm — Especialidad</em>.
-      </Alert>
 
       {/* POP-UP DIALOG MODAL DE ALERTA PROMINENTE */}
       <Dialog open={!!errorModal} onClose={() => setErrorModal('')} maxWidth="xs" fullWidth>
@@ -711,7 +707,6 @@ const DoctorHorarios = () => {
                                   >
                                     Turno de {slot.startText} a {slot.endText}
                                     {slot.especialidadNombre ? ` — ${slot.especialidadNombre}` : ''}
-                                    {isPastSlot ? ' (Pasado)' : ''}
                                   </Box>
                                 );
                               })}

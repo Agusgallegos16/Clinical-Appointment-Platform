@@ -135,7 +135,7 @@ const MainLayout = () => {
         })}
       </List>
       <Divider />
-      {/* Perfil inferior */}
+      {/* Perfil inferior en el menú lateral */}
       <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 1.5 }}>
         <Avatar sx={{ bgcolor: theme.palette.primary.main, fontWeight: 600 }}>
           {user?.email?.charAt(0).toUpperCase()}
@@ -153,48 +153,29 @@ const MainLayout = () => {
   return (
     <Box sx={{ display: 'flex' }}>
       <CssBaseline />
+      
+      {/* AppBar flotante (Solo visible en dispositivos móviles) */}
       <AppBar
         position="fixed"
         elevation={0}
         sx={{
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
-          ml: { sm: `${drawerWidth}px` },
+          display: { xs: 'flex', sm: 'none' },
           backgroundColor: theme.palette.background.paper,
           color: theme.palette.text.primary,
           borderBottom: `1px solid ${theme.palette.divider}`,
         }}
       >
-        <Toolbar>
+        <Toolbar display="flex" justifyContent="space-between">
           <IconButton
             color="inherit"
             edge="start"
             onClick={handleDrawerToggle}
-            sx={{ mr: 2, display: { sm: 'none' } }}
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1, fontWeight: 600 }}>
-            {menuItems.find((i) => i.path === location.pathname)?.text || 'Consultorio Médico'}
+          <Typography variant="h6" fontWeight={700} color="primary">
+            Consultorio
           </Typography>
-
-          {/* Toggle Modo Oscuro / Claro */}
-          <Tooltip title={mode === 'dark' ? 'Modo Claro' : 'Modo Oscuro'}>
-            <IconButton onClick={toggleColorMode} color="inherit" sx={{ mr: 1 }}>
-              {mode === 'dark' ? <LightModeIcon sx={{ color: '#fba919' }} /> : <DarkModeIcon />}
-            </IconButton>
-          </Tooltip>
-
-          {/* Botón Logout */}
-          <Button
-            variant="outlined"
-            color="error"
-            size="small"
-            startIcon={<LogoutIcon />}
-            onClick={handleLogout}
-            sx={{ borderRadius: 2 }}
-          >
-            Salir
-          </Button>
         </Toolbar>
       </AppBar>
 
@@ -233,9 +214,43 @@ const MainLayout = () => {
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           minHeight: '100vh',
           backgroundColor: theme.palette.background.default,
+          display: 'flex',
+          flexDirection: 'column',
         }}
       >
-        <Toolbar />
+        <Toolbar sx={{ display: { xs: 'block', sm: 'none' } }} />
+
+        {/* Barra Transparente / Invisible en Esquina Superior Derecha */}
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            gap: 1.5,
+            mb: 1,
+            backgroundColor: 'transparent',
+          }}
+        >
+          {/* Toggle Modo Oscuro / Claro */}
+          <Tooltip title={mode === 'dark' ? 'Modo Claro' : 'Modo Oscuro'}>
+            <IconButton onClick={toggleColorMode} color="inherit">
+              {mode === 'dark' ? <LightModeIcon sx={{ color: '#fba919' }} /> : <DarkModeIcon />}
+            </IconButton>
+          </Tooltip>
+
+          {/* Botón Logout */}
+          <Button
+            variant="outlined"
+            color="error"
+            size="small"
+            startIcon={<LogoutIcon />}
+            onClick={handleLogout}
+            sx={{ borderRadius: 2 }}
+          >
+            Salir
+          </Button>
+        </Box>
+
         <Outlet />
       </Box>
     </Box>
