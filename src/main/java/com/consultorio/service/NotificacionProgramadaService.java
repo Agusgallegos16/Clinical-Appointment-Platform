@@ -1,8 +1,11 @@
 package com.consultorio.service;
 
 import com.consultorio.domain.Doctor;
+import com.consultorio.domain.EstadoTurno;
+import com.consultorio.domain.Turno;
 import com.consultorio.dto.TurnoResponseDTO;
 import com.consultorio.repository.DoctorRepository;
+import com.consultorio.repository.TurnoRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +14,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
@@ -20,16 +24,59 @@ public class NotificacionProgramadaService {
     private static final Logger log = LoggerFactory.getLogger(NotificacionProgramadaService.class);
 
     private final DoctorRepository doctorRepository;
+    private final TurnoRepository turnoRepository;
     private final TurnoService turnoService;
     private final EmailService emailService;
 
     @Autowired
     public NotificacionProgramadaService(DoctorRepository doctorRepository,
+                                         TurnoRepository turnoRepository,
                                          TurnoService turnoService,
                                          EmailService emailService) {
         this.doctorRepository = doctorRepository;
+        this.turnoRepository = turnoRepository;
         this.turnoService = turnoService;
         this.emailService = emailService;
+    }
+
+    // Tarea programada diaria: Todos los días a las 09:00 hs (cron = "0 0 9 * * ?")
+    // Envía recordatorios a pacientes con citas en 48 horas
+    @Scheduled(cron = "0 0 9 * * ?")
+    public void enviarRecordatorios48hsAPacientes() {
+        LocalDateTime desde = LocalDateTime.now().plusHours(47);
+        LocalDateTime hasta = LocalDateTime.now().plusHours(49);
+
+        List<Turno> turnosAVisar = turnoRepository.findByFechaHoraBetweenAndEstadoInAndRecordatorio48hsEnviadoFalse(
+                desde, hasta, List.of(EstadoTurno.CONFIRMADO, EstadoTurno.PENDIENTE)
+        );
+
+        log.info("⏰ Procesando recordatorios de 48hs pre-turno. Cantidad a enviar: {}", turnosAVisar.size());
+
+        for (Turno turno : turnosAVisar) {
+            try {
+                TurnoResponseDTO dto = TurnoResponseDTO.builder()
+                        .id(turno.getId())
+                        .pacienteId(turno.getPaciente().getId())
+                        .pacienteNombre(turno.getPaciente().getNombre() + " " + turno.getPaciente().getApellido())
+                        .doctorId(turno.getDoctor().getId())
+                        .doctorNombre(turno.getDoctor().getNombre() + " " + turno.getDoctor().getApellido())
+                        .especialidadNombre(turno.getEspecialidad().getNombre())
+                        .fechaHora(turno.getFechaHora())
+                        .estado(turno.getEstado())
+                        .motivoConsulta(turno.getMotivoConsulta())
+                        .build();
+
+                emailService.enviarRecordatorioTurno48hs(
+                        turno.getPaciente().getUsuario().getEmail(),
+                        dto
+                );
+
+                turno.setRecordatorio48hsEnviado(true);
+                turnoRepository.save(turno);
+            } catch (Exception e) {
+                log.error("Error al enviar recordatorio 48hs para turno ID {}: {}", turno.getId(), e.getMessage());
+            }
+        }
     }
 
     // Tarea programada diaria: Todos los días a las 20:00 hs (cron = "0 0 20 * * ?")

@@ -16,8 +16,10 @@ export const turnoService = {
     return response.data;
   },
 
-  cambiarEstado: async (turnoId, nuevoEstado) => {
-    const response = await axiosClient.put(`/turnos/${turnoId}/estado?nuevoEstado=${nuevoEstado}`);
+  cancelarPorDoctor: async (turnoId, motivo) => {
+    const response = await axiosClient.put(`/turnos/${turnoId}/cancelar-doctor`, null, {
+      params: { motivo },
+    });
     return response.data;
   },
 };

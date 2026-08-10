@@ -100,6 +100,53 @@ public class EmailService {
         enviarCorreo(emailDestino, asunto, cuerpo);
     }
 
+    // Recordatorio de Turno 48hs antes (Para Pacientes)
+    public void enviarRecordatorioTurno48hs(String emailDestino, TurnoResponseDTO turno) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+        String fechaFormateada = turno.getFechaHora().format(formatter);
+
+        String asunto = "Recordatorio: Tu turno médico es en 48 hs - " + fechaFormateada;
+        String cuerpo = String.format(
+                "Hola %s,\n\n" +
+                "Te recordamos que tienes una cita médica programada en las próximas 48 horas:\n\n" +
+                "📌 Detalle de la Cita:\n" +
+                " - Profesional: Dr/a. %s\n" +
+                " - Especialidad: %s\n" +
+                " - Fecha y Hora: %s hs\n\n" +
+                "En caso de que no puedas asistir, recuerda que puedes cancelar tu turno desde la plataforma para liberar el horario para otro paciente.\n\n" +
+                "Saludos cordiales,\nEquipo del Consultorio Médico.",
+                turno.getPacienteNombre(),
+                turno.getDoctorNombre(),
+                turno.getEspecialidadNombre(),
+                fechaFormateada
+        );
+
+        enviarCorreo(emailDestino, asunto, cuerpo);
+    }
+
+    // Cancelación de Turno por parte del Doctor con Justificación Obligatoria y Disculpas
+    public void enviarEmailCancelacionDoctor(String emailDestino, TurnoResponseDTO turno, String motivoCancelacion) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+        String fechaFormateada = turno.getFechaHora().format(formatter);
+
+        String asunto = "Aviso importante: Cancelación de Turno Médico - Dr/a. " + turno.getDoctorNombre();
+        String cuerpo = String.format(
+                "Estimado/a %s,\n\n" +
+                "Lamentamos informarte que tu cita médica programada para el día %s hs con el/la Dr/a. %s (%s) ha debido ser cancelada.\n\n" +
+                "📝 Motivo / Justificación del Profesional:\n" +
+                "\"%s\"\n\n" +
+                "Te ofrecemos nuestras más sinceras disculpas por los inconvenientes que esto pueda ocasionarte. Te invitamos a ingresar al sistema para agendar un nuevo turno en la fecha y horario que te resulte más conveniente.\n\n" +
+                "Atentamente,\nEquipo del Consultorio Médico.",
+                turno.getPacienteNombre(),
+                fechaFormateada,
+                turno.getDoctorNombre(),
+                turno.getEspecialidadNombre(),
+                motivoCancelacion
+        );
+
+        enviarCorreo(emailDestino, asunto, cuerpo);
+    }
+
     // 3. Email de Resumen Diario para el Doctor (Enviado al final del día)
     public void enviarResumenDiarioDoctor(String emailDestino, String doctorNombre, String fechaMañana, List<TurnoResponseDTO> turnos) {
         StringBuilder cuerpoBuilder = new StringBuilder();

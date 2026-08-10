@@ -61,7 +61,13 @@ public class GlobalExceptionHandler {
         respuesta.put("timestamp", LocalDateTime.now());
         respuesta.put("status", HttpStatus.BAD_REQUEST.value());
         respuesta.put("error", "Restricción de integridad");
-        respuesta.put("mensaje", "No se puede eliminar el registro porque posee elementos asociados (doctores o turnos activos).");
+
+        String errorMsg = ex.getMessage() != null ? ex.getMessage().toLowerCase() : "";
+        String mensaje = "Error de integridad de datos. Verifique que los campos ingresados sean válidos y no dupliquen datos existentes.";
+        if (errorMsg.contains("delete") || errorMsg.contains("foreign key")) {
+            mensaje = "No se puede eliminar el registro porque posee elementos asociados (doctores o turnos activos).";
+        }
+        respuesta.put("mensaje", mensaje);
 
         return ResponseEntity.badRequest().body(respuesta);
     }

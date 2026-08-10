@@ -32,6 +32,10 @@ public class Doctor {
     @NotBlank(message = "El apellido es obligatorio")
     private String apellido;
 
+    @Lob
+    @Column(columnDefinition = "TEXT")
+    private String fotoUrl;
+
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(
         name = "doctor_especialidades",

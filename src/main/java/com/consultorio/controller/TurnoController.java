@@ -49,6 +49,15 @@ public class TurnoController {
         return ResponseEntity.ok(turnoService.cancelarTurno(id));
     }
 
+    @PutMapping("/{id}/cancelar-doctor")
+    @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
+    @Operation(summary = "Cancelar un turno por parte del médico con justificación obligatoria (DOCTOR / ADMIN)")
+    public ResponseEntity<TurnoResponseDTO> cancelarTurnoPorDoctor(
+            @PathVariable Long id,
+            @RequestParam("motivo") String motivo) {
+        return ResponseEntity.ok(turnoService.cancelarTurnoPorDoctor(id, motivo));
+    }
+
     @PutMapping("/{id}/estado")
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Actualizar el estado de un turno (ej. COMPLETADO, AUSENTE) (DOCTOR / ADMIN)")

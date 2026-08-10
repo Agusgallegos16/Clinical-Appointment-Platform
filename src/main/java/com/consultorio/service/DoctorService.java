@@ -71,6 +71,7 @@ public class DoctorService {
                 .usuario(usuarioGuardado)
                 .nombre(dto.getNombre())
                 .apellido(dto.getApellido())
+                .fotoUrl(dto.getFotoUrl())
                 .especialidades(especialidades)
                 .build();
 
@@ -85,6 +86,7 @@ public class DoctorService {
 
         doctor.setNombre(dto.getNombre());
         doctor.setApellido(dto.getApellido());
+        doctor.setFotoUrl(dto.getFotoUrl());
 
         if (dto.getEmail() != null && !dto.getEmail().isBlank()) {
             if (!doctor.getUsuario().getEmail().equalsIgnoreCase(dto.getEmail()) &&

@@ -16,6 +16,7 @@ import {
   CircularProgress,
   Divider,
   Paper,
+  Avatar,
 } from '@mui/material';
 import {
   MedicalServices as SpecialtyIcon,
@@ -119,7 +120,6 @@ const ReservarTurno = () => {
           };
         })
         .filter((s) => {
-          // Si la fecha elegida es el día de hoy, filtrar los slots cuyas horas ya transcurrieron
           if (isToday) {
             return s.slotDateTime.isAfter(now);
           }
@@ -136,7 +136,6 @@ const ReservarTurno = () => {
 
   const handleFechaChange = (e) => {
     const nuevaFecha = e.target.value;
-    // Impedir seleccionar fechas pasadas
     if (dayjs(nuevaFecha).isBefore(dayjs(todayStr), 'day')) {
       setError('No podés seleccionar una fecha anterior a la actual.');
       return;
@@ -174,7 +173,7 @@ const ReservarTurno = () => {
   };
 
   return (
-    <Box maxWidth="900px" mx="auto">
+    <Box sx={{ width: { xs: '100%', md: '900px' }, mx: 'auto', boxSizing: 'border-box' }}>
       <Typography variant="h4" fontWeight={700} color="primary" mb={1}>
         Reservar Turno Médico
       </Typography>
@@ -182,7 +181,7 @@ const ReservarTurno = () => {
         Elegí el profesional y el horario disponible para agendar tu cita.
       </Typography>
 
-      <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 4 }}>
+      <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 4, width: '100%' }}>
         {steps.map((label) => (
           <Step key={label}>
             <StepLabel>{label}</StepLabel>
@@ -195,7 +194,7 @@ const ReservarTurno = () => {
 
       {/* PASO 0: Seleccionar Especialidad */}
       {activeStep === 0 && (
-        <Box>
+        <Box sx={{ width: '100%', minHeight: '380px' }}>
           <Typography variant="h6" fontWeight={600} mb={2}>
             Seleccioná una Especialidad Médica
           </Typography>
@@ -205,6 +204,8 @@ const ReservarTurno = () => {
                 <Card
                   onClick={() => handleSelectEspecialidad(esp)}
                   sx={{
+                    width: '100%',
+                    height: '100%',
                     cursor: 'pointer',
                     transition: '0.2s',
                     '&:hover': { borderColor: 'primary.main', transform: 'translateY(-2px)' },
@@ -230,7 +231,7 @@ const ReservarTurno = () => {
 
       {/* PASO 1: Seleccionar Doctor */}
       {activeStep === 1 && (
-        <Box>
+        <Box sx={{ width: '100%', minHeight: '380px', boxSizing: 'border-box' }}>
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
             <Typography variant="h6" fontWeight={600}>
               Seleccioná un Profesional ({selectedEspecialidad?.nombre})
@@ -247,10 +248,12 @@ const ReservarTurno = () => {
           ) : (
             <Grid container spacing={2}>
               {doctores.map((doc) => (
-                <Grid item xs={12} sm={6} key={doc.id}>
+                <Grid item xs={12} sm={6} md={4} key={doc.id}>
                   <Card
                     onClick={() => handleSelectDoctor(doc)}
                     sx={{
+                      width: '100%',
+                      height: '100%',
                       cursor: 'pointer',
                       transition: '0.2s',
                       '&:hover': { borderColor: 'primary.main', transform: 'translateY(-2px)' },
@@ -258,10 +261,20 @@ const ReservarTurno = () => {
                   >
                     <CardContent>
                       <Box display="flex" alignItems="center" gap={2}>
-                        <DoctorIcon color="primary" sx={{ fontSize: 40 }} />
-                        <Box>
-                          <Typography variant="subtitle1" fontWeight={700}>
+                        <Avatar
+                          src={doc.fotoUrl}
+                          alt={`Dr/a. ${doc.nombre} ${doc.apellido}`}
+                          imgProps={{ style: { objectFit: 'cover', width: '100%', height: '100%', imageRendering: '-webkit-optimize-contrast' } }}
+                          sx={{ width: 56, height: 56, bgcolor: 'primary.main', fontWeight: 700, fontSize: '1.4rem', flexShrink: 0, boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
+                        >
+                          {doc.nombre ? doc.nombre.charAt(0).toUpperCase() : <DoctorIcon />}
+                        </Avatar>
+                        <Box sx={{ minWidth: 0, flex: 1 }}>
+                          <Typography variant="subtitle1" fontWeight={700} noWrap title={`Dr/a. ${doc.nombre} ${doc.apellido}`}>
                             Dr/a. {doc.nombre} {doc.apellido}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary" display="block">
+                            {doc.especialidades?.map((e) => e.nombre).join(', ')}
                           </Typography>
                         </Box>
                       </Box>
@@ -276,7 +289,7 @@ const ReservarTurno = () => {
 
       {/* PASO 2: Calendario Interactivo y Selección de Horario Libre por Especialidad */}
       {activeStep === 2 && (
-        <Box>
+        <Box sx={{ width: '100%', minHeight: '380px', boxSizing: 'border-box' }}>
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
             <Typography variant="h6" fontWeight={600}>
               Elegí Fecha y Horario Disponible (Dr/a. {selectedDoctor?.nombre} {selectedDoctor?.apellido} — {selectedEspecialidad?.nombre})
@@ -360,7 +373,7 @@ const ReservarTurno = () => {
 
       {/* PASO 3: Confirmación y Motivo */}
       {activeStep === 3 && (
-        <Box>
+        <Box sx={{ width: '100%', minHeight: '380px', boxSizing: 'border-box' }}>
           <Typography variant="h6" fontWeight={600} mb={2}>
             Resumen y Confirmación de Cita
           </Typography>

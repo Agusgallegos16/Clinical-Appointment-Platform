@@ -21,5 +21,6 @@ public class TurnoResponseDTO {
     private LocalDateTime fechaHora;
     private EstadoTurno estado;
     private String motivoConsulta;
+    private String motivoCancelacion;
     private String googleEventId;
 }

@@ -18,5 +18,7 @@ public class RegistroDoctorDTO {
     @NotBlank(message = "El apellido es obligatorio")
     private String apellido;
 
+    private String fotoUrl;
+
     private List<Long> especialidadIds;
 }

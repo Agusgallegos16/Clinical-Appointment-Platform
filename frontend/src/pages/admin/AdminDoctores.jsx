@@ -21,6 +21,7 @@ import {
   Checkbox,
   FormLabel,
   IconButton,
+  Avatar,
 } from '@mui/material';
 import {
   PersonAdd as PersonAddIcon,
@@ -41,7 +42,7 @@ const AdminDoctores = () => {
 
   // Modal Editar Doctor
   const [selectedDoctorEdit, setSelectedDoctorEdit] = useState(null);
-  const [editFormData, setEditFormData] = useState({ nombre: '', apellido: '', email: '' });
+  const [editFormData, setEditFormData] = useState({ nombre: '', apellido: '', email: '', fotoUrl: '' });
   const [editEspecialidadIds, setEditEspecialidadIds] = useState([]);
   const [updating, setUpdating] = useState(false);
 
@@ -80,6 +81,7 @@ const AdminDoctores = () => {
       nombre: doc.nombre,
       apellido: doc.apellido,
       email: doc.usuario?.email || '',
+      fotoUrl: doc.fotoUrl || '',
     });
     setEditEspecialidadIds(doc.especialidades?.map((e) => e.id) || []);
   };
@@ -103,6 +105,7 @@ const AdminDoctores = () => {
         nombre: editFormData.nombre,
         apellido: editFormData.apellido,
         email: editFormData.email,
+        fotoUrl: editFormData.fotoUrl,
         especialidadIds: editEspecialidadIds,
       });
 
@@ -176,7 +179,13 @@ const AdminDoctores = () => {
                 <CardContent>
                   <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={1}>
                     <Box display="flex" alignItems="center" gap={1.5}>
-                      <HospitalIcon color="primary" sx={{ fontSize: 32 }} />
+                      <Avatar
+                        src={doc.fotoUrl}
+                        alt={`${doc.nombre} ${doc.apellido}`}
+                        sx={{ width: 50, height: 50, bgcolor: 'primary.main', fontWeight: 700 }}
+                      >
+                        {doc.nombre ? doc.nombre.charAt(0).toUpperCase() : <HospitalIcon />}
+                      </Avatar>
                       <Box>
                         <Typography variant="subtitle1" fontWeight={700}>
                           Dr/a. {doc.nombre} {doc.apellido}
@@ -227,6 +236,19 @@ const AdminDoctores = () => {
       <Dialog open={!!selectedDoctorEdit} onClose={() => setSelectedDoctorEdit(null)} maxWidth="sm" fullWidth>
         <DialogTitle>Editar Datos del Profesional</DialogTitle>
         <DialogContent dividers>
+          <Box display="flex" alignItems="center" gap={2} mb={2}>
+            <Avatar
+              src={editFormData.fotoUrl}
+              alt={`${editFormData.nombre} ${editFormData.apellido}`}
+              sx={{ width: 64, height: 64, bgcolor: 'primary.main', fontSize: '1.5rem', fontWeight: 700 }}
+            >
+              {editFormData.nombre ? editFormData.nombre.charAt(0).toUpperCase() : <HospitalIcon />}
+            </Avatar>
+            <Typography variant="body2" color="text.secondary">
+              Previsualización de la foto de perfil del profesional.
+            </Typography>
+          </Box>
+
           <TextField
             fullWidth
             margin="normal"
@@ -249,26 +271,84 @@ const AdminDoctores = () => {
             value={editFormData.email}
             onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
           />
-
-          <Box mt={2}>
-            <FormLabel component="legend" sx={{ fontWeight: 600, color: 'text.primary', mb: 1 }}>
-              Especialidades Asignadas:
-            </FormLabel>
-            <FormGroup row>
-              {especialidades.map((esp) => (
-                <FormControlLabel
-                  key={esp.id}
-                  control={
-                    <Checkbox
-                      checked={editEspecialidadIds.includes(esp.id)}
-                      onChange={() => handleCheckboxChange(esp.id)}
-                    />
+          <Box display="flex" gap={1.5} alignItems="flex-start" mt={2}>
+            <TextField
+              fullWidth
+              label="URL o Foto de Perfil (JPEG, PNG)"
+              placeholder="https://ejemplo.com/foto.jpg o subir archivo local"
+              value={editFormData.fotoUrl}
+              onChange={(e) => setEditFormData({ ...editFormData, fotoUrl: e.target.value })}
+              helperText="Podés pegar una URL directa o subir una foto desde tu PC"
+            />
+            <Button
+              variant="outlined"
+              component="label"
+              sx={{ minWidth: 150, height: 56, whiteSpace: 'nowrap', fontWeight: 600 }}
+            >
+              Subir Foto
+              <input
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(e) => {
+                  const file = e.target.files[0];
+                  if (!file) return;
+                  if (file.size > 8 * 1024 * 1024) {
+                    setError('La imagen seleccionada supera el tamaño máximo permitido de 8MB.');
+                    return;
                   }
-                  label={esp.nombre}
-                />
-              ))}
-            </FormGroup>
+                  const reader = new FileReader();
+                  reader.onload = (event) => {
+                    const img = new Image();
+                    img.onload = () => {
+                      const canvas = document.createElement('canvas');
+                      const maxDim = 800;
+                      let width = img.width;
+                      let height = img.height;
+                      if (width > height) {
+                        if (width > maxDim) {
+                          height = Math.round((height * maxDim) / width);
+                          width = maxDim;
+                        }
+                      } else {
+                        if (height > maxDim) {
+                          width = Math.round((width * maxDim) / height);
+                          height = maxDim;
+                        }
+                      }
+                      canvas.width = width;
+                      canvas.height = height;
+                      const ctx = canvas.getContext('2d');
+                      ctx.imageSmoothingEnabled = true;
+                      ctx.imageSmoothingQuality = 'high';
+                      ctx.drawImage(img, 0, 0, width, height);
+                      setEditFormData({ ...editFormData, fotoUrl: canvas.toDataURL('image/jpeg', 0.95) });
+                    };
+                    img.src = event.target.result;
+                  };
+                  reader.readAsDataURL(file);
+                }}
+              />
+            </Button>
           </Box>
+
+          <FormLabel component="legend" sx={{ fontWeight: 600, mt: 2, mb: 1 }}>
+            Especialidades Médicas:
+          </FormLabel>
+          <FormGroup row>
+            {especialidades.map((esp) => (
+              <FormControlLabel
+                key={esp.id}
+                control={
+                  <Checkbox
+                    checked={editEspecialidadIds.includes(esp.id)}
+                    onChange={() => handleCheckboxChange(esp.id)}
+                  />
+                }
+                label={esp.nombre}
+              />
+            ))}
+          </FormGroup>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setSelectedDoctorEdit(null)}>Cancelar</Button>
@@ -278,18 +358,18 @@ const AdminDoctores = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Modal Confirmar Eliminación de Doctor */}
+      {/* Modal Confirmar Eliminación */}
       <Dialog open={!!selectedDoctorDelete} onClose={() => setSelectedDoctorDelete(null)}>
-        <DialogTitle>¿Eliminar al Dr/a. {selectedDoctorDelete?.nombre} {selectedDoctorDelete?.apellido}?</DialogTitle>
+        <DialogTitle>¿Eliminar a este profesional?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Esta acción eliminará la cuenta del médico, sus horarios configurados y credenciales de acceso.
+            Vas a dar de baja al Dr/a. <strong>{selectedDoctorDelete?.nombre} {selectedDoctorDelete?.apellido}</strong>. Esta acción eliminará sus horarios y turnos asociados.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setSelectedDoctorDelete(null)}>Cancelar</Button>
           <Button onClick={handleConfirmEliminarDoctor} color="error" variant="contained" disabled={deleting}>
-            {deleting ? <CircularProgress size={20} color="inherit" /> : 'Sí, Eliminar Doctor'}
+            {deleting ? <CircularProgress size={20} color="inherit" /> : 'Sí, Eliminar'}
           </Button>
         </DialogActions>
       </Dialog>

@@ -74,6 +74,7 @@ public class DataInitializer implements CommandLineRunner {
         doctorDTO.setPassword("123456");
         doctorDTO.setNombre("Juan");
         doctorDTO.setApellido("Pérez");
+        doctorDTO.setFotoUrl("https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=1000&auto=format&fit=crop&q=95");
         doctorDTO.setEspecialidadIds(List.of(cardiologia.getId(), pediatria.getId()));
 
         Doctor doctor = doctorService.registrarDoctor(doctorDTO);

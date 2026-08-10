@@ -89,7 +89,7 @@ const PacienteDashboard = () => {
               <Typography variant="subtitle2" color="primary.dark" fontWeight={700}>
                 📌 PRÓXIMO TURNO AGENDADO
               </Typography>
-              <Typography variant="h6" fontWeight={700} mt={1}>
+              <Typography variant="h6" color="primary.dark" fontWeight={700} mt={1}>
                 {proximoTurno.especialidadNombre} — Dr/a. {proximoTurno.doctorNombre}
               </Typography>
               <Typography variant="body1" fontWeight={600} color="primary.dark" mt={0.5}>

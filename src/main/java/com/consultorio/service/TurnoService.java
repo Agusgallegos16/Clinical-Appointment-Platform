@@ -187,6 +187,67 @@ public class TurnoService {
     }
 
     @Transactional
+    public TurnoResponseDTO cancelarTurnoPorDoctor(Long turnoId, String motivoCancelacion) {
+        if (motivoCancelacion == null || motivoCancelacion.trim().isEmpty()) {
+            throw new IllegalArgumentException("Debe ingresar una justificación obligatoria para cancelar el turno del paciente.");
+        }
+
+        Turno turno = turnoRepository.findById(turnoId)
+                .orElseThrow(() -> new IllegalArgumentException("Turno no encontrado con ID: " + turnoId));
+
+        String emailAutenticado = securityUtils.obtenerEmailUsuarioAutenticado();
+        if (emailAutenticado == null) {
+            throw new AccessDeniedException("Debe incluir un Token JWT válido en el encabezado Authorization para realizar esta acción.");
+        }
+
+        boolean esAdmin = esUsuarioAdmin(emailAutenticado);
+        boolean esSuDoctor = turno.getDoctor().getUsuario().getEmail().equalsIgnoreCase(emailAutenticado);
+
+        if (!esAdmin && !esSuDoctor) {
+            throw new AccessDeniedException("Acceso denegado: Solo el médico asignado o un Administrador pueden justificar y cancelar este turno.");
+        }
+
+        if (turno.getEstado() == EstadoTurno.COMPLETADO) {
+            throw new IllegalStateException("No se puede cancelar un turno que ya fue completado.");
+        }
+
+        turno.setEstado(EstadoTurno.CANCELADO);
+        turno.setMotivoCancelacion(motivoCancelacion.trim());
+        Turno actualizado = turnoRepository.save(turno);
+
+        // Cancelar eventos de Google Calendar si existían
+        if (actualizado.getGoogleEventId() != null) {
+            try {
+                calendarioAdapter.cancelarEventoParaUsuario(actualizado.getGoogleEventId(), actualizado.getPaciente().getUsuario());
+            } catch (Exception e) {
+                log.error("No se pudo cancelar el evento en el calendario del paciente: {}", e.getMessage());
+            }
+        }
+        if (actualizado.getGoogleEventIdDoctor() != null) {
+            try {
+                calendarioAdapter.cancelarEventoParaUsuario(actualizado.getGoogleEventIdDoctor(), actualizado.getDoctor().getUsuario());
+            } catch (Exception e) {
+                log.error("No se pudo cancelar el evento en el calendario del doctor: {}", e.getMessage());
+            }
+        }
+
+        TurnoResponseDTO dto = mapearResponseDTO(actualizado);
+
+        // Notificación por correo electrónico al paciente con disculpas y la justificación obligatoria
+        try {
+            emailService.enviarEmailCancelacionDoctor(
+                    actualizado.getPaciente().getUsuario().getEmail(),
+                    dto,
+                    motivoCancelacion.trim()
+            );
+        } catch (Exception e) {
+            log.error("Error al enviar email de cancelación por médico: {}", e.getMessage());
+        }
+
+        return dto;
+    }
+
+    @Transactional
     public TurnoResponseDTO cambiarEstadoTurno(Long turnoId, EstadoTurno nuevoEstado) {
         Turno turno = turnoRepository.findById(turnoId)
                 .orElseThrow(() -> new IllegalArgumentException("Turno no encontrado con ID: " + turnoId));
@@ -268,6 +329,7 @@ public class TurnoService {
                 .fechaHora(turno.getFechaHora())
                 .estado(turno.getEstado())
                 .motivoConsulta(turno.getMotivoConsulta())
+                .motivoCancelacion(turno.getMotivoCancelacion())
                 .googleEventId(turno.getGoogleEventId())
                 .build();
     }

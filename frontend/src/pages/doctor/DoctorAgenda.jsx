@@ -12,6 +12,10 @@ import {
   Alert,
   Paper,
   Divider,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from '@mui/material';
 import {
   CheckCircle as CheckIcon,
@@ -33,6 +37,13 @@ const DoctorAgenda = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [updatingId, setUpdatingId] = useState(null);
+
+  // Estado para modal de cancelación con justificación obligatoria
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [turnoACancelar, setTurnoACancelar] = useState(null);
+  const [motivoCancelacion, setMotivoCancelacion] = useState('');
+  const [cancelError, setCancelError] = useState('');
+  const [submittingCancel, setSubmittingCancel] = useState(false);
 
   useEffect(() => {
     if (entidadId) cargarAgenda(fecha);
@@ -60,6 +71,40 @@ const DoctorAgenda = () => {
       setError('No se pudo actualizar el estado del turno.');
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const handleOpenCancelDialog = (turno) => {
+    setTurnoACancelar(turno);
+    setMotivoCancelacion('');
+    setCancelError('');
+    setCancelDialogOpen(true);
+  };
+
+  const handleCloseCancelDialog = () => {
+    if (submittingCancel) return;
+    setCancelDialogOpen(false);
+    setTurnoACancelar(null);
+    setMotivoCancelacion('');
+    setCancelError('');
+  };
+
+  const handleConfirmarCancelacionDoctor = async () => {
+    if (!motivoCancelacion.trim()) {
+      setCancelError('La justificación de cancelación es obligatoria.');
+      return;
+    }
+
+    setSubmittingCancel(true);
+    setCancelError('');
+    try {
+      await turnoService.cancelarPorDoctor(turnoACancelar.id, motivoCancelacion.trim());
+      handleCloseCancelDialog();
+      cargarAgenda(fecha);
+    } catch (err) {
+      setCancelError(err.response?.data?.mensaje || 'Error al procesar la cancelación.');
+    } finally {
+      setSubmittingCancel(false);
     }
   };
 
@@ -140,6 +185,13 @@ const DoctorAgenda = () => {
                     <Typography variant="body2" color="text.secondary" mt={0.5}>
                       💬 <strong>Motivo:</strong> {turno.motivoConsulta || 'Sin especificar'}
                     </Typography>
+
+                    {turno.estado === 'CANCELADO' && turno.motivoCancelacion && (
+                      <Typography variant="body2" color="error" mt={0.5} fontWeight={600}>
+                        ❌ <strong>Justificación de Cancelación:</strong> {turno.motivoCancelacion}
+                      </Typography>
+                    )}
+
                     {turno.googleEventId && (
                       <Chip
                         label="📅 Sincronizado en Google Calendar"
@@ -181,7 +233,7 @@ const DoctorAgenda = () => {
                         size="small"
                         startIcon={<CancelIcon />}
                         disabled={updatingId === turno.id}
-                        onClick={() => handleCambiarEstado(turno.id, 'CANCELADO')}
+                        onClick={() => handleOpenCancelDialog(turno)}
                       >
                         Cancelar
                       </Button>
@@ -193,6 +245,48 @@ const DoctorAgenda = () => {
           ))}
         </Grid>
       )}
+
+      {/* Modal Emergente de Cancelación por Médico */}
+      <Dialog open={cancelDialogOpen} onClose={handleCloseCancelDialog} maxWidth="sm" fullWidth>
+        <DialogTitle fontWeight={700} color="error.main">
+          Justificación Obligatoria de Cancelación
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" mb={2}>
+            Vas a cancelar la cita médica con <strong>{turnoACancelar?.pacienteNombre}</strong> programada para el{' '}
+            <strong>{dayjs(turnoACancelar?.fechaHora).format('DD/MM/YYYY [a las] HH:mm')} hs</strong>.
+          </Typography>
+          <Alert severity="info" sx={{ mb: 2.5 }}>
+            Al confirmar la cancelación, se enviará automáticamente un correo electrónico de disculpas al paciente incluyendo tu justificación.
+          </Alert>
+
+          {cancelError && <Alert severity="error" sx={{ mb: 2 }}>{cancelError}</Alert>}
+
+          <TextField
+            fullWidth
+            multiline
+            rows={3}
+            label="Motivo / Justificación de la Cancelación *"
+            placeholder="Ej: Inconvenientes personales imprevistos, fuerza mayor, congreso médico..."
+            value={motivoCancelacion}
+            onChange={(e) => setMotivoCancelacion(e.target.value)}
+            error={Boolean(cancelError)}
+          />
+        </DialogContent>
+        <DialogActions sx={{ p: 2.5 }}>
+          <Button onClick={handleCloseCancelDialog} color="inherit" disabled={submittingCancel}>
+            Volver
+          </Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleConfirmarCancelacionDoctor}
+            disabled={submittingCancel || !motivoCancelacion.trim()}
+          >
+            {submittingCancel ? <CircularProgress size={24} color="inherit" /> : 'Confirmar y Notificar al Paciente'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
