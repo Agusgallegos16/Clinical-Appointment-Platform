@@ -117,8 +117,8 @@ const ReservarTurno = () => {
 
   const tieneMenores = menores.length > 0;
   const steps = tieneMenores
-    ? ['¿Para quién?', 'Especialidad', 'Doctor', 'Fecha y Horario Libre', 'Confirmar Reserva']
-    : ['Especialidad', 'Doctor', 'Fecha y Horario Libre', 'Confirmar Reserva'];
+    ? ['¿Para quién?', 'Especialidad', 'Profesional', 'Fecha y Horario', 'Confirmar Reserva']
+    : ['Especialidad', 'Profesional', 'Fecha y Horario', 'Confirmar Reserva'];
 
   const pasoEspecialidadIndex = tieneMenores ? 1 : 0;
   const pasoDoctorIndex = tieneMenores ? 2 : 1;
@@ -233,7 +233,7 @@ const ReservarTurno = () => {
         Reservar Turno Médico
       </Typography>
       <Typography variant="body1" color="text.secondary" mb={3}>
-        Completá los pasos para agendar la cita médica.
+        Completá los pasos para agendar tu cita médica.
       </Typography>
 
       <Stepper activeStep={activeStep} alternativeLabel sx={{ mb: 4, width: '100%' }}>
@@ -345,7 +345,7 @@ const ReservarTurno = () => {
         <Box sx={{ width: '100%', minHeight: '380px' }}>
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
             <Typography variant="h6" fontWeight={600}>
-              Seleccioná una Especialidad Médica
+              Seleccioná una Especialidad
             </Typography>
             {tieneMenores && (
               <Chip
@@ -400,7 +400,7 @@ const ReservarTurno = () => {
         <Box sx={{ width: '100%', minHeight: '380px', boxSizing: 'border-box' }}>
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
             <Typography variant="h6" fontWeight={600}>
-              Seleccioná un Médico en {selectedEspecialidad?.nombre}
+              Seleccioná un Profesional en {selectedEspecialidad?.nombre}
             </Typography>
             <Button variant="outlined" size="small" onClick={() => setActiveStep(pasoEspecialidadIndex)}>
               Cambiar Especialidad
@@ -436,7 +436,7 @@ const ReservarTurno = () => {
                           {doc.nombre?.charAt(0)}
                         </Avatar>
                         <Box>
-                          <Typography variant="subtitle1" fontWeight={700}>
+                          <Typography variant="subtitle1" fontWeight={600}>
                             Dr/a. {doc.nombre} {doc.apellido}
                           </Typography>
                           <Typography variant="caption" color="text.secondary">
@@ -482,11 +482,11 @@ const ReservarTurno = () => {
           {loading ? (
             <Box display="flex" justifyContent="center" py={4}><CircularProgress /></Box>
           ) : slotsDisponibles.length === 0 ? (
-            <Alert severity="warning">No hay horarios libres disponibles para la fecha seleccionada.</Alert>
+            <Alert severity="warning">No hay horarios disponibles para la fecha seleccionada.</Alert>
           ) : (
             <Box mb={3}>
               <Typography variant="subtitle2" color="text.secondary" mb={1}>
-                Horarios Libres Disponibles:
+                Horarios Disponibles:
               </Typography>
               <Grid container spacing={1.5}>
                 {slotsDisponibles.map((slot) => (

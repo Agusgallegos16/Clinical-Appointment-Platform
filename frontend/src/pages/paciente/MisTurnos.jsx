@@ -143,7 +143,7 @@ const MisTurnos = () => {
       <Box display="flex" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={2} mb={3}>
         <Box>
           <Typography variant="h4" fontWeight={700} color="primary" mb={1}>
-            Mis Turnos Agendados
+            Turnos Agendados
           </Typography>
           <Typography variant="body1" color="text.secondary">
             Consultá tus próximas citas médicas y gestioná tus turnos activos.

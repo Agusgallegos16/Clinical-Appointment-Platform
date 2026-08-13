@@ -289,7 +289,7 @@ const DoctorPlantillas = () => {
   return (
     <Box>
       <Typography variant="h4" fontWeight={700} color="primary" mb={1}>
-        Plantillas de Agenda Personalizables
+        Plantillas de Agenda Personalizadas
       </Typography>
       <Typography variant="body1" color="text.secondary" mb={3}>
         Diseñá y modificá estructuras de jornada especificando la especialidad correspondiente para cada franja horaria.

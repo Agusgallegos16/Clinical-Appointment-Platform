@@ -72,10 +72,10 @@ const DoctorDashboard = () => {
       <Box maxWidth="480px" width="100%" textAlign="center">
         <Box mb={4}>
           <Typography variant="h4" fontWeight={700} color="primary" gutterBottom>
-            Portal Médico — Dr/a. {nombreDoctor} 🩺
+            Portal Médico — Dr/a. {nombreDoctor}
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Seleccioná la opción que querés gestionar en tu consultorio:
+            Selecciona que quieres hacer hoy:
           </Typography>
         </Box>
 
@@ -85,7 +85,7 @@ const DoctorDashboard = () => {
         <Card sx={{ mb: 4, bgcolor: 'primary.light', borderColor: 'primary.main', borderRadius: 3 }}>
           <CardContent sx={{ py: 2 }}>
             <Typography variant="subtitle2" color="primary.dark" fontWeight={700}>
-              📊 HOY: {dayjs().format('DD/MM/YYYY')}
+              📊 FECHA: {dayjs().format('DD/MM/YYYY')}
             </Typography>
             <Typography variant="h6" fontWeight={700} color="primary.dark" mt={0.5}>
               {loading ? <CircularProgress size={20} /> : `${turnosHoy.length} Pacientes Agendados para Hoy`}
@@ -165,7 +165,7 @@ const DoctorDashboard = () => {
           >
             <Box textAlign="left">
               <Typography variant="h6" fontWeight={700}>
-                Mis Plantillas de Agenda
+                Ver Mis Plantillas de Agenda
               </Typography>
             </Box>
           </Button>

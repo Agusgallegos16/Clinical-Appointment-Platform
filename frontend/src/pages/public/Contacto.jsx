@@ -36,7 +36,7 @@ const Contacto = () => {
                   <Box display="flex" alignItems="center" gap={1.5} mb={1.5}>
                     <PhoneIcon color="primary" />
                     <Typography variant="h6" fontWeight={700}>
-                      Teléfono & WhatsApp
+                      Número de Teléfono
                     </Typography>
                   </Box>
                   <Typography variant="body2" color="text.secondary">

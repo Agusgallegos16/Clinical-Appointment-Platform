@@ -562,7 +562,7 @@ const DoctorHorarios = () => {
             Gestión de Horarios por Especialidad
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Configurá y gestioná tus días y horarios de atención médica.
+            Configurá tus días y horarios de atención.
           </Typography>
         </Box>
 
@@ -822,7 +822,7 @@ const DoctorHorarios = () => {
               <Box display="flex" alignItems="center" gap={1} mb={1}>
                 <TemplateIcon color="secondary" />
                 <Typography variant="h6" fontWeight={700} color="secondary.dark">
-                  Aplicar una Plantilla Guardada
+                  Aplicar una Plantilla
                 </Typography>
               </Box>
 
@@ -915,7 +915,7 @@ const DoctorHorarios = () => {
                   disabled={applying || !selectedPlantillaId}
                   sx={{ mt: 2 }}
                 >
-                  {applying ? <CircularProgress size={24} color="inherit" /> : 'Aplicar Plantilla a la Agenda'}
+                  {applying ? <CircularProgress size={24} color="inherit" /> : 'Aplicar Plantilla'}
                 </Button>
               </Box>
             </Paper>
@@ -1055,7 +1055,7 @@ const DoctorHorarios = () => {
                 disabled={saving}
                 sx={{ mt: 3 }}
               >
-                {saving ? <CircularProgress size={24} color="inherit" /> : 'Guardar Franja Horaria'}
+                {saving ? <CircularProgress size={24} color="inherit" /> : 'Aplicar Franja Horaria'}
               </Button>
             </Box>
           </Paper>
@@ -1066,10 +1066,10 @@ const DoctorHorarios = () => {
           <Paper sx={{ p: 3 }}>
             <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
               <Typography variant="h6" fontWeight={600}>
-                Franjas Vigentes en esta Semana ({horariosVisiblesEnSemana.length})
+                Franjas Vigentes esta Semana ({horariosVisiblesEnSemana.length})
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                Ordenadas por día y hora • {currentWeekStart.format('DD/MM')} al {currentWeekStart.add(6, 'day').format('DD/MM')}
+                {currentWeekStart.format('DD/MM')} al {currentWeekStart.add(6, 'day').format('DD/MM')}
               </Typography>
             </Box>
 

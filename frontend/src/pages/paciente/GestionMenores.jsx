@@ -146,18 +146,9 @@ const GestionMenores = () => {
     <Box maxWidth="1000px" mx="auto">
       <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2} mb={3}>
         <Box display="flex" alignItems="center" gap={2}>
-          <Button
-            variant="outlined"
-            size="small"
-            startIcon={<ArrowBackIcon />}
-            onClick={() => navigate('/paciente')}
-            sx={{ borderRadius: 2 }}
-          >
-            Volver al Inicio
-          </Button>
           <Box>
             <Typography variant="h4" fontWeight={700} color="primary">
-              Gestionar Menores a Cargo 🧒
+              Gestionar Menores a Cargo
             </Typography>
             <Typography variant="body1" color="text.secondary">
               Vinculá a tus hijos o menores bajo tu tutela para agendar y gestionar sus citas médicas.
@@ -185,7 +176,7 @@ const GestionMenores = () => {
         <Paper sx={{ p: 4, textAlign: 'center', borderRadius: 4, bgcolor: 'background.default' }}>
           <ChildIcon sx={{ fontSize: 60, color: 'text.secondary', mb: 1 }} />
           <Typography variant="h6" fontWeight={700} gutterBottom>
-            No poseés menores a cargo vinculados a tu cuenta
+            No poseés menores vinculados a tu cuenta
           </Typography>
           <Typography variant="body2" color="text.secondary" mb={3}>
             Hacé clic en el botón superior para dar de alta a un menor e iniciar la reserva de sus turnos.
@@ -280,7 +271,7 @@ const GestionMenores = () => {
           </DialogTitle>
           <DialogContent>
             <Alert severity="info" sx={{ mb: 2 }}>
-              Para los menores a cargo se registrará tu correo electrónico para la recepción de recordatorios.
+              Los recordatorios de turnos correspondientes a menores a su cargo se enviaran a su correo electrónico.
             </Alert>
 
             {formError && <Alert severity="error" sx={{ mb: 2 }}>{formError}</Alert>}

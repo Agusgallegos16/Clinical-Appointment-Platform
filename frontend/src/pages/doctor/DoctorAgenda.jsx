@@ -57,12 +57,25 @@ const DoctorAgenda = () => {
     if (entidadId) cargarAgenda(fecha);
   }, [entidadId, fecha]);
 
+  const ordenarTurnosAgenda = (turnosList) => {
+    return [...turnosList]
+      .filter((t) => t.estado !== 'CANCELADO')
+      .sort((a, b) => {
+        const isAPending = a.estado === 'CONFIRMADO' || a.estado === 'PENDIENTE';
+        const isBPending = b.estado === 'CONFIRMADO' || b.estado === 'PENDIENTE';
+
+        if (isAPending && !isBPending) return -1;
+        if (!isAPending && isBPending) return 1;
+        return dayjs(a.fechaHora).valueOf() - dayjs(b.fechaHora).valueOf();
+      });
+  };
+
   const cargarAgenda = async (fechaSeleccionada) => {
     setLoading(true);
     setError('');
     try {
       const data = await doctorService.obtenerAgenda(entidadId, fechaSeleccionada);
-      setTurnos(data);
+      setTurnos(ordenarTurnosAgenda(data));
     } catch (err) {
       setError('Error al consultar la agenda médica.');
     } finally {
@@ -150,7 +163,7 @@ const DoctorAgenda = () => {
       <Box display="flex" justifyContent="space-between" alignItems="flex-start" flexWrap="wrap" gap={2} mb={3}>
         <Box>
           <Typography variant="h4" fontWeight={700} color="primary" mb={1}>
-            Mi Agenda Médica
+            Mi Agenda
           </Typography>
           <Typography variant="body1" color="text.secondary">
             Consultá la lista de pacientes y turnos confirmados para el día seleccionado.
@@ -184,12 +197,22 @@ const DoctorAgenda = () => {
       {loading ? (
         <Box display="flex" justifyContent="center" py={4}><CircularProgress /></Box>
       ) : turnos.length === 0 ? (
-        <Alert severity="info">No poseés citas médicas registradas para esta fecha.</Alert>
+        <Alert severity="info">No poseés citas médicas para esta fecha.</Alert>
       ) : (
         <Grid container spacing={2.5}>
-          {turnos.map((turno) => (
-            <Grid item xs={12} key={turno.id}>
-              <Card sx={{ borderLeft: '6px solid #0284c7' }}>
+          {turnos.map((turno) => {
+            const isPending = turno.estado === 'CONFIRMADO' || turno.estado === 'PENDIENTE';
+            const borderColors = {
+              CONFIRMADO: '#0284c7',
+              PENDIENTE: '#0284c7',
+              COMPLETADO: '#22c55e',
+              AUSENTE: '#f59e0b',
+              CANCELADO: '#ef4444',
+            };
+
+            return (
+              <Grid item xs={12} key={turno.id}>
+                <Card sx={{ borderLeft: `6px solid ${borderColors[turno.estado] || '#0284c7'}`, opacity: isPending ? 1 : 0.88 }}>
                 <CardContent sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { sm: 'center' }, gap: 2 }}>
                   <Box>
                     <Box display="flex" alignItems="center" gap={1.5} mb={0.5}>
@@ -285,7 +308,8 @@ const DoctorAgenda = () => {
                 </CardContent>
               </Card>
             </Grid>
-          ))}
+          );
+        })}
         </Grid>
       )}
 

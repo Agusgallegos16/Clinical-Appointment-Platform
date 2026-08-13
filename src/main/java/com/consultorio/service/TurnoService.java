@@ -314,6 +314,13 @@ public class TurnoService {
                         doctorId, inicio, fin, EstadoTurno.CANCELADO)
                 .stream()
                 .map(this::mapearResponseDTO)
+                .sorted((t1, t2) -> {
+                    boolean p1 = t1.getEstado() == EstadoTurno.CONFIRMADO || t1.getEstado() == EstadoTurno.PENDIENTE;
+                    boolean p2 = t2.getEstado() == EstadoTurno.CONFIRMADO || t2.getEstado() == EstadoTurno.PENDIENTE;
+                    if (p1 && !p2) return -1;
+                    if (!p1 && p2) return 1;
+                    return t1.getFechaHora().compareTo(t2.getFechaHora());
+                })
                 .collect(Collectors.toList());
     }
 

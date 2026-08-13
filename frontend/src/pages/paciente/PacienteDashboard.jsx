@@ -74,7 +74,7 @@ const PacienteDashboard = () => {
       <Box maxWidth="480px" width="100%" textAlign="center">
         <Box mb={4}>
           <Typography variant="h4" fontWeight={700} color="primary" gutterBottom>
-            ¡Hola, {nombreMostrar}! 👋
+            ¡Hola, {nombreMostrar}!
           </Typography>
           <Typography variant="body1" color="text.secondary">
             ¿Qué te gustaría hacer hoy?
@@ -147,7 +147,7 @@ const PacienteDashboard = () => {
           >
             <Box textAlign="left">
               <Typography variant="h6" fontWeight={700}>
-                Mis Turnos Agendados
+                Ver Mis Turnos
               </Typography>
             </Box>
           </Button>
