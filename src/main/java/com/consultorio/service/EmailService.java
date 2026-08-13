@@ -96,6 +96,8 @@ public class EmailService {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
         String fechaFormateada = turno.getFechaHora().format(formatter);
 
+        String osInfo = (turno.getObraSocial() != null && !turno.getObraSocial().trim().isEmpty()) ? turno.getObraSocial() : "Particular / Sin Obra Social";
+
         String asunto = "Confirmación de Turno Médico - " + fechaFormateada;
         String cuerpo = String.format(
                 "Hola %s,\n\n" +
@@ -104,6 +106,7 @@ public class EmailService {
                 " - Profesional: Dr. %s\n" +
                 " - Especialidad: %s\n" +
                 " - Fecha y Hora: %s hs\n" +
+                " - Cobertura: %s\n" +
                 " - Motivo: %s\n\n" +
                 "En caso de no poder asistir, por favor cancela tu turno desde la plataforma con al menos 24 hs de anticipación.\n\n" +
                 "Saludos cordiales,\nEquipo del Consultorio Médico.",
@@ -111,6 +114,7 @@ public class EmailService {
                 turno.getDoctorNombre(),
                 turno.getEspecialidadNombre(),
                 fechaFormateada,
+                osInfo,
                 turno.getMotivoConsulta() != null ? turno.getMotivoConsulta() : "Consulta General"
         );
 

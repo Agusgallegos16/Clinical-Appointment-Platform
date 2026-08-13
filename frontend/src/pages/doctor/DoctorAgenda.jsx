@@ -246,7 +246,10 @@ const DoctorAgenda = () => {
                     </Typography>
 
                     <Typography variant="body2" color="text.secondary">
-                      🏥 Especialidad: {turno.especialidadNombre}
+                      🏥 <strong> Especialidad: </strong> {turno.especialidadNombre}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" mt={0.5}>
+                      💳 <strong>Cobertura Indicada:</strong> {turno.obraSocial || (turno.tieneObraSocial ? 'Obra Social' : 'Particular / Sin Obra Social')}
                     </Typography>
                     <Typography variant="body2" color="text.secondary" mt={0.5}>
                       💬 <strong>Motivo:</strong> {turno.motivoConsulta || 'Sin especificar'}

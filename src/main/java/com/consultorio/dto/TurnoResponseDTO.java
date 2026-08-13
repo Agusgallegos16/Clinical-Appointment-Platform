@@ -23,5 +23,7 @@ public class TurnoResponseDTO {
     private EstadoTurno estado;
     private String motivoConsulta;
     private String motivoCancelacion;
+    private Boolean tieneObraSocial;
+    private String obraSocial;
     private String googleEventId;
 }

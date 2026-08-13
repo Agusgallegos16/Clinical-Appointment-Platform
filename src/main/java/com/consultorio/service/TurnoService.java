@@ -98,6 +98,11 @@ public class TurnoService {
             throw new IllegalStateException("El horario seleccionado ya no se encuentra disponible.");
         }
 
+        boolean tieneOS = dto.getTieneObraSocial() != null && dto.getTieneObraSocial();
+        String osNombre = tieneOS
+                ? (dto.getObraSocial() != null && !dto.getObraSocial().trim().isEmpty() ? dto.getObraSocial().trim() : "Obra Social")
+                : "Particular / Sin Obra Social";
+
         Turno turno = Turno.builder()
                 .paciente(paciente)
                 .doctor(doctor)
@@ -105,6 +110,8 @@ public class TurnoService {
                 .fechaHora(dto.getFechaHora())
                 .estado(EstadoTurno.CONFIRMADO)
                 .motivoConsulta(dto.getMotivoConsulta())
+                .tieneObraSocial(tieneOS)
+                .obraSocial(osNombre)
                 .build();
 
         Turno guardado = turnoRepository.save(turno);
@@ -374,6 +381,8 @@ public class TurnoService {
                 .estado(turno.getEstado())
                 .motivoConsulta(turno.getMotivoConsulta())
                 .motivoCancelacion(turno.getMotivoCancelacion())
+                .tieneObraSocial(turno.isTieneObraSocial())
+                .obraSocial(turno.getObraSocial())
                 .googleEventId(turno.getGoogleEventId())
                 .build();
     }

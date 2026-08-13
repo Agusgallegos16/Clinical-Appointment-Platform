@@ -47,6 +47,11 @@ public class Turno {
     private String motivoCancelacion;
 
     @Builder.Default
+    private boolean tieneObraSocial = false;
+
+    private String obraSocial;
+
+    @Builder.Default
     private boolean recordatorio48hsEnviado = false;
 
     @Column(name = "google_event_id")

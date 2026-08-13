@@ -20,4 +20,8 @@ public class TurnoReservaDTO {
     private LocalDateTime fechaHora;
 
     private String motivoConsulta;
+
+    private Boolean tieneObraSocial;
+
+    private String obraSocial;
 }

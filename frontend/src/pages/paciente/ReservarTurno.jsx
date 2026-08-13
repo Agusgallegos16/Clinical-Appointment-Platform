@@ -68,6 +68,8 @@ const ReservarTurno = () => {
   const [selectedFecha, setSelectedFecha] = useState(todayStr);
   const [selectedSlot, setSelectedSlot] = useState(null);
   const [motivoConsulta, setMotivoConsulta] = useState('');
+  const [tieneObraSocial, setTieneObraSocial] = useState(false);
+  const [obraSocial, setObraSocial] = useState('');
 
   // Estados de interfaz
   const [loading, setLoading] = useState(false);
@@ -117,13 +119,14 @@ const ReservarTurno = () => {
 
   const tieneMenores = menores.length > 0;
   const steps = tieneMenores
-    ? ['¿Para quién?', 'Especialidad', 'Profesional', 'Fecha y Horario', 'Confirmar Reserva']
-    : ['Especialidad', 'Profesional', 'Fecha y Horario', 'Confirmar Reserva'];
+    ? ['¿Para quién?', 'Especialidad', 'Profesional', 'Fecha y Horario', 'Obra Social', 'Confirmar Reserva']
+    : ['Especialidad', 'Profesional', 'Fecha y Horario', 'Obra Social', 'Confirmar Reserva'];
 
   const pasoEspecialidadIndex = tieneMenores ? 1 : 0;
   const pasoDoctorIndex = tieneMenores ? 2 : 1;
   const pasoHorarioIndex = tieneMenores ? 3 : 2;
-  const pasoConfirmarIndex = tieneMenores ? 4 : 3;
+  const pasoObraSocialIndex = tieneMenores ? 4 : 3;
+  const pasoConfirmarIndex = tieneMenores ? 5 : 4;
 
   const handleSelectEspecialidad = async (especialidad) => {
     setSelectedEspecialidad(especialidad);
@@ -202,6 +205,8 @@ const ReservarTurno = () => {
         especialidadId: selectedEspecialidad.id,
         fechaHora: selectedSlot.fechaHoraIso,
         motivoConsulta: motivoConsulta || 'Consulta General',
+        tieneObraSocial: tieneObraSocial,
+        obraSocial: tieneObraSocial ? (obraSocial.trim() || 'Obra Social') : 'Particular / Sin Obra Social',
       });
 
       setSuccess(true);
@@ -514,6 +519,116 @@ const ReservarTurno = () => {
               variant="contained"
               color="primary"
               disabled={!selectedSlot}
+              onClick={() => setActiveStep(pasoObraSocialIndex)}
+            >
+              Continuar a Obra Social
+            </Button>
+          </Box>
+        </Box>
+      )}
+
+      {/* PASO OBRA SOCIAL */}
+      {activeStep === pasoObraSocialIndex && (
+        <Box sx={{ width: '100%', minHeight: '380px', boxSizing: 'border-box' }}>
+          <Typography variant="h6" fontWeight={600} mb={1}>
+            Cobertura Médica / Obra Social
+          </Typography>
+          <Typography variant="body2" color="text.secondary" mb={3}>
+            Indicá si la consulta se atenderá de forma Particular o a través de una Obra Social / Prepaga.
+          </Typography>
+
+          <Paper sx={{ p: 3, mb: 3 }}>
+            <Box mb={3}>
+              <Typography variant="subtitle1" fontWeight={700} mb={1.5}>
+                ¿Contás con Obra Social o Medicina Prepaga para este turno?
+              </Typography>
+              <Grid container spacing={2}>
+                <Grid item xs={12} sm={6}>
+                  <Paper
+                    variant="outlined"
+                    onClick={() => setTieneObraSocial(false)}
+                    sx={{
+                      p: 2,
+                      cursor: 'pointer',
+                      borderRadius: 3,
+                      border: '2px solid',
+                      borderColor: !tieneObraSocial ? 'primary.main' : 'divider',
+                      bgcolor: !tieneObraSocial ? 'action.selected' : 'background.paper',
+                      transition: '0.2s',
+                    }}
+                  >
+                    <Box display="flex" alignItems="center" gap={1.5}>
+                      <Radio checked={!tieneObraSocial} onChange={() => setTieneObraSocial(false)} />
+                      <Box>
+                        <Typography variant="subtitle2" fontWeight={700}>
+                          Atención Particular / Sin Obra Social
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Consulta privada sin cobertura de salud
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Paper>
+                </Grid>
+
+                <Grid item xs={12} sm={6}>
+                  <Paper
+                    variant="outlined"
+                    onClick={() => setTieneObraSocial(true)}
+                    sx={{
+                      p: 2,
+                      cursor: 'pointer',
+                      borderRadius: 3,
+                      border: '2px solid',
+                      borderColor: tieneObraSocial ? 'primary.main' : 'divider',
+                      bgcolor: tieneObraSocial ? 'action.selected' : 'background.paper',
+                      transition: '0.2s',
+                    }}
+                  >
+                    <Box display="flex" alignItems="center" gap={1.5}>
+                      <Radio checked={tieneObraSocial} onChange={() => setTieneObraSocial(true)} />
+                      <Box>
+                        <Typography variant="subtitle2" fontWeight={700}>
+                          Sí, tengo Obra Social / Prepaga
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          Cobertura por mutual o medicina privada
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Paper>
+                </Grid>
+              </Grid>
+            </Box>
+
+            {tieneObraSocial && (
+              <Box mt={2}>
+                <TextField
+                  fullWidth
+                  label="Nombre de la Obra Social / Prepaga *"
+                  placeholder="Ej: OSDE, Swiss Medical, Galeno, PAMI, IOMA, Omint..."
+                  value={obraSocial}
+                  onChange={(e) => setObraSocial(e.target.value)}
+                  required
+                  error={tieneObraSocial && !obraSocial.trim()}
+                  helperText={
+                    tieneObraSocial && !obraSocial.trim()
+                      ? 'Por favor indicá el nombre de tu obra social o prepaga.'
+                      : ''
+                  }
+                />
+              </Box>
+            )}
+          </Paper>
+
+          <Box display="flex" gap={2}>
+            <Button variant="outlined" onClick={() => setActiveStep(pasoHorarioIndex)}>
+              Volver
+            </Button>
+            <Button
+              variant="contained"
+              color="primary"
+              disabled={tieneObraSocial && !obraSocial.trim()}
               onClick={() => setActiveStep(pasoConfirmarIndex)}
             >
               Continuar a Confirmación
@@ -544,8 +659,11 @@ const ReservarTurno = () => {
             <Typography variant="body1" mb={1}>
               📅 <strong>Fecha:</strong> {dayjs(selectedFecha).format('DD/MM/YYYY')}
             </Typography>
-            <Typography variant="body1" mb={2}>
+            <Typography variant="body1" mb={1}>
               ⏰ <strong>Hora:</strong> {selectedSlot?.horaTexto} hs
+            </Typography>
+            <Typography variant="body1" mb={2}>
+              💳 <strong>Cobertura / Obra Social:</strong> {tieneObraSocial ? (obraSocial.trim() || 'Obra Social') : 'Particular / Sin Obra Social'}
             </Typography>
 
             <TextField
@@ -560,7 +678,7 @@ const ReservarTurno = () => {
           </Paper>
 
           <Box display="flex" gap={2}>
-            <Button variant="outlined" onClick={() => setActiveStep(pasoHorarioIndex)}>
+            <Button variant="outlined" onClick={() => setActiveStep(pasoObraSocialIndex)}>
               Volver
             </Button>
             <Button
