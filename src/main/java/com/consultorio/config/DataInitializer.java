@@ -79,6 +79,14 @@ public class DataInitializer implements CommandLineRunner {
 
         Doctor doctor = doctorService.registrarDoctor(doctorDTO);
 
+        // Activar y configurar contraseña por defecto 123456 para el médico de pruebas inicial
+        Usuario usuarioDoctor = doctor.getUsuario();
+        usuarioDoctor.setPassword(passwordEncoder.encode("123456"));
+        usuarioDoctor.setActivo(true);
+        usuarioDoctor.setEmailVerificado(true);
+        usuarioDoctor.setTokenVerificacionEmail(null);
+        usuarioRepository.save(usuarioDoctor);
+
         // 3. Configurar Horarios Estándar Semanales del Doctor (Lunes de 09:00 a 13:00)
         HorarioAtencionDTO horarioLunes = new HorarioAtencionDTO();
         horarioLunes.setDiaSemana(DiaSemana.LUNES);
@@ -123,8 +131,6 @@ public class DataInitializer implements CommandLineRunner {
         usuarioDemo.setEmailVerificado(true);
         usuarioDemo.setTokenVerificacionEmail(null);
         usuarioRepository.save(usuarioDemo);
-
-        System.out.println("✅ Datos de prueba iniciales (Admin, Doctor y Paciente) cargados correctamente en H2 Database.");
 
         System.out.println("✅ Datos de prueba iniciales (Admin, Doctor y Paciente) cargados correctamente en H2 Database.");
     }

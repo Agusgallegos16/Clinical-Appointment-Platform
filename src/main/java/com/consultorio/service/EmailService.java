@@ -42,6 +42,23 @@ public class EmailService {
         enviarCorreo(emailDestino, asunto, cuerpo);
     }
 
+    // Email de Activación de Cuenta y Configuración de Contraseña para Doctores
+    public void enviarEmailActivacionDoctor(String emailDestino, String nombreDoctor, String token) {
+        String urlActivacion = "http://localhost:5173/establecer-password-doctor?token=" + token;
+        String asunto = "Bienvenido/a al Consultorio Médico - Configuración de Contraseña";
+        String cuerpo = String.format(
+                "Estimado/a Dr/a. %s,\n\n" +
+                "Has sido dado/a de alta como profesional médico en nuestro sistema de gestión de turnos.\n" +
+                "Para activar tu cuenta de usuario y configurar tu contraseña de acceso por primera vez, ingresa al siguiente enlace:\n\n" +
+                "%s\n\n" +
+                "⚠️ Este enlace de activación expira en 24 horas. En caso de no responder en dicho plazo, la solicitud de alta será descartada automáticamente.\n\n" +
+                "Saludos cordiales,\nEquipo de Administración del Consultorio Médico.",
+                nombreDoctor, urlActivacion
+        );
+
+        enviarCorreo(emailDestino, asunto, cuerpo);
+    }
+
     // Email de Confirmación de Restablecimiento de Contraseña
     public void enviarEmailRestablecerPassword(String emailDestino, String token) {
         String urlConfirmacion = "http://localhost:5173/confirmar-restablecimiento?token=" + token;
@@ -214,7 +231,6 @@ public class EmailService {
         String logMessage = String.format("\n📧 ==================== [NOTIFICACIÓN POR EMAIL] ====================\nPara: %s\nAsunto: %s\nContenido:\n%s\n====================================================================",
                 destino, asunto, cuerpo);
 
-        System.out.println(logMessage);
         log.info(logMessage);
 
         if (mailSender != null) {

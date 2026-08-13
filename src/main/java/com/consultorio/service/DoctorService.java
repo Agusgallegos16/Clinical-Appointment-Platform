@@ -14,6 +14,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -46,18 +47,28 @@ public class DoctorService {
 
     @Transactional
     public Doctor registrarDoctor(RegistroDoctorDTO dto) {
-        if (usuarioRepository.existsByEmail(dto.getEmail())) {
-            throw new IllegalArgumentException("El email ya se encuentra registrado: " + dto.getEmail());
+        var usuarioExistenteOpt = usuarioRepository.findByEmail(dto.getEmail());
+        if (usuarioExistenteOpt.isPresent()) {
+            Usuario exist = usuarioExistenteOpt.get();
+            // Si el usuario no activó su cuenta y expiro su token de 24hs, descartarlo para permitir nuevo alta
+            if (!exist.isActivo() && !exist.isEmailVerificado() && exist.getTokenVerificacionExpiracion() != null && exist.getTokenVerificacionExpiracion().isBefore(java.time.LocalDateTime.now())) {
+                doctorRepository.findByUsuarioId(exist.getId()).ifPresent(doctorRepository::delete);
+                usuarioRepository.delete(exist);
+            } else {
+                throw new IllegalArgumentException("El email ya se encuentra registrado: " + dto.getEmail());
+            }
         }
 
-        String rawPassword = (dto.getPassword() != null && !dto.getPassword().isBlank()) ? dto.getPassword() : "123456";
+        String tokenActivacion = UUID.randomUUID().toString();
 
         Usuario usuario = Usuario.builder()
                 .email(dto.getEmail())
-                .password(passwordEncoder.encode(rawPassword))
+                .password(passwordEncoder.encode(UUID.randomUUID().toString()))
                 .rol(Rol.DOCTOR)
-                .activo(true)
-                .emailVerificado(true)
+                .activo(false) // Inactivo hasta que establezca su clave vía email
+                .emailVerificado(false)
+                .tokenVerificacionEmail(tokenActivacion)
+                .tokenVerificacionExpiracion(java.time.LocalDateTime.now().plusHours(24))
                 .build();
 
         Usuario usuarioGuardado = usuarioRepository.save(usuario);
@@ -76,12 +87,12 @@ public class DoctorService {
                 .build();
 
         Doctor guardado = doctorRepository.save(doctor);
-        emailService.enviarEmailBienvenida(guardado.getUsuario().getEmail(), guardado.getNombre());
+        emailService.enviarEmailActivacionDoctor(guardado.getUsuario().getEmail(), guardado.getNombre(), tokenActivacion);
         return guardado;
     }
 
     @Transactional
-    public Doctor actualizarDoctor(Long id, RegistroDoctorDTO dto) {
+    public Doctor actualizarDoctor(UUID id, RegistroDoctorDTO dto) {
         Doctor doctor = obtenerPorId(id);
 
         doctor.setNombre(dto.getNombre());
@@ -105,7 +116,7 @@ public class DoctorService {
     }
 
     @Transactional
-    public void eliminarDoctor(Long id) {
+    public void eliminarDoctor(UUID id) {
         Doctor doctor = obtenerPorId(id);
         doctorRepository.delete(doctor);
     }
@@ -118,13 +129,13 @@ public class DoctorService {
         return doctorRepository.findByEspecialidadesId(especialidadId);
     }
 
-    public Doctor obtenerPorId(Long id) {
+    public Doctor obtenerPorId(UUID id) {
         return doctorRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Doctor no encontrado con ID: " + id));
     }
 
     @Transactional
-    public HorarioAtencion agregarHorarioAtencion(Long doctorId, HorarioAtencionDTO dto) {
+    public HorarioAtencion agregarHorarioAtencion(UUID doctorId, HorarioAtencionDTO dto) {
         Doctor doctor = obtenerPorId(doctorId);
         LocalDate hoy = LocalDate.now();
 
@@ -144,12 +155,15 @@ public class DoctorService {
             throw new IllegalArgumentException("La hora de inicio debe ser anterior a la hora de fin.");
         }
 
+        int duracion = dto.getDuracionTurnoMinutos() > 0 ? dto.getDuracionTurnoMinutos() : 30;
+
+        // Validar que los slots propuestos no colisionen con slots existentes en la base de datos
+        validarNoColisionSlots(doctorId, dto.getDiaSemana(), dto.getFecha(), dto.getFechaDesde(), dto.getFechaHasta(), dto.getHoraInicio(), dto.getHoraFin(), duracion);
+
         Especialidad especialidad = null;
         if (dto.getEspecialidadId() != null) {
             especialidad = especialidadRepository.findById(dto.getEspecialidadId()).orElse(null);
         }
-
-        int duracion = dto.getDuracionTurnoMinutos() > 0 ? dto.getDuracionTurnoMinutos() : 30;
 
         HorarioAtencion horario = HorarioAtencion.builder()
                 .doctor(doctor)
@@ -190,12 +204,18 @@ public class DoctorService {
             throw new IllegalArgumentException("La hora de inicio debe ser anterior a la hora de fin.");
         }
 
+        int duracion = dto.getDuracionTurnoMinutos() > 0 ? dto.getDuracionTurnoMinutos() : 30;
+
+        // Eliminar temporalmente los slots del horario anterior para poder re-validar e instanciar
+        eliminarSlotsDeHorario(horario);
+
+        // Validar colisiones
+        validarNoColisionSlots(horario.getDoctor().getId(), dto.getDiaSemana(), dto.getFecha(), dto.getFechaDesde(), dto.getFechaHasta(), dto.getHoraInicio(), dto.getHoraFin(), duracion);
+
         Especialidad especialidad = null;
         if (dto.getEspecialidadId() != null) {
             especialidad = especialidadRepository.findById(dto.getEspecialidadId()).orElse(null);
         }
-
-        int duracion = dto.getDuracionTurnoMinutos() > 0 ? dto.getDuracionTurnoMinutos() : 30;
 
         horario.setEspecialidad(especialidad);
         horario.setDiaSemana(dto.getDiaSemana());
@@ -216,6 +236,74 @@ public class DoctorService {
         }
 
         return guardado;
+    }
+
+    private void eliminarSlotsDeHorario(HorarioAtencion horario) {
+        if (horario.getFecha() != null) {
+            List<SlotHorario> slots = slotHorarioRepository.findByDoctorIdAndFecha(horario.getDoctor().getId(), horario.getFecha());
+            List<SlotHorario> aBorrar = slots.stream()
+                    .filter(s -> s.isEsPuntual() && horario.getHoraInicio().isBefore(s.getHoraFin()) && horario.getHoraFin().isAfter(s.getHoraInicio()))
+                    .collect(Collectors.toList());
+            slotHorarioRepository.deleteAll(aBorrar);
+        } else if (horario.getDiaSemana() != null) {
+            LocalDate inicio = (horario.getFechaDesde() != null && !horario.getFechaDesde().isBefore(LocalDate.now())) ? horario.getFechaDesde() : LocalDate.now();
+            LocalDate fin = (horario.getFechaHasta() != null) ? horario.getFechaHasta() : inicio.plusWeeks(8);
+            for (LocalDate date = inicio; !date.isAfter(fin); date = date.plusDays(1)) {
+                if (mapearDiaSemana(date.getDayOfWeek()) == horario.getDiaSemana()) {
+                    List<SlotHorario> slots = slotHorarioRepository.findByDoctorIdAndFecha(horario.getDoctor().getId(), date);
+                    List<SlotHorario> aBorrar = slots.stream()
+                            .filter(s -> !s.isEsPuntual() && horario.getHoraInicio().isBefore(s.getHoraFin()) && horario.getHoraFin().isAfter(s.getHoraInicio()))
+                            .collect(Collectors.toList());
+                    slotHorarioRepository.deleteAll(aBorrar);
+                }
+            }
+        }
+    }
+
+    private void validarNoColisionSlots(UUID doctorId, DiaSemana diaSemana, LocalDate fecha, LocalDate fechaDesde, LocalDate fechaHasta, LocalTime horaInicio, LocalTime horaFin, int duracionMinutos) {
+        List<LocalDate> fechasAEvaluar = new ArrayList<>();
+        if (fecha != null) {
+            fechasAEvaluar.add(fecha);
+        } else if (diaSemana != null) {
+            LocalDate inicio = (fechaDesde != null && !fechaDesde.isBefore(LocalDate.now())) ? fechaDesde : LocalDate.now();
+            LocalDate fin = (fechaHasta != null) ? fechaHasta : inicio.plusWeeks(8);
+            for (LocalDate date = inicio; !date.isAfter(fin); date = date.plusDays(1)) {
+                if (mapearDiaSemana(date.getDayOfWeek()) == diaSemana) {
+                    fechasAEvaluar.add(date);
+                }
+            }
+        }
+
+        int duracion = duracionMinutos > 0 ? duracionMinutos : 30;
+
+        List<LocalTime[]> rangosPropuestos = new ArrayList<>();
+        LocalTime actual = horaInicio;
+        while (actual.plusMinutes(duracion).isBefore(horaFin) || actual.plusMinutes(duracion).equals(horaFin)) {
+            rangosPropuestos.add(new LocalTime[]{actual, actual.plusMinutes(duracion)});
+            actual = actual.plusMinutes(duracion);
+        }
+
+        if (rangosPropuestos.isEmpty()) {
+            throw new IllegalArgumentException("El rango de horas ingresado es menor a la duración del turno (" + duracion + " minutos).");
+        }
+
+        for (LocalDate dateTarget : fechasAEvaluar) {
+            List<SlotHorario> slotsExistentes = slotHorarioRepository.findByDoctorIdAndFecha(doctorId, dateTarget);
+
+            for (LocalTime[] rango : rangosPropuestos) {
+                LocalTime pStart = rango[0];
+                LocalTime pEnd = rango[1];
+
+                for (SlotHorario slotExist : slotsExistentes) {
+                    if (pStart.isBefore(slotExist.getHoraFin()) && pEnd.isAfter(slotExist.getHoraInicio())) {
+                        throw new IllegalArgumentException(String.format(
+                                "El horario ingresado (%s hs a %s hs para el día %s) colisiona con un turno ya existente (%s hs a %s hs). Por favor seleccione un horario libre.",
+                                pStart, pEnd, dateTarget, slotExist.getHoraInicio(), slotExist.getHoraFin()
+                        ));
+                    }
+                }
+            }
+        }
     }
 
     private void instanciarSlotsSemanales(Doctor doctor, DiaSemana diaSemana, LocalTime horaInicio, LocalTime horaFin, int duracionMinutos, Especialidad especialidad, LocalDate fechaDesde, LocalDate fechaHasta) {
@@ -287,7 +375,7 @@ public class DoctorService {
     }
 
     @Transactional
-    public void limpiarHorariosSemana(Long doctorId, LocalDate desde, LocalDate hasta) {
+    public void limpiarHorariosSemana(UUID doctorId, LocalDate desde, LocalDate hasta) {
         slotHorarioRepository.deleteByDoctorIdAndFechaBetween(doctorId, desde, hasta);
 
         List<HorarioAtencion> horarios = horarioAtencionRepository.findByDoctorId(doctorId);
@@ -298,7 +386,7 @@ public class DoctorService {
         }
     }
 
-    public List<SlotHorario> obtenerSlotsDoctor(Long doctorId, LocalDate desde, LocalDate hasta) {
+    public List<SlotHorario> obtenerSlotsDoctor(UUID doctorId, LocalDate desde, LocalDate hasta) {
         if (desde != null && hasta != null) {
             return slotHorarioRepository.findByDoctorIdAndFechaBetween(doctorId, desde, hasta);
         }
@@ -310,13 +398,32 @@ public class DoctorService {
         slotHorarioRepository.deleteById(slotId);
     }
 
-    public List<HorarioAtencion> obtenerHorariosDoctor(Long doctorId) {
+    public List<HorarioAtencion> obtenerHorariosDoctor(UUID doctorId) {
         return horarioAtencionRepository.findByDoctorId(doctorId);
     }
 
     @Transactional
     public void eliminarHorarioAtencion(Long horarioId) {
-        horarioAtencionRepository.deleteById(horarioId);
+        HorarioAtencion horario = horarioAtencionRepository.findById(horarioId).orElse(null);
+        if (horario != null) {
+            eliminarSlotsDeHorario(horario);
+            horarioAtencionRepository.delete(horario);
+        }
+    }
+
+    @org.springframework.scheduling.annotation.Scheduled(cron = "0 0 3 * * ?")
+    @Transactional
+    public void limpiarDoctoresExpirados() {
+        List<Doctor> todos = doctorRepository.findAll();
+        for (Doctor doc : todos) {
+            Usuario u = doc.getUsuario();
+            if (u != null && !u.isActivo() && !u.isEmailVerificado()
+                    && u.getTokenVerificacionExpiracion() != null
+                    && u.getTokenVerificacionExpiracion().isBefore(java.time.LocalDateTime.now())) {
+                doctorRepository.delete(doc);
+                usuarioRepository.delete(u);
+            }
+        }
     }
 
     private DiaSemana mapearDiaSemana(DayOfWeek dayOfWeek) {

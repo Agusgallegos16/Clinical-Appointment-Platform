@@ -10,6 +10,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api/pacientes")
 @Tag(name = "Gestión de Pacientes", description = "Endpoints para consulta de datos del paciente.")
@@ -27,14 +29,14 @@ public class PacienteController {
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('PACIENTE') or hasRole('ADMIN') or hasRole('DOCTOR')")
     @Operation(summary = "Obtener el detalle de un paciente por su ID (PACIENTE / ADMIN / DOCTOR)")
-    public ResponseEntity<Paciente> obtenerPacientePorId(@PathVariable Long id) {
+    public ResponseEntity<Paciente> obtenerPacientePorId(@PathVariable UUID id) {
         return ResponseEntity.ok(pacienteService.obtenerPorId(id));
     }
 
     @GetMapping("/{id}/estadisticas")
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN') or hasRole('PACIENTE')")
     @Operation(summary = "Obtener ficha y métricas estadísticas del paciente (DOCTOR / ADMIN / PACIENTE)")
-    public ResponseEntity<com.consultorio.dto.PacienteResumenEstadisticasDTO> obtenerEstadisticasPaciente(@PathVariable Long id) {
+    public ResponseEntity<com.consultorio.dto.PacienteResumenEstadisticasDTO> obtenerEstadisticasPaciente(@PathVariable UUID id) {
         return ResponseEntity.ok(pacienteService.obtenerEstadisticasPaciente(id));
     }
 
@@ -61,7 +63,7 @@ public class PacienteController {
     @DeleteMapping("/menores/{menorId}")
     @PreAuthorize("hasRole('PACIENTE') or hasRole('ADMIN')")
     @Operation(summary = "Desvincular a un menor a cargo del paciente tutor (PACIENTE / ADMIN)")
-    public ResponseEntity<Void> desvincularMenor(@PathVariable Long menorId) {
+    public ResponseEntity<Void> desvincularMenor(@PathVariable UUID menorId) {
         String emailAutenticado = securityUtils.obtenerEmailUsuarioAutenticado();
         Paciente tutor = pacienteService.obtenerPorUsuarioEmail(emailAutenticado);
         pacienteService.desvincularMenor(tutor.getId(), menorId);

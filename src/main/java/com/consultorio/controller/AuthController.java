@@ -97,6 +97,13 @@ public class AuthController {
         return ResponseEntity.ok(Map.of("message", "Contraseña cambiada con éxito. Ya puedes iniciar sesión con tu nueva contraseña."));
     }
 
+    @PostMapping("/establecer-password-doctor")
+    @Operation(summary = "Establecer la contraseña y activar cuenta de médico vía token (Público)")
+    public ResponseEntity<Map<String, String>> establecerPasswordDoctor(@Valid @RequestBody EstablecerPasswordDoctorDTO dto) {
+        usuarioService.establecerPasswordDoctor(dto);
+        return ResponseEntity.ok(Map.of("message", "¡Contraseña configurada exitosamente! Tu cuenta de profesional médico ha sido activada. Ya puedes iniciar sesión."));
+    }
+
     @PostMapping("/login")
     @Operation(summary = "Iniciar Sesión y obtener Token JWT Bearer")
     public ResponseEntity<JwtResponseDTO> login(@Valid @RequestBody LoginDTO loginDTO) {
@@ -115,7 +122,7 @@ public class AuthController {
 
         String token = jwtUtils.generarToken(usuario.getEmail(), usuario.getRol().name());
 
-        Long entidadId = null;
+        java.util.UUID entidadId = null;
         if (usuario.getRol() == Rol.PACIENTE) {
             Optional<Paciente> paciente = pacienteRepository.findByUsuarioId(usuario.getId());
             if (paciente.isPresent()) entidadId = paciente.get().getId();

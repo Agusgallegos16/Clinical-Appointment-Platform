@@ -36,7 +36,7 @@ const MisTurnos = () => {
   const { entidadId } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const queryPacienteId = searchParams.get('pacienteId') ? Number(searchParams.get('pacienteId')) : null;
+  const queryPacienteId = searchParams.get('pacienteId') || null;
   const queryNombre = searchParams.get('nombre');
 
   const [selectedPacienteId, setSelectedPacienteId] = useState(queryPacienteId || entidadId);

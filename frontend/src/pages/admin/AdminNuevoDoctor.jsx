@@ -65,17 +65,16 @@ const AdminNuevoDoctor = () => {
     try {
       await authService.registrarDoctor({
         email,
-        password,
         nombre,
         apellido,
         fotoUrl,
         especialidadIds: selectedEspecialidadIds,
       });
 
-      setSuccess(`¡Doctor/a Dr. ${nombre} ${apellido} registrado con éxito!`);
+      setSuccess(`¡Doctor/a Dr. ${nombre} ${apellido} registrado con éxito! Se envió un mail de activación a ${email}.`);
       setTimeout(() => {
         navigate('/admin/doctores');
-      }, 1500);
+      }, 2000);
     } catch (err) {
       let msg = 'Error al registrar al profesional.';
       if (err.response?.data?.mensaje) {
@@ -107,7 +106,7 @@ const AdminNuevoDoctor = () => {
           Alta de Nuevo Médico
         </Typography>
         <Typography variant="body2" color="text.secondary" mb={3}>
-          Completá las credenciales, foto de perfil y especialidades para dar de alta un nuevo profesional.
+          Completá los datos personales, foto de perfil y especialidades para dar de alta a un profesional. Se le enviará un correo electrónico de activación para que configure su contraseña de acceso.
         </Typography>
 
         {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
@@ -153,26 +152,15 @@ const AdminNuevoDoctor = () => {
               />
             </Grid>
 
-            <Grid item xs={12} sm={6}>
+            <Grid item xs={12}>
               <TextField
                 fullWidth
                 type="email"
-                label="Correo Electrónico"
+                label="Correo Electrónico del Médico"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <TextField
-                fullWidth
-                type="password"
-                label="Contraseña"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                helperText="Mínimo 6 caracteres"
+                helperText="Se enviará a esta casilla una invitación segura con un enlace para que configure su clave de acceso (expira en 24hs)."
               />
             </Grid>
 
@@ -266,10 +254,10 @@ const AdminNuevoDoctor = () => {
             size="large"
             fullWidth
             startIcon={<PersonAddIcon />}
-            disabled={loading || !email || !password || !nombre || !apellido}
+            disabled={loading || !email || !nombre || !apellido}
             sx={{ mt: 4 }}
           >
-            {loading ? <CircularProgress size={24} color="inherit" /> : 'Registrar Profesional'}
+            {loading ? <CircularProgress size={24} color="inherit" /> : 'Registrar Profesional y Enviar Invitación'}
           </Button>
         </Box>
       </Paper>

@@ -6,16 +6,17 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
 public class TurnoResponseDTO {
-    private Long id;
-    private Long pacienteId;
+    private UUID id;
+    private UUID pacienteId;
     private String pacienteNombre;
-    private Long doctorId;
+    private UUID doctorId;
     private String doctorNombre;
     private String especialidadNombre;
     private LocalDateTime fechaHora;

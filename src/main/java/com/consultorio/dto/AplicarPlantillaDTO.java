@@ -14,4 +14,8 @@ public class AplicarPlantillaDTO {
     private DiaSemana diaSemana; // Opcional: para aplicar a todos los días semanales iguales (ej. LUNES)
 
     private LocalDate fecha; // Opcional: para aplicar a una fecha puntual específica (ej. 2026-08-20)
+
+    private LocalDate fechaDesde; // Opcional: vigencia inicio para aplicación recurrente
+
+    private LocalDate fechaHasta; // Opcional: vigencia fin para aplicación recurrente
 }

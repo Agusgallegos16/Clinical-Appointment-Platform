@@ -124,7 +124,7 @@ public class PacienteService {
         return true;
     }
 
-    public Paciente obtenerPorId(Long id) {
+    public Paciente obtenerPorId(UUID id) {
         return pacienteRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Paciente no encontrado con id: " + id));
     }
@@ -139,7 +139,7 @@ public class PacienteService {
     }
 
     @Transactional(readOnly = true)
-    public PacienteResumenEstadisticasDTO obtenerEstadisticasPaciente(Long pacienteId) {
+    public PacienteResumenEstadisticasDTO obtenerEstadisticasPaciente(UUID pacienteId) {
         Paciente paciente = pacienteRepository.findById(pacienteId)
                 .orElseThrow(() -> new IllegalArgumentException("Paciente no encontrado con id: " + pacienteId));
 
@@ -178,7 +178,7 @@ public class PacienteService {
     }
 
     @Transactional
-    public com.consultorio.dto.PacienteMenorResponseDTO registrarMenor(Long tutorPacienteId, com.consultorio.dto.RegistroMenorDTO dto) {
+    public com.consultorio.dto.PacienteMenorResponseDTO registrarMenor(UUID tutorPacienteId, com.consultorio.dto.RegistroMenorDTO dto) {
         Paciente tutor = pacienteRepository.findById(tutorPacienteId)
                 .orElseThrow(() -> new IllegalArgumentException("Paciente tutor no encontrado con id: " + tutorPacienteId));
 
@@ -234,7 +234,7 @@ public class PacienteService {
     }
 
     @Transactional
-    public List<com.consultorio.dto.PacienteMenorResponseDTO> listarMenoresDeTutor(Long tutorPacienteId) {
+    public List<com.consultorio.dto.PacienteMenorResponseDTO> listarMenoresDeTutor(UUID tutorPacienteId) {
         List<Paciente> menores = pacienteRepository.findByTutorId(tutorPacienteId);
 
         List<Paciente> validos = new java.util.ArrayList<>();
@@ -254,7 +254,7 @@ public class PacienteService {
     }
 
     @Transactional
-    public boolean desvincularMenor(Long tutorPacienteId, Long menorId) {
+    public boolean desvincularMenor(UUID tutorPacienteId, UUID menorId) {
         Paciente menor = pacienteRepository.findById(menorId)
                 .orElseThrow(() -> new IllegalArgumentException("Paciente menor no encontrado con id: " + menorId));
 

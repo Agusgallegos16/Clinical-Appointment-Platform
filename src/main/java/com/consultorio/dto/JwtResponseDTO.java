@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.UUID;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -17,5 +19,5 @@ public class JwtResponseDTO {
     private Long id;
     private String email;
     private Rol rol;
-    private Long entidadId; // ID del Paciente o Doctor asociado
+    private UUID entidadId; // ID (UUID) del Paciente o Doctor asociado
 }

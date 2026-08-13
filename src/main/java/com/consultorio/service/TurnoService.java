@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -137,7 +138,7 @@ public class TurnoService {
         TurnoResponseDTO responseDTO = mapearResponseDTO(guardado);
 
         // Notificación por email al paciente/tutor confirmando la reserva
-        String emailDestino = obtenerEmailNotificacionPaciente(paciente);
+        String emailDestino = obtenerEmailNotificacionPaciente(guardado.getPaciente());
         if (emailDestino != null) {
             emailService.enviarConfirmacionTurno(emailDestino, responseDTO);
         }
@@ -146,7 +147,7 @@ public class TurnoService {
     }
 
     @Transactional
-    public TurnoResponseDTO cancelarTurno(Long turnoId) {
+    public TurnoResponseDTO cancelarTurno(UUID turnoId) {
         Turno turno = turnoRepository.findById(turnoId)
                 .orElseThrow(() -> new IllegalArgumentException("Turno no encontrado con ID: " + turnoId));
 
@@ -194,7 +195,7 @@ public class TurnoService {
     }
 
     @Transactional
-    public TurnoResponseDTO cancelarTurnoPorDoctor(Long turnoId, String motivoCancelacion) {
+    public TurnoResponseDTO cancelarTurnoPorDoctor(UUID turnoId, String motivoCancelacion) {
         if (motivoCancelacion == null || motivoCancelacion.trim().isEmpty()) {
             throw new IllegalArgumentException("Debe ingresar una justificación obligatoria para cancelar el turno del paciente.");
         }
@@ -259,7 +260,7 @@ public class TurnoService {
     }
 
     @Transactional
-    public TurnoResponseDTO cambiarEstadoTurno(Long turnoId, EstadoTurno nuevoEstado) {
+    public TurnoResponseDTO cambiarEstadoTurno(UUID turnoId, EstadoTurno nuevoEstado) {
         Turno turno = turnoRepository.findById(turnoId)
                 .orElseThrow(() -> new IllegalArgumentException("Turno no encontrado con ID: " + turnoId));
 
@@ -268,7 +269,7 @@ public class TurnoService {
         return mapearResponseDTO(actualizado);
     }
 
-    public List<TurnoResponseDTO> obtenerTurnosPorPaciente(Long pacienteId) {
+    public List<TurnoResponseDTO> obtenerTurnosPorPaciente(UUID pacienteId) {
         Paciente paciente = pacienteRepository.findById(pacienteId)
                 .orElseThrow(() -> new IllegalArgumentException("Paciente no encontrado"));
 
@@ -292,7 +293,7 @@ public class TurnoService {
                 .collect(Collectors.toList());
     }
 
-    public List<TurnoResponseDTO> obtenerAgendaDoctor(Long doctorId, LocalDate fecha) {
+    public List<TurnoResponseDTO> obtenerAgendaDoctor(UUID doctorId, LocalDate fecha) {
         Doctor doctor = doctorRepository.findById(doctorId)
                 .orElseThrow(() -> new IllegalArgumentException("Doctor no encontrado con id: " + doctorId));
 
@@ -316,7 +317,7 @@ public class TurnoService {
                 .collect(Collectors.toList());
     }
 
-    public List<TurnoResponseDTO> obtenerTurnosRangoDoctor(Long doctorId, LocalDate desde, LocalDate hasta) {
+    public List<TurnoResponseDTO> obtenerTurnosRangoDoctor(UUID doctorId, LocalDate desde, LocalDate hasta) {
         LocalDateTime inicio = desde.atStartOfDay();
         LocalDateTime fin = hasta.atTime(23, 59, 59);
 
@@ -339,8 +340,13 @@ public class TurnoService {
             return paciente.getUsuario().getEmail();
         }
 
-        if (paciente.getTutor() != null && paciente.getTutor().getId() != null) {
-            Paciente tutorCompleto = pacienteRepository.findById(paciente.getTutor().getId()).orElse(null);
+        Paciente pacientePersistido = pacienteRepository.findById(paciente.getId()).orElse(paciente);
+        if (pacientePersistido.getUsuario() != null && pacientePersistido.getUsuario().getEmail() != null) {
+            return pacientePersistido.getUsuario().getEmail();
+        }
+
+        if (pacientePersistido.getTutor() != null && pacientePersistido.getTutor().getId() != null) {
+            Paciente tutorCompleto = pacienteRepository.findById(pacientePersistido.getTutor().getId()).orElse(null);
             if (tutorCompleto != null && tutorCompleto.getUsuario() != null && tutorCompleto.getUsuario().getEmail() != null) {
                 return tutorCompleto.getUsuario().getEmail();
             }

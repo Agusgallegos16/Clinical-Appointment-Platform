@@ -6,8 +6,9 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.Optional;
+import java.util.UUID;
 
 @Repository
 public interface AgendaFechaEspecialRepository extends JpaRepository<AgendaFechaEspecial, Long> {
-    Optional<AgendaFechaEspecial> findByDoctorIdAndFecha(Long doctorId, LocalDate fecha);
+    Optional<AgendaFechaEspecial> findByDoctorIdAndFecha(UUID doctorId, LocalDate fecha);
 }

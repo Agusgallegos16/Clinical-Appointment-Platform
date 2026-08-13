@@ -38,6 +38,7 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import { useColorMode } from '../context/ColorModeContext';
+import Footer from './Footer';
 
 const drawerWidth = 260;
 
@@ -253,7 +254,10 @@ const MainLayout = () => {
           </Button>
         </Box>
 
-        <Outlet />
+        <Box sx={{ flexGrow: 1 }}>
+          <Outlet />
+        </Box>
+        <Footer />
       </Box>
     </Box>
   );

@@ -15,6 +15,7 @@ import {
 import { LocalHospital as HospitalIcon } from '@mui/icons-material';
 import { authService } from '../../api/authService';
 import dayjs from 'dayjs';
+import Footer from '../../components/Footer';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -79,7 +80,8 @@ const Register = () => {
   };
 
   return (
-    <Container maxWidth="sm" sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', py: 4 }}>
+    <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
+      <Container maxWidth="sm" sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', py: 4 }}>
       <Card sx={{ width: '100%', p: 2, borderRadius: 3, boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}>
         <CardContent>
           <Box display="flex" flexDirection="column" alignItems="center" mb={3}>
@@ -211,17 +213,19 @@ const Register = () => {
             </Box>
           )}
 
-          <Box textAlign="center" mt={2}>
-            <Typography variant="body2" color="text.secondary">
-              ¿Ya tenés una cuenta?{' '}
-              <Link to="/login" style={{ color: '#0284c7', textDecoration: 'none', fontWeight: 600 }}>
-                Iniciá Sesión
-              </Link>
-            </Typography>
-          </Box>
-        </CardContent>
-      </Card>
-    </Container>
+            <Box textAlign="center" mt={2}>
+              <Typography variant="body2" color="text.secondary">
+                ¿Ya tenés una cuenta?{' '}
+                <Link to="/login" style={{ color: '#0284c7', textDecoration: 'none', fontWeight: 600 }}>
+                  Iniciá Sesión
+                </Link>
+              </Typography>
+            </Box>
+          </CardContent>
+        </Card>
+      </Container>
+      <Footer />
+    </Box>
   );
 };
 

@@ -14,20 +14,27 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.consultorio.domain.Doctor;
+import com.consultorio.dto.EstablecerPasswordDoctorDTO;
+import com.consultorio.repository.DoctorRepository;
+
 @Service
 public class UsuarioService {
 
     private static final Logger log = LoggerFactory.getLogger(UsuarioService.class);
 
     private final UsuarioRepository usuarioRepository;
+    private final DoctorRepository doctorRepository;
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
 
     @Autowired
     public UsuarioService(UsuarioRepository usuarioRepository,
+                          DoctorRepository doctorRepository,
                           EmailService emailService,
                           PasswordEncoder passwordEncoder) {
         this.usuarioRepository = usuarioRepository;
+        this.doctorRepository = doctorRepository;
         this.emailService = emailService;
         this.passwordEncoder = passwordEncoder;
     }
@@ -78,6 +85,36 @@ public class UsuarioService {
         usuarioRepository.save(usuario);
         log.info("✅ Contraseña actualizada con éxito para el usuario: {}", usuario.getEmail());
 
+        return true;
+    }
+
+    @Transactional
+    public boolean establecerPasswordDoctor(EstablecerPasswordDoctorDTO dto) {
+        if (dto.getConfirmarPassword() != null && !dto.getPassword().equals(dto.getConfirmarPassword())) {
+            throw new IllegalArgumentException("Las contraseñas no coinciden. Por favor verifíquelas.");
+        }
+
+        Usuario usuario = usuarioRepository.findByTokenVerificacionEmail(dto.getToken())
+                .orElseThrow(() -> new IllegalArgumentException("El token de activación es inválido o no existe."));
+
+        if (usuario.getTokenVerificacionExpiracion() != null && usuario.getTokenVerificacionExpiracion().isBefore(LocalDateTime.now())) {
+            // El token de 24hs ha expirado: descartar el registro para permitir un nuevo alta
+            Doctor doctorObj = doctorRepository.findByUsuarioId(usuario.getId()).orElse(null);
+            if (doctorObj != null) {
+                doctorRepository.delete(doctorObj);
+            }
+            usuarioRepository.delete(usuario);
+            throw new IllegalArgumentException("El enlace de activación ha expirado (límite 24hs). La solicitud de alta fue descartada. Solicite al Administrador que vuelva a registrar su perfil.");
+        }
+
+        usuario.setPassword(passwordEncoder.encode(dto.getPassword()));
+        usuario.setActivo(true);
+        usuario.setEmailVerificado(true);
+        usuario.setTokenVerificacionEmail(null);
+        usuario.setTokenVerificacionExpiracion(null);
+        usuarioRepository.save(usuario);
+
+        log.info("✅ Cuenta de médico activada con éxito para: {}", usuario.getEmail());
         return true;
     }
 }

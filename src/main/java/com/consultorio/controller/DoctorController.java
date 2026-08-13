@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.*;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/doctores")
@@ -69,7 +70,7 @@ public class DoctorController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Obtener el detalle de un médico por su ID (Público)")
-    public ResponseEntity<Doctor> obtenerDoctorPorId(@PathVariable Long id) {
+    public ResponseEntity<Doctor> obtenerDoctorPorId(@PathVariable UUID id) {
         return ResponseEntity.ok(doctorService.obtenerPorId(id));
     }
 
@@ -77,7 +78,7 @@ public class DoctorController {
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Actualizar datos de un médico existente (Exclusivo ADMIN)")
     public ResponseEntity<Doctor> actualizarDoctor(
-            @PathVariable Long id,
+            @PathVariable UUID id,
             @RequestBody RegistroDoctorDTO dto) {
         return ResponseEntity.ok(doctorService.actualizarDoctor(id, dto));
     }
@@ -85,7 +86,7 @@ public class DoctorController {
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Eliminar un médico por su ID (Exclusivo ADMIN)")
-    public ResponseEntity<Void> eliminarDoctor(@PathVariable Long id) {
+    public ResponseEntity<Void> eliminarDoctor(@PathVariable UUID id) {
         doctorService.eliminarDoctor(id);
         return ResponseEntity.noContent().build();
     }
@@ -94,7 +95,7 @@ public class DoctorController {
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Agregar un nuevo horario de atención semanal o por fecha puntual (DOCTOR / ADMIN)")
     public ResponseEntity<HorarioAtencion> agregarHorario(
-            @PathVariable Long id,
+            @PathVariable UUID id,
             @Valid @RequestBody HorarioAtencionDTO dto) {
         HorarioAtencion horario = doctorService.agregarHorarioAtencion(id, dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(horario);
@@ -112,7 +113,7 @@ public class DoctorController {
     @GetMapping("/{id}/horarios")
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Obtener todos los horarios de atención configurados por un doctor (DOCTOR / ADMIN)")
-    public ResponseEntity<List<HorarioAtencion>> obtenerHorarios(@PathVariable Long id) {
+    public ResponseEntity<List<HorarioAtencion>> obtenerHorarios(@PathVariable UUID id) {
         return ResponseEntity.ok(doctorService.obtenerHorariosDoctor(id));
     }
 
@@ -128,7 +129,7 @@ public class DoctorController {
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Limpiar/Borrar todos los turnos configurados para una semana específica (DOCTOR / ADMIN)")
     public ResponseEntity<Void> limpiarHorariosSemana(
-            @PathVariable Long id,
+            @PathVariable UUID id,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta) {
         doctorService.limpiarHorariosSemana(id, desde, hasta);
@@ -140,7 +141,7 @@ public class DoctorController {
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Obtener la lista de slots instanciados concretos del doctor (DOCTOR / ADMIN)")
     public ResponseEntity<List<SlotHorario>> obtenerSlots(
-            @PathVariable Long id,
+            @PathVariable UUID id,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta) {
         return ResponseEntity.ok(doctorService.obtenerSlotsDoctor(id, desde, hasta));
@@ -158,7 +159,7 @@ public class DoctorController {
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Crear una nueva plantilla de agenda personalizada (DOCTOR / ADMIN)")
     public ResponseEntity<PlantillaAgenda> crearPlantilla(
-            @PathVariable Long id,
+            @PathVariable UUID id,
             @Valid @RequestBody CrearPlantillaDTO dto) {
         PlantillaAgenda plantilla = plantillaAgendaService.crearPlantilla(id, dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(plantilla);
@@ -176,7 +177,7 @@ public class DoctorController {
     @GetMapping("/{id}/plantillas")
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Listar todas las plantillas de agenda del doctor (DOCTOR / ADMIN)")
-    public ResponseEntity<List<PlantillaAgenda>> listarPlantillas(@PathVariable Long id) {
+    public ResponseEntity<List<PlantillaAgenda>> listarPlantillas(@PathVariable UUID id) {
         return ResponseEntity.ok(plantillaAgendaService.listarPlantillasDoctor(id));
     }
 
@@ -192,7 +193,7 @@ public class DoctorController {
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Aplicar una plantilla de agenda a una fecha puntual (DOCTOR / ADMIN)")
     public ResponseEntity<List<HorarioAtencion>> aplicarPlantilla(
-            @PathVariable Long id,
+            @PathVariable UUID id,
             @Valid @RequestBody AplicarPlantillaDTO dto) {
         List<HorarioAtencion> nuevosHorarios = plantillaAgendaService.aplicarPlantilla(id, dto);
         return ResponseEntity.ok(nuevosHorarios);
@@ -201,7 +202,7 @@ public class DoctorController {
     @GetMapping("/{id}/disponibilidad")
     @Operation(summary = "Consultar slots de horarios libres disponibles para reservar en una fecha y especialidad (Público)")
     public ResponseEntity<List<SlotDisponibilidadDTO>> obtenerDisponibilidad(
-            @PathVariable Long id,
+            @PathVariable UUID id,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha,
             @RequestParam(required = false) Long especialidadId) {
         return ResponseEntity.ok(disponibilidadService.obtenerHorariosDisponibles(id, fecha, especialidadId));
@@ -211,7 +212,7 @@ public class DoctorController {
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Consultar la agenda privada de turnos confirmados del doctor para un día (DOCTOR / ADMIN)")
     public ResponseEntity<List<TurnoResponseDTO>> obtenerAgenda(
-            @PathVariable Long id,
+            @PathVariable UUID id,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {
         return ResponseEntity.ok(turnoService.obtenerAgendaDoctor(id, fecha));
     }

@@ -7,12 +7,13 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 @Repository
 public interface HorarioAtencionRepository extends JpaRepository<HorarioAtencion, Long> {
-    List<HorarioAtencion> findByDoctorId(Long doctorId);
-    List<HorarioAtencion> findByDoctorIdAndFecha(Long doctorId, LocalDate fecha);
-    List<HorarioAtencion> findByDoctorIdAndDiaSemanaAndFechaIsNull(Long doctorId, DiaSemana diaSemana);
-    void deleteByDoctorIdAndFecha(Long doctorId, LocalDate fecha);
-    void deleteByDoctorIdAndDiaSemanaAndFechaIsNull(Long doctorId, DiaSemana diaSemana);
+    List<HorarioAtencion> findByDoctorId(UUID doctorId);
+    List<HorarioAtencion> findByDoctorIdAndFecha(UUID doctorId, LocalDate fecha);
+    List<HorarioAtencion> findByDoctorIdAndDiaSemanaAndFechaIsNull(UUID doctorId, DiaSemana diaSemana);
+    void deleteByDoctorIdAndFecha(UUID doctorId, LocalDate fecha);
+    void deleteByDoctorIdAndDiaSemanaAndFechaIsNull(UUID doctorId, DiaSemana diaSemana);
 }

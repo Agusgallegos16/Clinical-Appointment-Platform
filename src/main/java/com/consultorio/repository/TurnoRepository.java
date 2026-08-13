@@ -7,23 +7,24 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.UUID;
 
 @Repository
-public interface TurnoRepository extends JpaRepository<Turno, Long> {
+public interface TurnoRepository extends JpaRepository<Turno, UUID> {
 
-    List<Turno> findByPacienteIdOrderByFechaHoraDesc(Long pacienteId);
+    List<Turno> findByPacienteIdOrderByFechaHoraDesc(UUID pacienteId);
 
     List<Turno> findByDoctorIdAndFechaHoraBetweenOrderByFechaHoraAsc(
-            Long doctorId, LocalDateTime desde, LocalDateTime hasta);
+            UUID doctorId, LocalDateTime desde, LocalDateTime hasta);
 
     List<Turno> findByDoctorIdAndFechaHoraBetweenAndEstadoNot(
-            Long doctorId, LocalDateTime desde, LocalDateTime hasta, EstadoTurno estadoNoDeseado);
+            UUID doctorId, LocalDateTime desde, LocalDateTime hasta, EstadoTurno estadoNoDeseado);
 
     List<Turno> findByDoctorIdAndFechaHoraBetweenAndEstadoNotOrderByFechaHoraAsc(
-            Long doctorId, LocalDateTime desde, LocalDateTime hasta, EstadoTurno estadoNoDeseado);
+            UUID doctorId, LocalDateTime desde, LocalDateTime hasta, EstadoTurno estadoNoDeseado);
 
     boolean existsByDoctorIdAndFechaHoraAndEstadoNot(
-            Long doctorId, LocalDateTime fechaHora, EstadoTurno estadoNoDeseado);
+            UUID doctorId, LocalDateTime fechaHora, EstadoTurno estadoNoDeseado);
 
     List<Turno> findByFechaHoraBetweenAndEstadoInAndRecordatorio48hsEnviadoFalse(
             LocalDateTime desde, LocalDateTime hasta, List<EstadoTurno> estados);

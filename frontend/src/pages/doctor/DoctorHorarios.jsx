@@ -136,6 +136,8 @@ const DoctorHorarios = () => {
   const [tipoAplicacion, setTipoAplicacion] = useState('RECURRENTE');
   const [diaAplicar, setDiaAplicar] = useState('LUNES');
   const [fechaAplicar, setFechaAplicar] = useState('');
+  const [fechaDesdeAplicar, setFechaDesdeAplicar] = useState('');
+  const [fechaHastaAplicar, setFechaHastaAplicar] = useState('');
   const [applying, setApplying] = useState(false);
 
   // Modal para deshabilitar / bloquear slot individual
@@ -296,6 +298,42 @@ const DoctorHorarios = () => {
 
     return slotsMap;
   }, [slots, weekDaysWithDates]);
+
+  // Precalculo de filas absorbidas por rowSpan previa en la grilla estilo Excel
+  const coveredRowsByDate = useMemo(() => {
+    const map = {};
+    weekDaysWithDates.forEach((d) => {
+      map[d.dateStr] = new Set();
+    });
+
+    weekDaysWithDates.forEach((dayInfo) => {
+      const dateStr = dayInfo.dateStr;
+      const daySlots = weekSlotsByDate[dateStr] || [];
+      if (daySlots.length === 0) return;
+
+      timeSlots.forEach((timeStr) => {
+        const rowStartMin = parseInt(timeStr.split(':')[0], 10) * 60 + parseInt(timeStr.split(':')[1], 10);
+        const rowEndMin = rowStartMin + 30;
+
+        const startingSlots = daySlots.filter((s) => s.startMinutes >= rowStartMin && s.startMinutes < rowEndMin);
+
+        if (startingSlots.length > 0) {
+          const maxEndMin = Math.max(...startingSlots.map((s) => s.endMinutes));
+
+          for (let checkMin = rowStartMin + 30; checkMin < maxEndMin; checkMin += 30) {
+            const hasNextStarting = daySlots.some((s) => s.startMinutes >= checkMin && s.startMinutes < checkMin + 30);
+            if (!hasNextStarting) {
+              map[dateStr].add(checkMin);
+            } else {
+              break;
+            }
+          }
+        }
+      });
+    });
+
+    return map;
+  }, [weekDaysWithDates, weekSlotsByDate, timeSlots]);
 
   // FILTRADO Y ORDENAMIENTO DINÁMICO DE LA LISTA INFERIOR
   const horariosVisiblesEnSemana = useMemo(() => {
@@ -459,12 +497,16 @@ const DoctorHorarios = () => {
       const payload = { plantillaId: Number(selectedPlantillaId) };
       if (tipoAplicacion === 'RECURRENTE') {
         payload.diaSemana = diaAplicar;
+        payload.fechaDesde = fechaDesdeAplicar || null;
+        payload.fechaHasta = fechaHastaAplicar || null;
       } else {
         payload.fecha = fechaAplicar;
       }
 
       await doctorService.aplicarPlantilla(entidadId, payload);
-      setSuccess('¡Plantilla aplicada correctamente! Se han actualizado tus horarios.');
+      setSuccess('¡Plantilla aplicada correctamente con su período de vigencia!');
+      setFechaDesdeAplicar('');
+      setFechaHastaAplicar('');
       cargarHorarios();
       cargarSlots();
     } catch (err) {
@@ -481,8 +523,9 @@ const DoctorHorarios = () => {
     try {
       await doctorService.eliminarHorario(selectedHorarioDelete.id);
       setSelectedHorarioDelete(null);
-      setSuccess('Franja horaria eliminada con éxito.');
+      setSuccess('Franja horaria eliminada con éxito y sus turnos asociados fueron removidos.');
       cargarHorarios();
+      cargarSlots();
     } catch (err) {
       triggerErrorModal('No se pudo eliminar la franja horaria.', 'Eliminar Franja');
     } finally {
@@ -550,8 +593,8 @@ const DoctorHorarios = () => {
 
       {success && <Alert severity="success" sx={{ mb: 3 }}>{success}</Alert>}
 
-      {/* PLANILLA MATRIZ ESTILO EXCEL CON FILTRO GRIS EN DÍAS/HORAS PASADOS */}
-      <Paper sx={{ p: 3, mb: 4, bgcolor: 'background.paper', borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.06)', overflowX: 'auto' }}>
+      {/* PLANILLA MATRIZ Y LISTADO DE TURNOS POR DÍA DE LA SEMANA */}
+      <Paper sx={{ p: 3, mb: 4, bgcolor: 'background.paper', borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
         <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2} mb={2.5}>
           <Box display="flex" alignItems="center" gap={1}>
             <Button
@@ -598,6 +641,7 @@ const DoctorHorarios = () => {
           </Box>
         </Box>
 
+        {/* PLANILLA MATRIZ ESTILO EXCEL CON FILTRO GRIS EN DÍAS/HORAS PASADOS */}
         <TableContainer sx={{ maxHeight: 650, borderRadius: 2 }}>
           <Table stickyHeader size="small" border={1} borderColor="#cbd5e1" sx={{ borderCollapse: 'collapse', bgcolor: '#f8fafc' }}>
             <TableHead>
@@ -632,81 +676,114 @@ const DoctorHorarios = () => {
                 const rowEndMin = rowStartMin + 30;
 
                 return (
-                  <TableRow key={timeStr} hover style={{ height: 44 }}>
-                    <TableCell sx={{ fontWeight: 700, bgcolor: '#e2e8f0', color: '#0f172a', textAlign: 'center', py: 0.5 }}>
+                  <TableRow key={timeStr} hover style={{ height: 48 }}>
+                    <TableCell sx={{ fontWeight: 700, bgcolor: '#e2e8f0', color: '#0f172a', textAlign: 'center', py: 0.5, height: 48, boxSizing: 'border-box' }}>
                       {timeStr}
                     </TableCell>
 
                     {weekDaysWithDates.map((dayInfo) => {
-                      const daySlots = weekSlotsByDate[dayInfo.dateStr] || [];
-
-                      // Evaluación de si la celda es del pasado (día pasado o hora pasada en el día de hoy)
+                      const dateStr = dayInfo.dateStr;
+                      const daySlots = weekSlotsByDate[dateStr] || [];
                       const isPastCell = dayInfo.isPastDay || (dayInfo.isTodayDay && rowEndMin <= currentMinutesToday);
 
+                      // Si esta celda fue absorbida por un rowSpan previo, no renderizar <TableCell>
+                      if (coveredRowsByDate[dateStr]?.has(rowStartMin)) {
+                        return null;
+                      }
+
+                      // Turnos que COMIENZAN dentro del rango de esta fila [rowStartMin, rowEndMin)
                       const startingSlots = daySlots.filter(
                         (s) => s.startMinutes >= rowStartMin && s.startMinutes < rowEndMin
                       );
 
-                      const isCoveredByPrevious = daySlots.some(
-                        (s) => s.startMinutes < rowStartMin && s.endMinutes > rowStartMin
-                      );
-
-                      if (isCoveredByPrevious) return null;
-
                       if (startingSlots.length > 0) {
                         const maxEndMin = Math.max(...startingSlots.map((s) => s.endMinutes));
-                        const durationCovered = maxEndMin - rowStartMin;
-                        const rowSpan = Math.max(1, Math.ceil(durationCovered / 30));
+
+                        let rowsSpanned = 1;
+                        for (let checkMin = rowStartMin + 30; checkMin < maxEndMin; checkMin += 30) {
+                          const hasNextStarting = daySlots.some((s) => s.startMinutes >= checkMin && s.startMinutes < checkMin + 30);
+                          if (!hasNextStarting) {
+                            rowsSpanned++;
+                          } else {
+                            break;
+                          }
+                        }
+
+                        const cellHeightPx = rowsSpanned * 48;
 
                         return (
                           <TableCell
-                            key={dayInfo.dateStr}
-                            rowSpan={rowSpan}
+                            key={dateStr}
+                            rowSpan={rowsSpanned}
                             align="center"
                             sx={{
-                              p: 0.5,
-                              verticalAlign: 'stretch',
+                              p: 0,
+                              position: 'relative',
+                              verticalAlign: 'top',
                               bgcolor: isPastCell ? '#e2e8f0' : '#f8fafc',
-                              height: `${rowSpan * 44}px`,
+                              height: `${cellHeightPx}px`,
+                              boxSizing: 'border-box',
                             }}
                           >
-                            <Box display="flex" flexDirection="column" gap={0.5} justifyContent="stretch" height="100%">
+                            <Box sx={{ position: 'relative', width: '100%', height: `${cellHeightPx}px` }}>
                               {startingSlots.map((slot) => {
-                                const slotHeightRatio = slot.durationMinutes / 30;
                                 const palette = slot.colorPalette;
                                 const isPastSlot = isPastCell;
+
+                                // Escala Exacta de Unidad Base: 15m = 24px (1X), 30m = 48px (2X), 45m = 72px (3X), 60m = 96px (4X)
+                                const topOffsetPx = Math.round(((slot.startMinutes - rowStartMin) / 15) * 24);
+                                const slotHeightPx = Math.max(22, Math.round((slot.durationMinutes / 15) * 24) - 2);
 
                                 return (
                                   <Box
                                     key={slot.id}
                                     onClick={() => setSelectedSlotBlock(slot)}
                                     sx={{
-                                      flex: slotHeightRatio,
-                                      minHeight: `${Math.max(28, slot.durationMinutes * 1.1)}px`,
+                                      position: 'absolute',
+                                      top: `${topOffsetPx}px`,
+                                      left: 2,
+                                      right: 2,
+                                      height: `${slotHeightPx}px`,
                                       display: 'flex',
                                       alignItems: 'center',
                                       justifyContent: 'center',
                                       textAlign: 'center',
-                                      background: isPastSlot ? 'linear-gradient(135deg, #cbd5e1 0%, #94a3b8 100%)' : palette.bg,
+                                      background: isPastSlot
+                                        ? 'linear-gradient(135deg, #cbd5e1 0%, #94a3b8 100%)'
+                                        : palette.bg,
                                       color: isPastSlot ? '#475569' : palette.text,
                                       border: `1.5px solid ${isPastSlot ? '#64748b' : palette.border}`,
                                       borderRadius: 1.5,
-                                      py: 0.5,
+                                      py: 0.2,
                                       px: 0.8,
-                                      fontSize: '0.76rem',
-                                      fontWeight: 700,
                                       cursor: 'pointer',
                                       opacity: isPastSlot ? 0.65 : 1,
                                       boxShadow: '0 2px 5px rgba(0,0,0,0.06)',
                                       transition: '0.15s ease-in-out',
+                                      overflow: 'hidden',
+                                      boxSizing: 'border-box',
+                                      zIndex: 2,
                                       '&:hover': {
                                         transform: 'scale(1.02)',
                                         boxShadow: '0 4px 12px rgba(2, 132, 199, 0.3)',
+                                        zIndex: 10,
                                       },
                                     }}
                                   >
-                                    Turno de {slot.startText} a {slot.endText}
-                                    {slot.especialidadNombre ? ` — ${slot.especialidadNombre}` : ''}
+                                    <Typography
+                                      variant="caption"
+                                      sx={{
+                                        fontWeight: 800,
+                                        fontSize: slot.durationMinutes <= 15 ? '0.66rem' : '0.75rem',
+                                        lineHeight: 1.1,
+                                        whiteSpace: 'nowrap',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                      }}
+                                    >
+                                      Turno de {slot.startText} a {slot.endText}
+                                      {slot.especialidadNombre ? ` — ${slot.especialidadNombre}` : ''}
+                                    </Typography>
                                   </Box>
                                 );
                               })}
@@ -717,12 +794,13 @@ const DoctorHorarios = () => {
 
                       return (
                         <TableCell
-                          key={dayInfo.dateStr}
+                          key={dateStr}
                           align="center"
                           sx={{
-                            p: 0.5,
-                            height: 44,
+                            p: 0,
+                            height: 48,
                             bgcolor: isPastCell ? '#f1f5f9' : '#f8fafc',
+                            boxSizing: 'border-box',
                           }}
                         />
                       );
@@ -776,18 +854,45 @@ const DoctorHorarios = () => {
                 </FormControl>
 
                 {tipoAplicacion === 'RECURRENTE' ? (
-                  <FormControl fullWidth margin="dense">
-                    <InputLabel>Día de la Semana</InputLabel>
-                    <Select
-                      value={diaAplicar}
-                      onChange={(e) => setDiaAplicar(e.target.value)}
-                      label="Día de la Semana"
-                    >
-                      {['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO'].map((d) => (
-                        <MenuItem key={d} value={d}>{d}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                  <>
+                    <FormControl fullWidth margin="dense">
+                      <InputLabel>Día de la Semana</InputLabel>
+                      <Select
+                        value={diaAplicar}
+                        onChange={(e) => setDiaAplicar(e.target.value)}
+                        label="Día de la Semana"
+                      >
+                        {['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO'].map((d) => (
+                          <MenuItem key={d} value={d}>{d}</MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+
+                    <Grid container spacing={2} sx={{ mt: 0.5 }}>
+                      <Grid item xs={6}>
+                        <TextField
+                          fullWidth
+                          label="Vigencia Desde (Opcional)"
+                          type="date"
+                          value={fechaDesdeAplicar}
+                          onChange={(e) => setFechaDesdeAplicar(e.target.value)}
+                          inputProps={{ min: todayStr }}
+                          InputLabelProps={{ shrink: true }}
+                        />
+                      </Grid>
+                      <Grid item xs={6}>
+                        <TextField
+                          fullWidth
+                          label="Vigencia Hasta (Opcional)"
+                          type="date"
+                          value={fechaHastaAplicar}
+                          onChange={(e) => setFechaHastaAplicar(e.target.value)}
+                          inputProps={{ min: fechaDesdeAplicar || todayStr }}
+                          InputLabelProps={{ shrink: true }}
+                        />
+                      </Grid>
+                    </Grid>
+                  </>
                 ) : (
                   <TextField
                     fullWidth

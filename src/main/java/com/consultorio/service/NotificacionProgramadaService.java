@@ -66,10 +66,15 @@ public class NotificacionProgramadaService {
                         .motivoConsulta(turno.getMotivoConsulta())
                         .build();
 
-                emailService.enviarRecordatorioTurno48hs(
-                        turno.getPaciente().getUsuario().getEmail(),
-                        dto
-                );
+                String emailDestino = turno.getPaciente().getUsuario() != null
+                        ? turno.getPaciente().getUsuario().getEmail()
+                        : (turno.getPaciente().getTutor() != null && turno.getPaciente().getTutor().getUsuario() != null
+                        ? turno.getPaciente().getTutor().getUsuario().getEmail()
+                        : null);
+
+                if (emailDestino != null) {
+                    emailService.enviarRecordatorioTurno48hs(emailDestino, dto);
+                }
 
                 turno.setRecordatorio48hsEnviado(true);
                 turnoRepository.save(turno);

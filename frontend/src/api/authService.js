@@ -35,4 +35,9 @@ export const authService = {
     const response = await axiosClient.post('/auth/registro-doctor', doctorData);
     return response.data;
   },
+
+  establecerPasswordDoctor: async (data) => {
+    const response = await axiosClient.post('/auth/establecer-password-doctor', data);
+    return response.data;
+  },
 };

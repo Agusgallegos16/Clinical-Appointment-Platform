@@ -147,7 +147,7 @@ const PacienteDashboard = () => {
           >
             <Box textAlign="left">
               <Typography variant="h6" fontWeight={700}>
-                Mis Turnos Agendados ({turnos.length})
+                Mis Turnos Agendados
               </Typography>
             </Box>
           </Button>

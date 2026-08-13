@@ -24,6 +24,8 @@ import {
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 
+import Footer from '../../components/Footer';
+
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -38,7 +40,7 @@ const Login = () => {
 
     try {
       const userData = await login({ email, password });
-      
+
       // Redirigir según el rol del usuario
       if (userData.rol === 'ADMIN') navigate('/admin');
       else if (userData.rol === 'DOCTOR') navigate('/doctor');
@@ -59,130 +61,133 @@ const Login = () => {
   };
 
   return (
-    <Container maxWidth="xs" sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', py: 4 }}>
-      <Card sx={{ width: '100%', p: 2, borderRadius: 3, boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}>
-        <CardContent>
-          <Box display="flex" flexDirection="column" alignItems="center" mb={3}>
-            <HospitalIcon color="primary" sx={{ fontSize: 48, mb: 1 }} />
-            <Typography variant="h5" align="center" color="primary" fontWeight={700}>
-              Consultorio Médico
-            </Typography>
-            <Typography variant="body2" color="text.secondary" align="center">
-              Ingrese a su cuenta para gestionar sus turnos
-            </Typography>
-          </Box>
-
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
-
-          <Box component="form" onSubmit={handleSubmit}>
-            <TextField
-              fullWidth
-              label="Correo Electrónico"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              margin="normal"
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <EmailIcon color="action" />
-                  </InputAdornment>
-                ),
-              }}
-            />
-
-            <TextField
-              fullWidth
-              label="Contraseña"
-              type={showPassword ? 'text' : 'password'}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              margin="normal"
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <LockIcon color="action" />
-                  </InputAdornment>
-                ),
-                endAdornment: (
-                  <InputAdornment position="end">
-                    <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
-                      {showPassword ? <VisibilityOff /> : <Visibility />}
-                    </IconButton>
-                  </InputAdornment>
-                ),
-              }}
-            />
-
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              size="large"
-              disabled={loading}
-              sx={{ mt: 3, mb: 2, py: 1.2 }}
-            >
-              {loading ? <CircularProgress size={24} color="inherit" /> : 'Iniciar Sesión'}
-            </Button>
-
-            <Box textAlign="rigth" mt={2}>
-              <Typography variant="body2" color="text.secondary">
-                ¿Olvidaste tu contraseña?{' '}
-                <Link to="/recuperar-password" style={{ color: '#0284c7', textDecoration: 'none', fontWeight: 600 }}>
-                  Reestablecerla aquí
-                </Link>
+    <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
+      <Container maxWidth="xs" sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', py: 4 }}>
+        <Card sx={{ width: '100%', p: 2, borderRadius: 3, boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}>
+          <CardContent>
+            <Box display="flex" flexDirection="column" alignItems="center" mb={3}>
+              <HospitalIcon color="primary" sx={{ fontSize: 48, mb: 1 }} />
+              <Typography variant="h5" align="center" color="primary" fontWeight={700}>
+                Consultorio Médico
+              </Typography>
+              <Typography variant="body2" color="text.secondary" align="center">
+                Ingrese a su cuenta para gestionar sus turnos
               </Typography>
             </Box>
 
-            <Box textAlign="center" mt={2}>
-              <Typography variant="body2" color="text.secondary">
-                ¿No tenés una cuenta?{' '}
-                <Link to="/registro" style={{ color: '#0284c7', textDecoration: 'none', fontWeight: 600 }}>
-                  Registrate como Paciente
-                </Link>
-              </Typography>
-            </Box>
+            {error && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {error}
+              </Alert>
+            )}
 
-            <Divider sx={{ my: 3 }}>
-              <Typography variant="caption" color="text.secondary">
-                Acceso Rápido de Prueba (Demo)
-              </Typography>
-            </Divider>
+            <Box component="form" onSubmit={handleSubmit}>
+              <TextField
+                fullWidth
+                label="Correo Electrónico"
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                margin="normal"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <EmailIcon color="action" />
+                    </InputAdornment>
+                  ),
+                }}
+              />
 
-            {/* Chips de Login Rápido */}
-            <Box display="flex" flexWrap="wrap" gap={1} justifyContent="center">
-              <Chip
-                label="🔑 Admin"
-                onClick={() => handleQuickLogin('admin@consultorio.com', '123456')}
-                clickable
-                color="primary"
-                variant="outlined"
+              <TextField
+                fullWidth
+                label="Contraseña"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                margin="normal"
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <LockIcon color="action" />
+                    </InputAdornment>
+                  ),
+                  endAdornment: (
+                    <InputAdornment position="end">
+                      <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
+                        {showPassword ? <VisibilityOff /> : <Visibility />}
+                      </IconButton>
+                    </InputAdornment>
+                  ),
+                }}
               />
-              <Chip
-                label="🩺 Doctor"
-                onClick={() => handleQuickLogin('doctor.perez@consultorio.com', '123456')}
-                clickable
-                color="info"
-                variant="outlined"
-              />
-              <Chip
-                label="👤 Paciente"
-                onClick={() => handleQuickLogin('paciente.gomez@gmail.com', '123456')}
-                clickable
-                color="success"
-                variant="outlined"
-              />
+
+              <Button
+                type="submit"
+                fullWidth
+                variant="contained"
+                size="large"
+                disabled={loading}
+                sx={{ mt: 3, mb: 2, py: 1.2 }}
+              >
+                {loading ? <CircularProgress size={24} color="inherit" /> : 'Iniciar Sesión'}
+              </Button>
+
+              <Box textAlign="rigth" mt={2}>
+                <Typography variant="body2" color="text.secondary">
+                  ¿Olvidaste tu contraseña?{' '}
+                  <Link to="/recuperar-password" style={{ color: '#0284c7', textDecoration: 'none', fontWeight: 600 }}>
+                    Reestablecerla aquí
+                  </Link>
+                </Typography>
+              </Box>
+
+              <Box textAlign="rigth" mt={2}>
+                <Typography variant="body2" color="text.secondary">
+                  ¿No tenés una cuenta?{' '}
+                  <Link to="/registro" style={{ color: '#0284c7', textDecoration: 'none', fontWeight: 600 }}>
+                    Registrate como Paciente
+                  </Link>
+                </Typography>
+              </Box>
+
+              <Divider sx={{ my: 3 }}>
+                <Typography variant="caption" color="text.secondary">
+                  Acceso Rápido de Prueba (Demo)
+                </Typography>
+              </Divider>
+
+              {/* Chips de Login Rápido */}
+              <Box display="flex" flexWrap="wrap" gap={1} justifyContent="center">
+                <Chip
+                  label="🔑 Admin"
+                  onClick={() => handleQuickLogin('admin@consultorio.com', '123456')}
+                  clickable
+                  color="primary"
+                  variant="outlined"
+                />
+                <Chip
+                  label="🩺 Doctor"
+                  onClick={() => handleQuickLogin('doctor.perez@consultorio.com', '123456')}
+                  clickable
+                  color="info"
+                  variant="outlined"
+                />
+                <Chip
+                  label="👤 Paciente"
+                  onClick={() => handleQuickLogin('paciente.gomez@gmail.com', '123456')}
+                  clickable
+                  color="success"
+                  variant="outlined"
+                />
+              </Box>
             </Box>
-          </Box>
-        </CardContent>
-      </Card>
-    </Container>
+          </CardContent>
+        </Card>
+      </Container>
+      <Footer />
+    </Box>
   );
 };
 

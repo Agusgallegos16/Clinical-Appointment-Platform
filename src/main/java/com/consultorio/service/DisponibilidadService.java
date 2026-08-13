@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -31,11 +32,11 @@ public class DisponibilidadService {
         this.turnoRepository = turnoRepository;
     }
 
-    public List<SlotDisponibilidadDTO> obtenerHorariosDisponibles(Long doctorId, LocalDate fecha) {
+    public List<SlotDisponibilidadDTO> obtenerHorariosDisponibles(UUID doctorId, LocalDate fecha) {
         return obtenerHorariosDisponibles(doctorId, fecha, null);
     }
 
-    public List<SlotDisponibilidadDTO> obtenerHorariosDisponibles(Long doctorId, LocalDate fecha, Long especialidadId) {
+    public List<SlotDisponibilidadDTO> obtenerHorariosDisponibles(UUID doctorId, LocalDate fecha, Long especialidadId) {
         LocalDateTime inicioDia = fecha.atStartOfDay();
         LocalDateTime finDia = fecha.atTime(23, 59, 59);
 

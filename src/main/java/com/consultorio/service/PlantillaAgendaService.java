@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class PlantillaAgendaService {
@@ -40,7 +41,7 @@ public class PlantillaAgendaService {
     }
 
     @Transactional
-    public PlantillaAgenda crearPlantilla(Long doctorId, CrearPlantillaDTO dto) {
+    public PlantillaAgenda crearPlantilla(UUID doctorId, CrearPlantillaDTO dto) {
         Doctor doctor = doctorRepository.findById(doctorId)
                 .orElseThrow(() -> new IllegalArgumentException("Doctor no encontrado con ID: " + doctorId));
 
@@ -97,12 +98,12 @@ public class PlantillaAgendaService {
         return plantillaAgendaRepository.save(plantilla);
     }
 
-    public List<PlantillaAgenda> listarPlantillasDoctor(Long doctorId) {
+    public List<PlantillaAgenda> listarPlantillasDoctor(UUID doctorId) {
         return plantillaAgendaRepository.findByDoctorId(doctorId);
     }
 
     @Transactional
-    public List<HorarioAtencion> aplicarPlantilla(Long doctorId, AplicarPlantillaDTO dto) {
+    public List<HorarioAtencion> aplicarPlantilla(UUID doctorId, AplicarPlantillaDTO dto) {
         Doctor doctor = doctorRepository.findById(doctorId)
                 .orElseThrow(() -> new IllegalArgumentException("Doctor no encontrado con ID: " + doctorId));
 
@@ -124,6 +125,8 @@ public class PlantillaAgendaService {
             HorarioAtencionDTO hDto = new HorarioAtencionDTO();
             hDto.setDiaSemana(dto.getDiaSemana());
             hDto.setFecha(dto.getFecha());
+            hDto.setFechaDesde(dto.getFechaDesde());
+            hDto.setFechaHasta(dto.getFechaHasta());
             hDto.setHoraInicio(detalle.getHoraInicio());
             hDto.setHoraFin(detalle.getHoraFin());
             hDto.setDuracionTurnoMinutos(detalle.getDuracionTurnoMinutos());

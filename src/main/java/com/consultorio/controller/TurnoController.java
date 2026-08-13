@@ -14,6 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/turnos")
@@ -38,14 +39,14 @@ public class TurnoController {
     @GetMapping("/paciente/{pacienteId}")
     @PreAuthorize("hasRole('PACIENTE') or hasRole('ADMIN')")
     @Operation(summary = "Consultar el historial y turnos agendados de un paciente (PACIENTE / ADMIN)")
-    public ResponseEntity<List<TurnoResponseDTO>> obtenerTurnosPorPaciente(@PathVariable Long pacienteId) {
+    public ResponseEntity<List<TurnoResponseDTO>> obtenerTurnosPorPaciente(@PathVariable UUID pacienteId) {
         return ResponseEntity.ok(turnoService.obtenerTurnosPorPaciente(pacienteId));
     }
 
     @PutMapping("/{id}/cancelar")
     @PreAuthorize("hasRole('PACIENTE') or hasRole('DOCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Cancelar un turno agendado (PACIENTE / DOCTOR / ADMIN)")
-    public ResponseEntity<TurnoResponseDTO> cancelarTurno(@PathVariable Long id) {
+    public ResponseEntity<TurnoResponseDTO> cancelarTurno(@PathVariable UUID id) {
         return ResponseEntity.ok(turnoService.cancelarTurno(id));
     }
 
@@ -53,7 +54,7 @@ public class TurnoController {
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Cancelar un turno por parte del médico con justificación obligatoria (DOCTOR / ADMIN)")
     public ResponseEntity<TurnoResponseDTO> cancelarTurnoPorDoctor(
-            @PathVariable Long id,
+            @PathVariable UUID id,
             @RequestParam("motivo") String motivo) {
         return ResponseEntity.ok(turnoService.cancelarTurnoPorDoctor(id, motivo));
     }
@@ -62,7 +63,7 @@ public class TurnoController {
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Actualizar el estado de un turno (ej. COMPLETADO, AUSENTE) (DOCTOR / ADMIN)")
     public ResponseEntity<TurnoResponseDTO> cambiarEstadoTurno(
-            @PathVariable Long id,
+            @PathVariable UUID id,
             @RequestParam EstadoTurno nuevoEstado) {
         return ResponseEntity.ok(turnoService.cambiarEstadoTurno(id, nuevoEstado));
     }

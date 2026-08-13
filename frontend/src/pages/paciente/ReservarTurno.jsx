@@ -43,7 +43,7 @@ const ReservarTurno = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  const queryPacienteId = searchParams.get('pacienteId') ? Number(searchParams.get('pacienteId')) : null;
+  const queryPacienteId = searchParams.get('pacienteId') || null;
   const queryNombre = searchParams.get('nombre');
 
   const todayStr = dayjs().format('YYYY-MM-DD');

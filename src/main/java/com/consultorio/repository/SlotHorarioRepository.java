@@ -6,12 +6,13 @@ import org.springframework.stereotype.Repository;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 @Repository
 public interface SlotHorarioRepository extends JpaRepository<SlotHorario, Long> {
-    List<SlotHorario> findByDoctorId(Long doctorId);
-    List<SlotHorario> findByDoctorIdAndFecha(Long doctorId, LocalDate fecha);
-    List<SlotHorario> findByDoctorIdAndFechaBetween(Long doctorId, LocalDate desde, LocalDate hasta);
-    void deleteByDoctorIdAndFechaBetween(Long doctorId, LocalDate desde, LocalDate hasta);
-    void deleteByDoctorIdAndFecha(Long doctorId, LocalDate fecha);
+    List<SlotHorario> findByDoctorId(UUID doctorId);
+    List<SlotHorario> findByDoctorIdAndFecha(UUID doctorId, LocalDate fecha);
+    List<SlotHorario> findByDoctorIdAndFechaBetween(UUID doctorId, LocalDate desde, LocalDate hasta);
+    void deleteByDoctorIdAndFechaBetween(UUID doctorId, LocalDate desde, LocalDate hasta);
+    void deleteByDoctorIdAndFecha(UUID doctorId, LocalDate fecha);
 }
