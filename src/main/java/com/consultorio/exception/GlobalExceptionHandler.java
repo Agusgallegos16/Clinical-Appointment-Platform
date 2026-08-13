@@ -1,5 +1,8 @@
 package com.consultorio.exception;
 
+import com.consultorio.dto.ApiErrorDTO;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -11,86 +14,104 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, Object>> handleValidationErrors(MethodArgumentNotValidException ex) {
+    public ResponseEntity<ApiErrorDTO> handleValidationErrors(MethodArgumentNotValidException ex) {
         Map<String, String> errores = new HashMap<>();
         ex.getBindingResult().getFieldErrors().forEach(error ->
                 errores.put(error.getField(), error.getDefaultMessage())
         );
 
-        Map<String, Object> respuesta = new LinkedHashMap<>();
-        respuesta.put("timestamp", LocalDateTime.now());
-        respuesta.put("status", HttpStatus.BAD_REQUEST.value());
-        respuesta.put("error", "Error de validación");
-        respuesta.put("detalles", errores);
+        ApiErrorDTO errorDTO = ApiErrorDTO.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Error de validación")
+                .mensaje("La solicitud contiene campos inválidos.")
+                .detalles(errores)
+                .build();
 
-        return ResponseEntity.badRequest().body(respuesta);
+        return ResponseEntity.badRequest().body(errorDTO);
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
-    public ResponseEntity<Map<String, Object>> handleIllegalArgument(IllegalArgumentException ex) {
-        Map<String, Object> respuesta = new LinkedHashMap<>();
-        respuesta.put("timestamp", LocalDateTime.now());
-        respuesta.put("status", HttpStatus.BAD_REQUEST.value());
-        respuesta.put("error", "Petición inválida");
-        respuesta.put("mensaje", ex.getMessage());
+    public ResponseEntity<ApiErrorDTO> handleIllegalArgument(IllegalArgumentException ex) {
+        log.warn("Petición inválida: {}", ex.getMessage());
 
-        return ResponseEntity.badRequest().body(respuesta);
+        ApiErrorDTO errorDTO = ApiErrorDTO.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Petición inválida")
+                .mensaje(ex.getMessage())
+                .build();
+
+        return ResponseEntity.badRequest().body(errorDTO);
     }
 
     @ExceptionHandler(IllegalStateException.class)
-    public ResponseEntity<Map<String, Object>> handleIllegalState(IllegalStateException ex) {
-        Map<String, Object> respuesta = new LinkedHashMap<>();
-        respuesta.put("timestamp", LocalDateTime.now());
-        respuesta.put("status", HttpStatus.CONFLICT.value());
-        respuesta.put("error", "Conflicto en la solicitud");
-        respuesta.put("mensaje", ex.getMessage());
+    public ResponseEntity<ApiErrorDTO> handleIllegalState(IllegalStateException ex) {
+        log.warn("Conflicto en solicitud: {}", ex.getMessage());
 
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(respuesta);
+        ApiErrorDTO errorDTO = ApiErrorDTO.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.CONFLICT.value())
+                .error("Conflicto en la solicitud")
+                .mensaje(ex.getMessage())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorDTO);
     }
 
     @ExceptionHandler(DataIntegrityViolationException.class)
-    public ResponseEntity<Map<String, Object>> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
-        Map<String, Object> respuesta = new LinkedHashMap<>();
-        respuesta.put("timestamp", LocalDateTime.now());
-        respuesta.put("status", HttpStatus.BAD_REQUEST.value());
-        respuesta.put("error", "Restricción de integridad");
-
+    public ResponseEntity<ApiErrorDTO> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
         String errorMsg = ex.getMessage() != null ? ex.getMessage().toLowerCase() : "";
         String mensaje = "Error de integridad de datos. Verifique que los campos ingresados sean válidos y no dupliquen datos existentes.";
         if (errorMsg.contains("delete") || errorMsg.contains("foreign key")) {
             mensaje = "No se puede eliminar el registro porque posee elementos asociados (doctores o turnos activos).";
         }
-        respuesta.put("mensaje", mensaje);
 
-        return ResponseEntity.badRequest().body(respuesta);
+        log.warn("Restricción de integridad: {}", mensaje);
+
+        ApiErrorDTO errorDTO = ApiErrorDTO.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.BAD_REQUEST.value())
+                .error("Restricción de integridad")
+                .mensaje(mensaje)
+                .build();
+
+        return ResponseEntity.badRequest().body(errorDTO);
     }
 
     @ExceptionHandler(BadCredentialsException.class)
-    public ResponseEntity<Map<String, Object>> handleBadCredentials(BadCredentialsException ex) {
-        Map<String, Object> respuesta = new LinkedHashMap<>();
-        respuesta.put("timestamp", LocalDateTime.now());
-        respuesta.put("status", HttpStatus.UNAUTHORIZED.value());
-        respuesta.put("error", "No autorizado");
-        respuesta.put("mensaje", "Credenciales inválidas. Email o contraseña incorrectos.");
+    public ResponseEntity<ApiErrorDTO> handleBadCredentials(BadCredentialsException ex) {
+        log.warn("Intento de autenticación con credenciales inválidas.");
 
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(respuesta);
+        ApiErrorDTO errorDTO = ApiErrorDTO.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.UNAUTHORIZED.value())
+                .error("No autorizado")
+                .mensaje("Credenciales inválidas. Email o contraseña incorrectos.")
+                .build();
+
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(errorDTO);
     }
 
     @ExceptionHandler(AccessDeniedException.class)
-    public ResponseEntity<Map<String, Object>> handleAccessDenied(AccessDeniedException ex) {
-        Map<String, Object> respuesta = new LinkedHashMap<>();
-        respuesta.put("timestamp", LocalDateTime.now());
-        respuesta.put("status", HttpStatus.FORBIDDEN.value());
-        respuesta.put("error", "Acceso denegado");
-        respuesta.put("mensaje", "No tiene los permisos suficientes para acceder a este recurso.");
+    public ResponseEntity<ApiErrorDTO> handleAccessDenied(AccessDeniedException ex) {
+        log.warn("Acceso denegado a recurso restringido.");
 
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(respuesta);
+        ApiErrorDTO errorDTO = ApiErrorDTO.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.FORBIDDEN.value())
+                .error("Acceso denegado")
+                .mensaje("No tiene los permisos suficientes para acceder a este recurso.")
+                .build();
+
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorDTO);
     }
 }

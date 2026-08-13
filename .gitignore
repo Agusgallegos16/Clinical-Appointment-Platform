@@ -45,4 +45,4 @@ google-credentials*.json
 .env
 .env.*
 application-local.properties
-application-dev.properties
+application-prod.properties
