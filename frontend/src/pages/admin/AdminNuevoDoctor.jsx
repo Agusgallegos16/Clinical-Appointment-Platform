@@ -18,6 +18,7 @@ import {
 import { PersonAdd as PersonAddIcon, ArrowBack as ArrowBackIcon, LocalHospital as HospitalIcon } from '@mui/icons-material';
 import { authService } from '../../api/authService';
 import { especialidadService } from '../../api/especialidadService';
+import { uploadDoctorAvatar } from '../../api/storageService';
 
 const AdminNuevoDoctor = () => {
   const navigate = useNavigate();
@@ -25,10 +26,11 @@ const AdminNuevoDoctor = () => {
 
   // Form states
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [nombre, setNombre] = useState('');
   const [apellido, setApellido] = useState('');
   const [fotoUrl, setFotoUrl] = useState('');
+  const [previewUrl, setPreviewUrl] = useState('');
+  const [selectedFile, setSelectedFile] = useState(null);
   const [selectedEspecialidadIds, setSelectedEspecialidadIds] = useState([]);
 
   const [loading, setLoading] = useState(false);
@@ -63,11 +65,27 @@ const AdminNuevoDoctor = () => {
     setSuccess('');
 
     try {
+      let finalFotoUrl = fotoUrl; // Mantiene la URL ingresada manualmente si existe
+
+      if (selectedFile) {
+        console.log('Iniciando subida a Supabase Storage...');
+        const uploadedUrl = await uploadDoctorAvatar(selectedFile);
+
+        if (!uploadedUrl) {
+          setError('Error al subir la imagen a Supabase Storage. Revisa la consola (F12).');
+          setLoading(false);
+          return; // Detener el guardado si falló la subida
+        }
+
+        finalFotoUrl = uploadedUrl;
+        console.log('URL Pública obtenida de Supabase:', finalFotoUrl);
+      }
+
       await authService.registrarDoctor({
         email,
         nombre,
         apellido,
-        fotoUrl,
+        fotoUrl: finalFotoUrl,
         especialidadIds: selectedEspecialidadIds,
       });
 
@@ -116,7 +134,7 @@ const AdminNuevoDoctor = () => {
           {/* Previsualización de Avatar */}
           <Box display="flex" alignItems="center" gap={2.5} mb={3} p={2} bgcolor="background.default" borderRadius={2}>
             <Avatar
-              src={fotoUrl}
+              src={previewUrl || fotoUrl}
               alt={`${nombre} ${apellido}`}
               sx={{ width: 72, height: 72, bgcolor: 'primary.main', fontSize: '1.8rem', fontWeight: 700 }}
             >
@@ -127,7 +145,7 @@ const AdminNuevoDoctor = () => {
                 Vista Previa de Foto de Perfil
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                Ingresá la URL pública de la imagen del profesional para que sea visible en el catálogo de pacientes.
+                Subí una foto desde tu PC o ingresá una URL pública directa.
               </Typography>
             </Box>
           </Box>
@@ -168,11 +186,14 @@ const AdminNuevoDoctor = () => {
               <Box display="flex" gap={1.5} alignItems="flex-start">
                 <TextField
                   fullWidth
-                  label="URL o Foto de Perfil (JPEG, PNG, WebP)"
-                  placeholder="https://ejemplo.com/foto.jpg o subir archivo local"
+                  label="URL manual de la imagen (Opcional)"
+                  placeholder="https://ejemplo.com/foto.jpg"
                   value={fotoUrl}
-                  onChange={(e) => setFotoUrl(e.target.value)}
-                  helperText="Podés pegar un enlace directo a una imagen JPEG/PNG o subir una foto desde tu PC"
+                  onChange={(e) => {
+                    setFotoUrl(e.target.value);
+                    if (!selectedFile) setPreviewUrl('');
+                  }}
+                  helperText="Podés pegar un enlace directo o seleccionar un archivo a continuación"
                 />
                 <Button
                   variant="outlined"
@@ -191,36 +212,8 @@ const AdminNuevoDoctor = () => {
                         setError('La imagen seleccionada supera el tamaño máximo permitido de 8MB.');
                         return;
                       }
-                      const reader = new FileReader();
-                      reader.onload = (event) => {
-                        const img = new Image();
-                        img.onload = () => {
-                          const canvas = document.createElement('canvas');
-                          const maxDim = 800;
-                          let width = img.width;
-                          let height = img.height;
-                          if (width > height) {
-                            if (width > maxDim) {
-                              height = Math.round((height * maxDim) / width);
-                              width = maxDim;
-                            }
-                          } else {
-                            if (height > maxDim) {
-                              width = Math.round((width * maxDim) / height);
-                              height = maxDim;
-                            }
-                          }
-                          canvas.width = width;
-                          canvas.height = height;
-                          const ctx = canvas.getContext('2d');
-                          ctx.imageSmoothingEnabled = true;
-                          ctx.imageSmoothingQuality = 'high';
-                          ctx.drawImage(img, 0, 0, width, height);
-                          setFotoUrl(canvas.toDataURL('image/jpeg', 0.95));
-                        };
-                        img.src = event.target.result;
-                      };
-                      reader.readAsDataURL(file);
+                      setSelectedFile(file);
+                      setPreviewUrl(URL.createObjectURL(file));
                     }}
                   />
                 </Button>

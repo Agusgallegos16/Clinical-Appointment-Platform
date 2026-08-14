@@ -8,7 +8,11 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "turnos")
+@Table(name = "turnos", indexes = {
+    @Index(name = "idx_turnos_doctor_fecha", columnList = "doctor_id, fecha_hora"),
+    @Index(name = "idx_turnos_paciente_fecha", columnList = "paciente_id, fecha_hora"),
+    @Index(name = "idx_turnos_estado", columnList = "estado")
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -38,17 +42,20 @@ public class Turno {
 
     @NotNull(message = "El estado es obligatorio")
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 50)
     @Builder.Default
     private EstadoTurno estado = EstadoTurno.PENDIENTE;
 
+    @Column(length = 500)
     private String motivoConsulta;
 
+    @Column(length = 500)
     private String motivoCancelacion;
 
     @Builder.Default
     private boolean tieneObraSocial = false;
 
+    @Column(length = 150)
     private String obraSocial;
 
     @Builder.Default

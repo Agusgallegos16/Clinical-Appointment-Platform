@@ -39,6 +39,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { useColorMode } from '../context/ColorModeContext';
 import Footer from './Footer';
+import { CLINIC_CONFIG } from '../config/clinicConfig';
 
 const drawerWidth = 260;
 
@@ -96,8 +97,8 @@ const MainLayout = () => {
       <Toolbar sx={{ px: 2, display: 'flex', alignItems: 'center', gap: 1.5 }}>
         <HospitalIcon color="primary" sx={{ fontSize: 32 }} />
         <Box>
-          <Typography variant="h6" color="primary" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
-            Consultorio
+          <Typography variant="h6" color="primary" noWrap sx={{ fontWeight: 700, lineHeight: 1.2, maxWidth: 180 }}>
+            {CLINIC_CONFIG.name}
           </Typography>
           <Typography variant="caption" color="text.secondary">
             Gestión de Turnos
@@ -176,8 +177,8 @@ const MainLayout = () => {
           >
             <MenuIcon />
           </IconButton>
-          <Typography variant="h6" fontWeight={700} color="primary">
-            Consultorio
+          <Typography variant="h6" fontWeight={700} color="primary" noWrap sx={{ maxWidth: 200 }}>
+            {CLINIC_CONFIG.name}
           </Typography>
         </Toolbar>
       </AppBar>

@@ -50,8 +50,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(authentication);
                 log.info("🔓 Usuario autenticado correctamente con JWT: {} ({})", email, request.getRequestURI());
             }
+        } catch (org.springframework.security.core.userdetails.UsernameNotFoundException e) {
+            log.warn("El token JWT presente en la petición pertenece a un usuario inexistente: {}", e.getMessage());
         } catch (Exception e) {
-            log.error("No se pudo autenticar al usuario en el filtro JWT: {}", e.getMessage(), e);
+            log.warn("No se pudo autenticar la petición con el token JWT: {}", e.getMessage());
         }
 
         filterChain.doFilter(request, response);

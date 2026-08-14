@@ -114,4 +114,21 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorDTO);
     }
+
+    @ExceptionHandler({
+            com.google.api.client.googleapis.json.GoogleJsonResponseException.class,
+            com.google.api.client.auth.oauth2.TokenResponseException.class
+    })
+    public ResponseEntity<ApiErrorDTO> handleGoogleApiExceptions(Exception ex) {
+        log.warn("⚠️ Excepción de Google API capturada defensivamente: {}", ex.getMessage());
+
+        ApiErrorDTO errorDTO = ApiErrorDTO.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.UNPROCESSABLE_ENTITY.value())
+                .error("Error de Integración externa (Google)")
+                .mensaje("Ocurrió un inconveniente al comunicarse con Google Calendar. Su sesión en la aplicación permanece activa.")
+                .build();
+
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorDTO);
+    }
 }

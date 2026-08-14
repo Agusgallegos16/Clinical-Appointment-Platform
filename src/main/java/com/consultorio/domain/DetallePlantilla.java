@@ -1,6 +1,7 @@
 package com.consultorio.domain;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -9,6 +10,7 @@ import java.time.LocalTime;
 
 @Entity
 @Table(name = "detalles_plantilla")
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -25,7 +27,7 @@ public class DetallePlantilla {
     @JsonIgnore
     private PlantillaAgenda plantilla;
 
-    @ManyToOne(fetch = FetchType.EAGER)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "especialidad_id")
     private Especialidad especialidad; // Especialidad asignada a este detalle de plantilla
 

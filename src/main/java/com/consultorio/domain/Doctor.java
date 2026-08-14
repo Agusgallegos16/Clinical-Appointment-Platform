@@ -10,7 +10,9 @@ import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "doctores")
+@Table(name = "doctores", indexes = {
+    @Index(name = "idx_doctores_usuario", columnList = "usuario_id")
+})
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Getter
 @Setter
@@ -23,21 +25,22 @@ public class Doctor {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_id", referencedColumnName = "id", nullable = false)
     private Usuario usuario;
 
     @NotBlank(message = "El nombre es obligatorio")
+    @Column(nullable = false, length = 100)
     private String nombre;
 
     @NotBlank(message = "El apellido es obligatorio")
+    @Column(nullable = false, length = 100)
     private String apellido;
 
-    @Lob
-    @Column(columnDefinition = "TEXT")
+    @Column(name = "foto_url", length = 500)
     private String fotoUrl;
 
-    @ManyToMany(fetch = FetchType.EAGER)
+    @ManyToMany(fetch = FetchType.LAZY)
     @JoinTable(
         name = "doctor_especialidades",
         joinColumns = @JoinColumn(name = "doctor_id"),

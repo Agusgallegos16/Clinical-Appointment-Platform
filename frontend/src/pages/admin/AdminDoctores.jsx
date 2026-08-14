@@ -31,6 +31,7 @@ import {
 } from '@mui/icons-material';
 import { doctorService } from '../../api/doctorService';
 import { especialidadService } from '../../api/especialidadService';
+import { uploadDoctorAvatar } from '../../api/storageService';
 
 const AdminDoctores = () => {
   const [doctores, setDoctores] = useState([]);
@@ -43,6 +44,8 @@ const AdminDoctores = () => {
   // Modal Editar Doctor
   const [selectedDoctorEdit, setSelectedDoctorEdit] = useState(null);
   const [editFormData, setEditFormData] = useState({ nombre: '', apellido: '', email: '', fotoUrl: '' });
+  const [editPreviewUrl, setEditPreviewUrl] = useState('');
+  const [editSelectedFile, setEditSelectedFile] = useState(null);
   const [editEspecialidadIds, setEditEspecialidadIds] = useState([]);
   const [updating, setUpdating] = useState(false);
 
@@ -83,6 +86,8 @@ const AdminDoctores = () => {
       email: doc.usuario?.email || '',
       fotoUrl: doc.fotoUrl || '',
     });
+    setEditPreviewUrl(doc.fotoUrl || '');
+    setEditSelectedFile(null);
     setEditEspecialidadIds(doc.especialidades?.map((e) => e.id) || []);
   };
 
@@ -101,16 +106,34 @@ const AdminDoctores = () => {
     setSuccess('');
 
     try {
+      let finalFotoUrl = editFormData.fotoUrl;
+
+      if (editSelectedFile) {
+        console.log('Iniciando subida a Supabase Storage...');
+        const uploadedUrl = await uploadDoctorAvatar(editSelectedFile, selectedDoctorEdit.id);
+
+        if (!uploadedUrl) {
+          setError('Error al subir la imagen a Supabase Storage. Revisa la consola (F12).');
+          setUpdating(false);
+          return; // Detener el guardado si falló la subida
+        }
+
+        finalFotoUrl = uploadedUrl;
+        console.log('URL Pública obtenida de Supabase:', finalFotoUrl);
+      }
+
       await doctorService.actualizarDoctor(selectedDoctorEdit.id, {
         nombre: editFormData.nombre,
         apellido: editFormData.apellido,
         email: editFormData.email,
-        fotoUrl: editFormData.fotoUrl,
+        fotoUrl: finalFotoUrl,
         especialidadIds: editEspecialidadIds,
       });
 
       setSuccess(`¡Datos del Dr/a. ${editFormData.apellido} actualizados correctamente!`);
       setSelectedDoctorEdit(null);
+      setEditSelectedFile(null);
+      setEditPreviewUrl('');
       cargarDoctores();
     } catch (err) {
       let msg = 'Error al actualizar el profesional.';
@@ -238,7 +261,7 @@ const AdminDoctores = () => {
         <DialogContent dividers>
           <Box display="flex" alignItems="center" gap={2} mb={2}>
             <Avatar
-              src={editFormData.fotoUrl}
+              src={editPreviewUrl || editFormData.fotoUrl}
               alt={`${editFormData.nombre} ${editFormData.apellido}`}
               sx={{ width: 64, height: 64, bgcolor: 'primary.main', fontSize: '1.5rem', fontWeight: 700 }}
             >
@@ -274,11 +297,14 @@ const AdminDoctores = () => {
           <Box display="flex" gap={1.5} alignItems="flex-start" mt={2}>
             <TextField
               fullWidth
-              label="URL o Foto de Perfil (JPEG, PNG)"
-              placeholder="https://ejemplo.com/foto.jpg o subir archivo local"
+              label="URL manual de la imagen (Opcional)"
+              placeholder="https://ejemplo.com/foto.jpg"
               value={editFormData.fotoUrl}
-              onChange={(e) => setEditFormData({ ...editFormData, fotoUrl: e.target.value })}
-              helperText="Podés pegar una URL directa o subir una foto desde tu PC"
+              onChange={(e) => {
+                setEditFormData({ ...editFormData, fotoUrl: e.target.value });
+                if (!editSelectedFile) setEditPreviewUrl('');
+              }}
+              helperText="Podés pegar una URL directa o seleccionar una foto de tu equipo"
             />
             <Button
               variant="outlined"
@@ -297,36 +323,8 @@ const AdminDoctores = () => {
                     setError('La imagen seleccionada supera el tamaño máximo permitido de 8MB.');
                     return;
                   }
-                  const reader = new FileReader();
-                  reader.onload = (event) => {
-                    const img = new Image();
-                    img.onload = () => {
-                      const canvas = document.createElement('canvas');
-                      const maxDim = 800;
-                      let width = img.width;
-                      let height = img.height;
-                      if (width > height) {
-                        if (width > maxDim) {
-                          height = Math.round((height * maxDim) / width);
-                          width = maxDim;
-                        }
-                      } else {
-                        if (height > maxDim) {
-                          width = Math.round((width * maxDim) / height);
-                          height = maxDim;
-                        }
-                      }
-                      canvas.width = width;
-                      canvas.height = height;
-                      const ctx = canvas.getContext('2d');
-                      ctx.imageSmoothingEnabled = true;
-                      ctx.imageSmoothingQuality = 'high';
-                      ctx.drawImage(img, 0, 0, width, height);
-                      setEditFormData({ ...editFormData, fotoUrl: canvas.toDataURL('image/jpeg', 0.95) });
-                    };
-                    img.src = event.target.result;
-                  };
-                  reader.readAsDataURL(file);
+                  setEditSelectedFile(file);
+                  setEditPreviewUrl(URL.createObjectURL(file));
                 }}
               />
             </Button>

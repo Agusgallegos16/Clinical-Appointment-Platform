@@ -3,6 +3,7 @@ import { Container, Paper, Typography, Box, Divider, Button, Grid, Card, CardCon
 import { ArrowBack as ArrowBackIcon, Email as EmailIcon, Phone as PhoneIcon, LocationOn as LocationIcon, AccessTime as TimeIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import Footer from '../../components/Footer';
+import { CLINIC_CONFIG } from '../../config/clinicConfig';
 
 const Contacto = () => {
   const navigate = useNavigate();
@@ -24,7 +25,7 @@ const Contacto = () => {
             Medios de Contacto y Atención
           </Typography>
           <Typography variant="body1" color="text.secondary" mb={3}>
-            Canales oficiales de información y atención de nuestro Consultorio Médico.
+            Canales oficiales de información y atención de {CLINIC_CONFIG.name}.
           </Typography>
 
           <Divider sx={{ mb: 4 }} />
@@ -40,7 +41,7 @@ const Contacto = () => {
                     </Typography>
                   </Box>
                   <Typography variant="body2" color="text.secondary">
-                    +54 11 4433-2211
+                    {CLINIC_CONFIG.phone}
                   </Typography>
                   <Typography variant="caption" color="text.disabled" display="block">
                     Atención directa en recepción
@@ -59,7 +60,7 @@ const Contacto = () => {
                     </Typography>
                   </Box>
                   <Typography variant="body2" color="text.secondary">
-                    contacto@consultoriomedico.com
+                    {CLINIC_CONFIG.email}
                   </Typography>
                   <Typography variant="caption" color="text.disabled" display="block">
                     Consultas administrativas e informes
@@ -78,7 +79,7 @@ const Contacto = () => {
                     </Typography>
                   </Box>
                   <Typography variant="body2" color="text.secondary">
-                    Av. Corrientes 1234, Piso 4 - CABA, Argentina
+                    {CLINIC_CONFIG.address}
                   </Typography>
                 </CardContent>
               </Card>

@@ -26,10 +26,15 @@ axiosClient.interceptors.response.use(
   (response) => response,
   (error) => {
     const status = error.response?.status;
+    const requestUrl = error.config?.url || '';
 
-    if (status === 401) {
+    // REGLA DE ORO: Ignorar errores 401 que provengan de integraciones externas como Google Calendar
+    const isExternalIntegration = requestUrl.includes('/google-calendar') || requestUrl.includes('google');
+
+    if (status === 401 && !isExternalIntegration) {
       const token = localStorage.getItem('jwt_token');
       if (token && window.location.pathname !== '/login') {
+        console.warn('🔒 Sesión JWT del sistema expirada. Redirigiendo al Login...');
         localStorage.removeItem('jwt_token');
         localStorage.removeItem('user_data');
         window.location.href = '/login?expired=true';

@@ -10,7 +10,11 @@ import lombok.*;
 import java.util.UUID;
 
 @Entity
-@Table(name = "pacientes")
+@Table(name = "pacientes", indexes = {
+    @Index(name = "idx_pacientes_dni", columnList = "dni"),
+    @Index(name = "idx_pacientes_usuario", columnList = "usuario_id"),
+    @Index(name = "idx_pacientes_tutor", columnList = "tutor_id")
+})
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Getter
 @Setter
@@ -23,7 +27,7 @@ public class Paciente {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.EAGER)
+    @OneToOne(cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     @JoinColumn(name = "usuario_id", referencedColumnName = "id", nullable = true)
     private Usuario usuario;
 
@@ -32,9 +36,11 @@ public class Paciente {
     private Paciente tutor;
 
     @NotBlank(message = "El nombre es obligatorio")
+    @Column(nullable = false, length = 100)
     private String nombre;
 
     @NotBlank(message = "El apellido es obligatorio")
+    @Column(nullable = false, length = 100)
     private String apellido;
 
     @NotNull(message = "El DNI es obligatorio")
@@ -42,6 +48,7 @@ public class Paciente {
     @Column(unique = true, nullable = false)
     private Long dni;
 
+    @Column(length = 50)
     private String telefono;
 
     private java.time.LocalDate fechaNacimiento;

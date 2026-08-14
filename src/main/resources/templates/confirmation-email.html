@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Confirmación de Turno Médico</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f4f6f8; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f4f6f8; padding: 30px 15px;">
+    <tr>
+      <td align="center">
+        <!-- Main Card Container -->
+        <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="max-width: 600px; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06); border: 1px solid #e2e8f0;">
+          
+          <!-- Header Banner -->
+          <tr>
+            <td style="background-color: #0284c7; padding: 28px 30px; text-align: center;">
+              <h1 style="color: #ffffff; margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;" th:text="${clinicName}">
+                Instituto Médico Consultorios
+              </h1>
+              <p style="color: #e0f2fe; margin: 6px 0 0 0; font-size: 14px; font-weight: 500;">
+                Confirmación Oficial de Turno Médico
+              </p>
+            </td>
+          </tr>
+
+          <!-- Main Content Body -->
+          <tr>
+            <td style="padding: 32px 30px;">
+              <p style="color: #334155; font-size: 16px; margin: 0 0 16px 0; line-height: 1.5;">
+                Hola <strong style="color: #0f172a;" th:text="${nombrePaciente}">Paciente</strong>,
+              </p>
+              <p style="color: #475569; font-size: 15px; margin: 0 0 24px 0; line-height: 1.6;">
+                Tu turno médico ha sido <strong>CONFIRMADO</strong> con éxito. A continuación te presentamos el detalle completo de tu cita:
+              </p>
+
+              <!-- Date & Time Highlighted Badge -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #f0f9ff; border-left: 4px solid #0284c7; border-radius: 8px; margin-bottom: 28px;">
+                <tr>
+                  <td style="padding: 18px 20px; text-align: center;">
+                    <span style="display: block; color: #0369a1; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 4px;">
+                      FECHA Y HORA PROGRAMADA
+                    </span>
+                    <span style="display: block; color: #0284c7; font-size: 22px; font-weight: 800;" th:text="${fechaHoraTurno}">
+                      20/08/2026 a las 10:30 hs
+                    </span>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Appointment Details List -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-bottom: 28px;">
+                <tr>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #64748b; font-size: 14px; width: 35%;">
+                    Profesional Médico:
+                  </td>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #0f172a; font-size: 15px; font-weight: 700; width: 65%;" th:text="${nombreDoctor}">
+                    Dr. Juan Pérez
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #64748b; font-size: 14px;">
+                    Especialidad:
+                  </td>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #0f172a; font-size: 15px; font-weight: 600;" th:text="${nombreEspecialidad}">
+                    Cardiología
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #64748b; font-size: 14px;">
+                    Cobertura Médica:
+                  </td>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #0f172a; font-size: 15px; font-weight: 600;" th:text="${obraSocial}">
+                    Particular / Sin Obra Social
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #64748b; font-size: 14px;">
+                    Motivo de Consulta:
+                  </td>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #0f172a; font-size: 15px;" th:text="${motivoConsulta}">
+                    Consulta General
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #64748b; font-size: 14px;">
+                    Dirección / Ubicación:
+                  </td>
+                  <td style="padding: 10px 0; border-bottom: 1px solid #f1f5f9; color: #0f172a; font-size: 15px; font-weight: 600;" th:text="${direccion}">
+                    Av. Principal 1234, CABA
+                  </td>
+                </tr>
+                <tr>
+                  <td style="padding: 10px 0; color: #64748b; font-size: 14px;">
+                    Teléfono de Contacto:
+                  </td>
+                  <td style="padding: 10px 0; color: #0f172a; font-size: 15px; font-weight: 600;" th:text="${telefonoContacto}">
+                    +54 11 1234-5678
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Warning / Notice Alert Box -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color: #fffbeb; border: 1px solid #fef3c7; border-radius: 8px; margin-bottom: 32px;">
+                <tr>
+                  <td style="padding: 16px 20px;">
+                    <p style="color: #92400e; font-size: 13px; margin: 0; line-height: 1.5; font-weight: 600;">
+                      📌 <strong>Indicaciones Importantes:</strong> Por favor, presentarse con 15 minutos de anticipación al horario fijado portando su DNI y credencial de cobertura médica si correspondiera.
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Call To Action (CTA) Buttons -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin-bottom: 16px;">
+                <tr>
+                  <td align="center">
+                    <a th:href="${linkTurno}" href="http://localhost:5173/paciente/turnos" style="display: inline-block; background-color: #0284c7; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px; box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3);">
+                      Ver Mi Turno en la Plataforma
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Secondary Cancel Action Link -->
+              <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0">
+                <tr>
+                  <td align="center" style="padding-top: 8px;">
+                    <a th:href="${linkCancelacion}" href="http://localhost:5173/paciente/turnos" style="color: #64748b; font-size: 13px; text-decoration: underline; font-weight: 500;">
+                      ¿No vas a poder asistir? Cancela o reprograma tu turno aquí
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f8fafc; padding: 20px 30px; text-align: center; border-top: 1px solid #f1f5f9;">
+              <p style="color: #94a3b8; font-size: 12px; margin: 0; line-height: 1.5;" th:text="'© 2026 ' + ${clinicName} + '. Todos los derechos reservados.'">
+                © 2026 Instituto Médico Consultorios. Todos los derechos reservados.
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

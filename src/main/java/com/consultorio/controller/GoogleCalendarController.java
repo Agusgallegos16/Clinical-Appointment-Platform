@@ -6,7 +6,10 @@ import com.consultorio.security.SecurityUtils;
 import com.consultorio.service.GoogleCalendarOAuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.annotation.*;
@@ -18,6 +21,8 @@ import java.util.Map;
 @RequestMapping("/api/google-calendar")
 @Tag(name = "Google Calendar OAuth2", description = "Endpoints para vincular y sincronizar Google Calendar personal por usuario.")
 public class GoogleCalendarController {
+
+    private static final Logger log = LoggerFactory.getLogger(GoogleCalendarController.class);
 
     private final GoogleCalendarOAuthService oauthService;
     private final SecurityUtils securityUtils;
@@ -34,22 +39,33 @@ public class GoogleCalendarController {
 
     @GetMapping("/auth-url")
     @Operation(summary = "Obtener URL de autorización de Google OAuth2 para el usuario autenticado")
-    public ResponseEntity<Map<String, String>> obtenerAuthUrl() {
+    public ResponseEntity<?> obtenerAuthUrl() {
         String email = securityUtils.obtenerEmailUsuarioAutenticado();
         if (email == null) throw new AccessDeniedException("No autenticado");
 
         Usuario usuario = usuarioRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
 
-        String authUrl = oauthService.generarUrlAutorizacion(usuario.getId());
-        return ResponseEntity.ok(Map.of("url", authUrl));
+        try {
+            String authUrl = oauthService.generarUrlAutorizacion(usuario.getId());
+            return ResponseEntity.ok(Map.of("url", authUrl));
+        } catch (Exception e) {
+            log.error("Error al generar URL de autenticación Google OAuth2: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY)
+                    .body(Map.of("message", "No se pudo obtener la URL de conexión con Google. Verifique credenciales."));
+        }
     }
 
     @GetMapping("/callback")
     @Operation(summary = "Callback público de Google OAuth2 al otorgar consentimiento")
     public RedirectView callback(@RequestParam("code") String code, @RequestParam("state") String state) {
-        oauthService.procesarCallback(code, state);
-        return new RedirectView("http://localhost:5173/google-calendar/success");
+        try {
+            oauthService.procesarCallback(code, state);
+            return new RedirectView("http://localhost:5173/google-calendar/success");
+        } catch (Exception e) {
+            log.error("Error en callback de Google OAuth: {}", e.getMessage());
+            return new RedirectView("http://localhost:5173/doctor?calendar_error=true");
+        }
     }
 
     @GetMapping("/status")

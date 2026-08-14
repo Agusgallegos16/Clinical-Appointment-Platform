@@ -10,6 +10,7 @@ import com.google.api.client.auth.oauth2.TokenResponse;
 import com.google.api.client.googleapis.auth.oauth2.GoogleAuthorizationCodeFlow;
 import com.google.api.client.googleapis.auth.oauth2.GoogleRefreshTokenRequest;
 import com.google.api.client.googleapis.javanet.GoogleNetHttpTransport;
+import com.google.api.client.googleapis.json.GoogleJsonResponseException;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.util.DateTime;
 import com.google.api.services.calendar.Calendar;
@@ -116,6 +117,10 @@ public class GoogleCalendarOAuthService {
                 refrescarAccessToken(usuario);
             }
 
+            if (!usuario.isGoogleCalendarConnected() || usuario.getGoogleAccessToken() == null) {
+                return null;
+            }
+
             Credential credential = new Credential.Builder(BearerToken.authorizationHeaderAccessMethod())
                     .setTransport(GoogleNetHttpTransport.newTrustedTransport())
                     .setJsonFactory(GsonFactory.getDefaultInstance())
@@ -153,6 +158,9 @@ public class GoogleCalendarOAuthService {
             usuarioRepository.save(usuario);
             log.info("🔄 Access token de Google Calendar refrescado para usuario: {}", usuario.getEmail());
 
+        } catch (GoogleJsonResponseException e) {
+            log.warn("⚠️ Token de Google revocado o inválido para usuario {} (Status: {}). Desconectando Google Calendar automáticamente de la BD.", usuario.getEmail(), e.getStatusCode());
+            desconectarSilenciosamente(usuario);
         } catch (Exception e) {
             log.error("No se pudo refrescar el token de Google para usuario {}: {}", usuario.getEmail(), e.getMessage());
         }
@@ -209,6 +217,12 @@ public class GoogleCalendarOAuthService {
             log.info("📅 Evento agendado exitosamente en Google Calendar personal de [{}] con ID: {}", usuario.getEmail(), createdEvent.getId());
             return createdEvent.getId();
 
+        } catch (GoogleJsonResponseException e) {
+            log.warn("⚠️ Excepción de Google API al agendar evento para usuario {} (Status: {}). Desconectando Google Calendar.", usuario.getEmail(), e.getStatusCode());
+            if (e.getStatusCode() == 401 || e.getStatusCode() == 403) {
+                desconectarSilenciosamente(usuario);
+            }
+            return null;
         } catch (Exception e) {
             log.error("Error al crear evento en Google Calendar personal de {}: {}", usuario.getEmail(), e.getMessage());
             return null;
@@ -225,6 +239,11 @@ public class GoogleCalendarOAuthService {
                     .execute();
 
             log.info("📅 Evento {} eliminado del Google Calendar personal de [{}]", googleEventId, usuario.getEmail());
+        } catch (GoogleJsonResponseException e) {
+            log.warn("⚠️ Excepción de Google API al eliminar evento para usuario {} (Status: {}).", usuario.getEmail(), e.getStatusCode());
+            if (e.getStatusCode() == 401 || e.getStatusCode() == 403) {
+                desconectarSilenciosamente(usuario);
+            }
         } catch (Exception e) {
             log.error("Error al eliminar evento {} del Google Calendar de {}: {}", googleEventId, usuario.getEmail(), e.getMessage());
         }
@@ -234,12 +253,15 @@ public class GoogleCalendarOAuthService {
         Usuario usuario = usuarioRepository.findById(usuarioId)
                 .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado con ID: " + usuarioId));
 
+        desconectarSilenciosamente(usuario);
+        log.info("🔌 Google Calendar desconectado para usuario: {}", usuario.getEmail());
+    }
+
+    private void desconectarSilenciosamente(Usuario usuario) {
         usuario.setGoogleAccessToken(null);
         usuario.setGoogleRefreshToken(null);
         usuario.setGoogleTokenExpiry(null);
         usuario.setGoogleCalendarConnected(false);
         usuarioRepository.save(usuario);
-
-        log.info("🔌 Google Calendar desconectado para usuario: {}", usuario.getEmail());
     }
 }

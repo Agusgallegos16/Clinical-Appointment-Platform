@@ -23,6 +23,7 @@ import {
   LocalHospital as HospitalIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
+import { CLINIC_CONFIG } from '../../config/clinicConfig';
 
 import Footer from '../../components/Footer';
 
@@ -68,7 +69,7 @@ const Login = () => {
             <Box display="flex" flexDirection="column" alignItems="center" mb={3}>
               <HospitalIcon color="primary" sx={{ fontSize: 48, mb: 1 }} />
               <Typography variant="h5" align="center" color="primary" fontWeight={700}>
-                Consultorio Médico
+                {CLINIC_CONFIG.name}
               </Typography>
               <Typography variant="body2" color="text.secondary" align="center">
                 Ingrese a su cuenta para gestionar sus turnos
@@ -161,24 +162,10 @@ const Login = () => {
               {/* Chips de Login Rápido */}
               <Box display="flex" flexWrap="wrap" gap={1} justifyContent="center">
                 <Chip
-                  label="🔑 Admin"
-                  onClick={() => handleQuickLogin('admin@consultorio.com', '123456')}
+                  label="🔑 Autocompletar Admin"
+                  onClick={() => handleQuickLogin('admin@adminconsultorio.com', '82HgaPoa9Aq')}
                   clickable
                   color="primary"
-                  variant="outlined"
-                />
-                <Chip
-                  label="🩺 Doctor"
-                  onClick={() => handleQuickLogin('doctor.perez@consultorio.com', '123456')}
-                  clickable
-                  color="info"
-                  variant="outlined"
-                />
-                <Chip
-                  label="👤 Paciente"
-                  onClick={() => handleQuickLogin('paciente.gomez@gmail.com', '123456')}
-                  clickable
-                  color="success"
                   variant="outlined"
                 />
               </Box>

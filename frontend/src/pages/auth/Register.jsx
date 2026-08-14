@@ -11,6 +11,8 @@ import {
   CircularProgress,
   Container,
   Grid,
+  FormControlLabel,
+  Checkbox,
 } from '@mui/material';
 import { LocalHospital as HospitalIcon } from '@mui/icons-material';
 import { authService } from '../../api/authService';
@@ -29,6 +31,7 @@ const Register = () => {
     fechaNacimiento: '',
   });
 
+  const [aceptaTerminos, setAceptaTerminos] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -44,6 +47,11 @@ const Register = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+
+    if (!aceptaTerminos) {
+      setError('Debés aceptar los términos y condiciones para crear tu cuenta.');
+      return;
+    }
 
     if (!formData.fechaNacimiento) {
       setError('Por favor seleccioná tu fecha de nacimiento.');
@@ -148,7 +156,7 @@ const Register = () => {
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
-                    label="Fecha de Nacimiento *"
+                    label="Fecha de Nacimiento"
                     name="fechaNacimiento"
                     type="date"
                     value={formData.fechaNacimiento}
@@ -198,6 +206,32 @@ const Register = () => {
                     }
                   />
                 </Grid>
+
+                <Grid item xs={12}>
+                  <FormControlLabel
+                    control={
+                      <Checkbox
+                        checked={aceptaTerminos}
+                        onChange={(e) => setAceptaTerminos(e.target.checked)}
+                        color="primary"
+                      />
+                    }
+                    label={
+                      <Typography variant="body2" color="text.secondary">
+                        Acepto los{' '}
+                        <Link
+                          to="/terminos-y-condiciones"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{ color: '#0284c7', textDecoration: 'underline', fontWeight: 600 }}
+                        >
+                          términos y condiciones
+                        </Link>{' '}
+                        y la política de privacidad.
+                      </Typography>
+                    }
+                  />
+                </Grid>
               </Grid>
 
               <Button
@@ -205,7 +239,7 @@ const Register = () => {
                 fullWidth
                 variant="contained"
                 size="large"
-                disabled={loading}
+                disabled={loading || !aceptaTerminos}
                 sx={{ mt: 3, mb: 2, py: 1.2 }}
               >
                 {loading ? <CircularProgress size={24} color="inherit" /> : 'Crear Cuenta'}
