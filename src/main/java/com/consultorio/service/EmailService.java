@@ -1,6 +1,7 @@
 package com.consultorio.service;
 
 import com.consultorio.dto.TurnoResponseDTO;
+import com.consultorio.email.EmailSender;
 import com.consultorio.factory.EmailTemplateFactory;
 import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
@@ -19,6 +20,7 @@ public class EmailService {
 
     private static final Logger log = LoggerFactory.getLogger(EmailService.class);
 
+    private final EmailSender emailSender;
     private final JavaMailSender mailSender;
     private final EmailTemplateFactory emailTemplateFactory;
 
@@ -29,8 +31,10 @@ public class EmailService {
     private String clinicName;
 
     @Autowired
-    public EmailService(ObjectProvider<JavaMailSender> mailSenderProvider,
+    public EmailService(EmailSender emailSender,
+                        ObjectProvider<JavaMailSender> mailSenderProvider,
                         EmailTemplateFactory emailTemplateFactory) {
+        this.emailSender = emailSender;
         this.mailSender = mailSenderProvider.getIfAvailable();
         this.emailTemplateFactory = emailTemplateFactory;
     }
@@ -107,20 +111,25 @@ public class EmailService {
 
         log.info(logMessage);
 
-        if (mailSender != null) {
-            try {
-                MimeMessage message = mailSender.createMimeMessage();
-                MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-                if (mailFrom != null && !mailFrom.isBlank()) {
-                    helper.setFrom(mailFrom);
+        try {
+            emailSender.sendHtmlEmail(destino, asunto, cuerpoHtml);
+        } catch (Exception e) {
+            log.warn("⚠️ No se pudo enviar el correo vía proveedores API (Brevo/Resend): {}. Intentando vía SMTP...", e.getMessage());
+            if (mailSender != null) {
+                try {
+                    MimeMessage message = mailSender.createMimeMessage();
+                    MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+                    if (mailFrom != null && !mailFrom.isBlank()) {
+                        helper.setFrom(mailFrom);
+                    }
+                    helper.setTo(destino);
+                    helper.setSubject(asunto);
+                    helper.setText(cuerpoHtml, true);
+                    mailSender.send(message);
+                    log.info("✅ Correo HTML enviado exitosamente vía SMTP de respaldo a: {}", destino);
+                } catch (Exception smtpEx) {
+                    log.warn("⚠️ Tampoco se pudo enviar el correo vía SMTP: {}", smtpEx.getMessage());
                 }
-                helper.setTo(destino);
-                helper.setSubject(asunto);
-                helper.setText(cuerpoHtml, true);
-                mailSender.send(message);
-                log.info("✅ Correo HTML enviado exitosamente vía SMTP real a: {}", destino);
-            } catch (Exception e) {
-                log.warn("⚠️ No se pudo enviar el correo HTML vía SMTP real: {}", e.getMessage());
             }
         }
     }
