@@ -11,6 +11,7 @@ import {
   LocalHospital as HospitalIcon,
   PersonAdd as PersonAddIcon,
   Assessment as ReportIcon,
+  ManageAccounts as ManageAccountsIcon,
   ArrowForward as ArrowForwardIcon,
 } from '@mui/icons-material';
 
@@ -41,6 +42,31 @@ const AdminDashboard = () => {
 
         {/* Botones Centrados, más altos y de ancho contenido */}
         <Stack spacing={2.5}>
+          <Button
+            variant="contained"
+            color="primary"
+            size="large"
+            fullWidth
+            onClick={() => navigate('/admin/usuarios')}
+            startIcon={<ManageAccountsIcon sx={{ fontSize: 36 }} />}
+            endIcon={<ArrowForwardIcon />}
+            sx={{
+              py: 2.8,
+              px: 3.5,
+              justifyContent: 'space-between',
+              fontSize: '1.15rem',
+              fontWeight: 700,
+              borderRadius: 3,
+              boxShadow: '0 4px 14px rgba(2, 132, 199, 0.25)',
+            }}
+          >
+            <Box textAlign="left">
+              <Typography variant="h6" fontWeight={700}>
+                Buscar y Gestionar Usuarios
+              </Typography>
+            </Box>
+          </Button>
+
           <Button
             variant="contained"
             color="primary"

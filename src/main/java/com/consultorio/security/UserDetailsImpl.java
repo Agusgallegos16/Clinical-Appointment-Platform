@@ -17,13 +17,17 @@ public class UserDetailsImpl implements UserDetails {
     @JsonIgnore
     private final String password;
     private final Rol rol;
+    private final boolean activo;
+    private final boolean bloqueado;
     private final Collection<? extends GrantedAuthority> authorities;
 
-    public UserDetailsImpl(Long id, String email, String password, Rol rol, Collection<? extends GrantedAuthority> authorities) {
+    public UserDetailsImpl(Long id, String email, String password, Rol rol, boolean activo, boolean bloqueado, Collection<? extends GrantedAuthority> authorities) {
         this.id = id;
         this.email = email;
         this.password = password;
         this.rol = rol;
+        this.activo = activo;
+        this.bloqueado = bloqueado;
         this.authorities = authorities;
     }
 
@@ -37,6 +41,8 @@ public class UserDetailsImpl implements UserDetails {
                 usuario.getEmail(),
                 usuario.getPassword(),
                 usuario.getRol(),
+                usuario.isActivo(),
+                usuario.isBloqueado(),
                 authorities
         );
     }
@@ -51,6 +57,10 @@ public class UserDetailsImpl implements UserDetails {
 
     public Rol getRol() {
         return rol;
+    }
+
+    public boolean isBloqueado() {
+        return bloqueado;
     }
 
     @Override
@@ -75,7 +85,7 @@ public class UserDetailsImpl implements UserDetails {
 
     @Override
     public boolean isAccountNonLocked() {
-        return true;
+        return !bloqueado;
     }
 
     @Override
@@ -85,6 +95,6 @@ public class UserDetailsImpl implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return true;
+        return activo && !bloqueado;
     }
 }

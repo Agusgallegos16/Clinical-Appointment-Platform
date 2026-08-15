@@ -44,6 +44,14 @@ public class Usuario {
     private boolean activo = true;
 
     @Builder.Default
+    @Column(name = "bloqueado", columnDefinition = "boolean default false")
+    private Boolean bloqueado = false;
+
+    public boolean isBloqueado() {
+        return Boolean.TRUE.equals(this.bloqueado);
+    }
+
+    @Builder.Default
     @Column(name = "email_verificado", nullable = false)
     private boolean emailVerificado = false;
 

@@ -31,6 +31,7 @@ import {
   MedicalServices as MedicalIcon,
   PersonAdd as PersonAddIcon,
   Assessment as ReportIcon,
+  ManageAccounts as ManageAccountsIcon,
   LightMode as LightModeIcon,
   DarkMode as DarkModeIcon,
   Logout as LogoutIcon,
@@ -80,6 +81,7 @@ const MainLayout = () => {
       case 'ADMIN':
         return [
           { text: 'Inicio', icon: <DashboardIcon />, path: '/admin' },
+          { text: 'Gestionar Usuarios', icon: <ManageAccountsIcon />, path: '/admin/usuarios' },
           { text: 'Especialidades', icon: <MedicalIcon />, path: '/admin/especialidades' },
           { text: 'Doctores', icon: <HospitalIcon />, path: '/admin/doctores' },
           { text: 'Registrar Doctor', icon: <PersonAddIcon />, path: '/admin/doctores/nuevo' },

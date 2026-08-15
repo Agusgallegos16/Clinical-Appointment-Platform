@@ -49,6 +49,7 @@ const Login = () => {
       else navigate('/');
     } catch (err) {
       setError(
+        err.response?.data?.mensaje ||
         err.response?.data?.message ||
         'Error al iniciar sesión. Verifique sus credenciales (email y contraseña).'
       );

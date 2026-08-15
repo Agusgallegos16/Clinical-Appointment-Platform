@@ -31,6 +31,7 @@ import AdminEspecialidades from './pages/admin/AdminEspecialidades';
 import AdminDoctores from './pages/admin/AdminDoctores';
 import AdminNuevoDoctor from './pages/admin/AdminNuevoDoctor';
 import AdminReportes from './pages/admin/AdminReportes';
+import AdminUsuarios from './pages/admin/AdminUsuarios';
 
 import ConfirmarEmail from './pages/auth/ConfirmarEmail';
 import RecuperarPassword from './pages/auth/RecuperarPassword';
@@ -92,6 +93,7 @@ const AppContent = () => {
             {/* Módulo Admin */}
             <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
               <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/admin/usuarios" element={<AdminUsuarios />} />
               <Route path="/admin/especialidades" element={<AdminEspecialidades />} />
               <Route path="/admin/doctores" element={<AdminDoctores />} />
               <Route path="/admin/doctores/nuevo" element={<AdminNuevoDoctor />} />

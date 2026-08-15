@@ -110,6 +110,10 @@ public class AuthController {
         Usuario usuario = usuarioRepository.findByEmail(loginDTO.getEmail())
                 .orElseThrow(() -> new IllegalArgumentException("Credenciales inválidas."));
 
+        if (usuario.isBloqueado()) {
+            throw new IllegalArgumentException("Error: Su cuenta ha sido bloqueada por el administrador.");
+        }
+
         if (!usuario.isEmailVerificado() || !usuario.isActivo()) {
             throw new IllegalArgumentException("Debe confirmar su correo electrónico antes de iniciar sesión. Por favor revise su bandeja de entrada.");
         }
