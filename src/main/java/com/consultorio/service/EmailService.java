@@ -30,6 +30,9 @@ public class EmailService {
     @Value("${app.clinic.name:Instituto Médico Consultorios}")
     private String clinicName;
 
+    @Value("${app.frontend.url:${APP_FRONTEND_URL:http://localhost:5173}}")
+    private String frontendUrl;
+
     @Autowired
     public EmailService(EmailSender emailSender,
                         ObjectProvider<JavaMailSender> mailSenderProvider,
@@ -39,9 +42,15 @@ public class EmailService {
         this.emailTemplateFactory = emailTemplateFactory;
     }
 
+    private String getCleanFrontendUrl() {
+        if (frontendUrl == null || frontendUrl.isBlank()) return "http://localhost:5173";
+        String clean = frontendUrl.trim();
+        return clean.endsWith("/") ? clean.substring(0, clean.length() - 1) : clean;
+    }
+
     // 1. Email de Verificación de Correo Electrónico
     public void enviarEmailVerificacion(String emailDestino, String nombreUsuario, String token) {
-        String urlVerificacion = "http://localhost:5173/confirmar-email?token=" + token;
+        String urlVerificacion = getCleanFrontendUrl() + "/confirmar-email?token=" + token;
         String asunto = "Confirma tu correo electrónico - " + clinicName;
         String htmlContent = emailTemplateFactory.crearEmailVerificacion(nombreUsuario, urlVerificacion);
         enviarCorreoHtml(emailDestino, asunto, htmlContent);
@@ -49,7 +58,7 @@ public class EmailService {
 
     // 2. Email de Activación de Cuenta para Doctores
     public void enviarEmailActivacionDoctor(String emailDestino, String nombreDoctor, String token) {
-        String urlActivacion = "http://localhost:5173/establecer-password-doctor?token=" + token;
+        String urlActivacion = getCleanFrontendUrl() + "/establecer-password-doctor?token=" + token;
         String asunto = "Bienvenido/a a " + clinicName + " - Configuración de Contraseña";
         String htmlContent = emailTemplateFactory.crearEmailActivacionDoctor(nombreDoctor, urlActivacion);
         enviarCorreoHtml(emailDestino, asunto, htmlContent);
@@ -57,7 +66,7 @@ public class EmailService {
 
     // 3. Email de Confirmación de Restablecimiento de Contraseña
     public void enviarEmailRestablecerPassword(String emailDestino, String token) {
-        String urlConfirmacion = "http://localhost:5173/confirmar-restablecimiento?token=" + token;
+        String urlConfirmacion = getCleanFrontendUrl() + "/confirmar-restablecimiento?token=" + token;
         String asunto = "Confirmación de cambio de contraseña - " + clinicName;
         String htmlContent = emailTemplateFactory.crearEmailRestablecerPassword(urlConfirmacion);
         enviarCorreoHtml(emailDestino, asunto, htmlContent);
