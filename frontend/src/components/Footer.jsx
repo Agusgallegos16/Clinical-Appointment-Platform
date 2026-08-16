@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { Box, Container, Link, useTheme } from '@mui/material';
+import { Box, Container, Link, Typography, useTheme } from '@mui/material';
 
 const Footer = () => {
   const theme = useTheme();
@@ -58,6 +58,21 @@ const Footer = () => {
           <Link component={RouterLink} to="/contacto" sx={linkStyle}>
             Contacto
           </Link>
+        </Box>
+
+        {/* Leyenda discreta de verificación para indexación SEO y bots de búsqueda */}
+        <Box textAlign="center" mt={1.5}>
+          <Typography
+            variant="caption"
+            sx={{
+              fontSize: '0.7rem',
+              color: isDark ? 'rgba(203, 213, 225, 0.4)' : 'rgba(100, 116, 139, 0.5)',
+              display: 'block',
+              lineHeight: 1.3,
+            }}
+          >
+            Sistema de gestión y reserva de turnos médicos online para pacientes y profesionales del Instituto Doctor Oscar Bustos.
+          </Typography>
         </Box>
       </Container>
     </Box>
