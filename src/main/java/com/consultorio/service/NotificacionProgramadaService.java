@@ -113,7 +113,11 @@ public class NotificacionProgramadaService {
         }
 
         for (Doctor doctor : doctores) {
-            List<TurnoResponseDTO> turnosDia = turnoService.obtenerAgendaDoctor(doctor.getId(), fechaTarget);
+            if (doctor.getUsuario() == null || doctor.getUsuario().getEmail() == null) {
+                continue;
+            }
+
+            List<TurnoResponseDTO> turnosDia = turnoService.obtenerAgendaDoctorInterno(doctor.getId(), fechaTarget);
 
             if (!turnosDia.isEmpty()) {
                 emailService.enviarResumenDiarioDoctor(
@@ -122,8 +126,10 @@ public class NotificacionProgramadaService {
                         fechaFormateada,
                         turnosDia
                 );
+                log.info("📧 Resumen diario enviado al Dr/a. {} {} ({} turnos).",
+                        doctor.getNombre(), doctor.getApellido(), turnosDia.size());
             } else {
-                log.info("ℹ️ El Dr/a. {} {} no posee turnos confirmados para el día {}. Se omite notificación.",
+                log.info("ℹ️ El Dr/a. {} {} no posee turnos agendados para el día {}. Se omite el envío del correo.",
                         doctor.getNombre(), doctor.getApellido(), fechaFormateada);
             }
         }
@@ -143,6 +149,10 @@ public class NotificacionProgramadaService {
         }
 
         for (Doctor doctor : doctores) {
+            if (doctor.getUsuario() == null || doctor.getUsuario().getEmail() == null) {
+                continue;
+            }
+
             List<TurnoResponseDTO> turnosSemana = turnoService.obtenerTurnosRangoDoctor(doctor.getId(), desde, hasta);
 
             if (!turnosSemana.isEmpty()) {
@@ -152,8 +162,10 @@ public class NotificacionProgramadaService {
                         periodoFormateado,
                         turnosSemana
                 );
+                log.info("📧 Reporte semanal enviado al Dr/a. {} {} ({} turnos en el período).",
+                        doctor.getNombre(), doctor.getApellido(), turnosSemana.size());
             } else {
-                log.info("ℹ️ El Dr/a. {} {} no registró actividad de turnos en el período {}.",
+                log.info("ℹ️ El Dr/a. {} {} no registró ningún turno agendado en el período {}. Se omite el envío del correo.",
                         doctor.getNombre(), doctor.getApellido(), periodoFormateado);
             }
         }

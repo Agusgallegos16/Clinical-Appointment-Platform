@@ -331,6 +331,17 @@ public class TurnoService {
                 .collect(Collectors.toList());
     }
 
+    public List<TurnoResponseDTO> obtenerAgendaDoctorInterno(UUID doctorId, LocalDate fecha) {
+        LocalDateTime inicio = fecha.atStartOfDay();
+        LocalDateTime fin = fecha.atTime(23, 59, 59);
+
+        return turnoRepository.findByDoctorIdAndFechaHoraBetweenAndEstadoNotOrderByFechaHoraAsc(
+                        doctorId, inicio, fin, EstadoTurno.CANCELADO)
+                .stream()
+                .map(this::mapearResponseDTO)
+                .collect(Collectors.toList());
+    }
+
     public List<TurnoResponseDTO> obtenerTurnosRangoDoctor(UUID doctorId, LocalDate desde, LocalDate hasta) {
         LocalDateTime inicio = desde.atStartOfDay();
         LocalDateTime fin = hasta.atTime(23, 59, 59);
