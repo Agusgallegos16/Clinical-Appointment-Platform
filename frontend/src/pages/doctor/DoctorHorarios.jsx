@@ -1172,7 +1172,7 @@ const DoctorHorarios = () => {
                   </FormControl>
 
                   <Typography variant="caption" color="text.secondary" display="block" mt={1} mb={0.5}>
-                    Período de Vigencia (Opcional - dejar vacío para vigencia indefinida)
+                    Período de Vigencia (Opcional - Por defecto se configuran 9 semanas)
                   </Typography>
 
                   <Grid container spacing={2}>
@@ -1464,6 +1464,7 @@ const DoctorHorarios = () => {
               {tipoAplicacion === 'RECURRENTE' ? (
                 <>
                   <FormControl fullWidth margin="normal">
+
                     <InputLabel>Día de la Semana</InputLabel>
                     <Select
                       value={diaAplicar}
@@ -1475,12 +1476,14 @@ const DoctorHorarios = () => {
                       ))}
                     </Select>
                   </FormControl>
-
+                  <Typography variant="caption" color="text.secondary" display="block" mt={1} mb={0.5}>
+                    Período de Vigencia (Opcional - Por defecto se configuran 9 semanas)
+                  </Typography>
                   <Grid container spacing={2} sx={{ mt: 0.5 }}>
                     <Grid item xs={6}>
                       <TextField
                         fullWidth
-                        label="Vigencia Desde (Opcional)"
+                        label="Vigencia Desde"
                         type="date"
                         value={fechaDesdeAplicar}
                         onChange={(e) => setFechaDesdeAplicar(e.target.value)}
@@ -1491,7 +1494,7 @@ const DoctorHorarios = () => {
                     <Grid item xs={6}>
                       <TextField
                         fullWidth
-                        label="Vigencia Hasta (Opcional)"
+                        label="Vigencia Hasta"
                         type="date"
                         value={fechaHastaAplicar}
                         onChange={(e) => setFechaHastaAplicar(e.target.value)}
