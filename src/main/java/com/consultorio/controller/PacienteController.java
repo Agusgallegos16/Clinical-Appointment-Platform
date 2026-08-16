@@ -14,7 +14,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/pacientes")
-@Tag(name = "Gestión de Pacientes", description = "Endpoints para consulta de datos del paciente.")
+@Tag(name = "Gestión de Pacientes y Menores a Cargo", description = "Endpoints para consulta de perfil del paciente, ficha con estadísticas y gestión de menores a cargo del tutor.")
 public class PacienteController {
 
     private final PacienteService pacienteService;

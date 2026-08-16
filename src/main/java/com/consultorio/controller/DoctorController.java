@@ -13,6 +13,7 @@ import com.consultorio.service.NotificacionProgramadaService;
 import com.consultorio.service.PlantillaAgendaService;
 import com.consultorio.service.TurnoService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,8 +63,8 @@ public class DoctorController {
     @GetMapping
     @Operation(summary = "Listar todos los médicos o filtrar por especialidad (Público)")
     public ResponseEntity<List<Doctor>> listarDoctores(
-            @RequestParam(required = false) Long especialidadId,
-            @RequestParam(required = false, defaultValue = "false") boolean soloVisibles) {
+            @Parameter(description = "ID opcional de especialidad médica para filtrar") @RequestParam(required = false) Long especialidadId,
+            @Parameter(description = "Si es true, solo retorna médicos visibles para reserva por pacientes") @RequestParam(required = false, defaultValue = "false") boolean soloVisibles) {
         if (especialidadId != null) {
             return ResponseEntity.ok(doctorService.listarPorEspecialidad(especialidadId, soloVisibles));
         }
@@ -74,28 +75,30 @@ public class DoctorController {
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Activar o desactivar la visibilidad pública de turnos del médico (DOCTOR / ADMIN)")
     public ResponseEntity<Doctor> cambiarDisponibilidadTurnos(
-            @PathVariable UUID id,
-            @RequestParam boolean disponible) {
+            @Parameter(description = "UUID del profesional médico") @PathVariable UUID id,
+            @Parameter(description = "true para perfil visible en reserva web, false para ocultar") @RequestParam boolean disponible) {
         return ResponseEntity.ok(doctorService.cambiarDisponibilidadTurnos(id, disponible));
     }
 
     @PatchMapping("/{id}/advertencia-bloqueante")
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
-    @Operation(summary = "Configurar el mensaje de advertencia bloqueante del médico (DOCTOR / ADMIN)")
+    @Operation(summary = "Configurar el mensaje de advertencia bloqueante del médico (DOCTOR / ADMIN)",
+               description = "Si está activa, despliega un cartel emergente al paciente y BLOQUEA la reserva web.")
     public ResponseEntity<Doctor> configurarAdvertenciaBloqueante(
-            @PathVariable UUID id,
-            @RequestParam boolean activa,
-            @RequestParam(required = false) String mensaje) {
+            @Parameter(description = "UUID del profesional médico") @PathVariable UUID id,
+            @Parameter(description = "true para activar el cartel bloqueante") @RequestParam boolean activa,
+            @Parameter(description = "Texto de advertencia e instrucciones para el paciente") @RequestParam(required = false) String mensaje) {
         return ResponseEntity.ok(doctorService.configurarAdvertenciaBloqueante(id, activa, mensaje));
     }
 
     @PatchMapping("/{id}/advertencia-informativa")
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
-    @Operation(summary = "Configurar el mensaje de advertencia informativo del médico (DOCTOR / ADMIN)")
+    @Operation(summary = "Configurar el mensaje de advertencia informativo del médico (DOCTOR / ADMIN)",
+               description = "Si está activa, despliega un aviso pero PERMITE al paciente presionar Continuar y reservar.")
     public ResponseEntity<Doctor> configurarAdvertenciaInformativa(
-            @PathVariable UUID id,
-            @RequestParam boolean activa,
-            @RequestParam(required = false) String mensaje) {
+            @Parameter(description = "UUID del profesional médico") @PathVariable UUID id,
+            @Parameter(description = "true para activar el cartel informativo") @RequestParam boolean activa,
+            @Parameter(description = "Texto de indicaciones para el paciente") @RequestParam(required = false) String mensaje) {
         return ResponseEntity.ok(doctorService.configurarAdvertenciaInformativa(id, activa, mensaje));
     }
 
