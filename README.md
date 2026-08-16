@@ -14,7 +14,7 @@ La solución ofrece una experiencia simple y accesible para pacientes al reserva
 ## 🌟 Características Principales (Key Features)
 
 ### 🧑‍⚕️ Módulo para Pacientes
-- **Reserva Web Intuitiva**: Selección guiada en 4 pasos (*Especialidad $\rightarrow$ Profesional $\rightarrow$ Fecha y Hora $\rightarrow$ Confirmación*).
+- **Reserva Web Intuitiva**: Selección guiada en 4 pasos (*Especialidad => Profesional => Fecha y Hora => Confirmación*).
 - **Gestión de Menores a Cargo**: Vinculación de dependientes/hijos bajo el perfil tutor para reservar turnos en su nombre.
 - **Historial y Ficha Personal**: Panel para consultar turnos agendados, asistencias, cancelaciones y métricas estadísticas.
 - **Sistema de Advertencias del Profesional**: Despliegue de carteles de indicación previa o avisos bloqueantes configurados por el médico.
