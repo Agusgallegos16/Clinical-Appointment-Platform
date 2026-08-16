@@ -4,6 +4,7 @@ import com.consultorio.domain.EstadoTurno;
 import com.consultorio.domain.SlotHorario;
 import com.consultorio.domain.Turno;
 import com.consultorio.dto.SlotDisponibilidadDTO;
+import com.consultorio.repository.DoctorRepository;
 import com.consultorio.repository.SlotHorarioRepository;
 import com.consultorio.repository.TurnoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -13,6 +14,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
@@ -24,12 +26,15 @@ public class DisponibilidadService {
 
     private final SlotHorarioRepository slotHorarioRepository;
     private final TurnoRepository turnoRepository;
+    private final DoctorRepository doctorRepository;
 
     @Autowired
     public DisponibilidadService(SlotHorarioRepository slotHorarioRepository,
-                                 TurnoRepository turnoRepository) {
+                                 TurnoRepository turnoRepository,
+                                 DoctorRepository doctorRepository) {
         this.slotHorarioRepository = slotHorarioRepository;
         this.turnoRepository = turnoRepository;
+        this.doctorRepository = doctorRepository;
     }
 
     public List<SlotDisponibilidadDTO> obtenerHorariosDisponibles(UUID doctorId, LocalDate fecha) {
@@ -37,6 +42,11 @@ public class DisponibilidadService {
     }
 
     public List<SlotDisponibilidadDTO> obtenerHorariosDisponibles(UUID doctorId, LocalDate fecha, Long especialidadId) {
+        var doctorOpt = doctorRepository.findById(doctorId);
+        if (doctorOpt.isPresent() && !doctorOpt.get().isDisponibleParaTurnos()) {
+            return Collections.emptyList();
+        }
+
         LocalDateTime inicioDia = fecha.atStartOfDay();
         LocalDateTime finDia = fecha.atTime(23, 59, 59);
 

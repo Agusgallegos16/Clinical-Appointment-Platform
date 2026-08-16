@@ -23,4 +23,10 @@ public interface DoctorRepository extends JpaRepository<Doctor, UUID> {
 
     @EntityGraph(attributePaths = {"usuario", "especialidades"})
     List<Doctor> findByEspecialidadesId(Long especialidadId);
+
+    @EntityGraph(attributePaths = {"usuario", "especialidades"})
+    List<Doctor> findByDisponibleParaTurnosTrue();
+
+    @EntityGraph(attributePaths = {"usuario", "especialidades"})
+    List<Doctor> findByEspecialidadesIdAndDisponibleParaTurnosTrue(Long especialidadId);
 }

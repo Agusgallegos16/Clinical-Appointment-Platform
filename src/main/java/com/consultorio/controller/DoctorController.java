@@ -61,11 +61,42 @@ public class DoctorController {
 
     @GetMapping
     @Operation(summary = "Listar todos los médicos o filtrar por especialidad (Público)")
-    public ResponseEntity<List<Doctor>> listarDoctores(@RequestParam(required = false) Long especialidadId) {
+    public ResponseEntity<List<Doctor>> listarDoctores(
+            @RequestParam(required = false) Long especialidadId,
+            @RequestParam(required = false, defaultValue = "false") boolean soloVisibles) {
         if (especialidadId != null) {
-            return ResponseEntity.ok(doctorService.listarPorEspecialidad(especialidadId));
+            return ResponseEntity.ok(doctorService.listarPorEspecialidad(especialidadId, soloVisibles));
         }
-        return ResponseEntity.ok(doctorService.listarTodos());
+        return ResponseEntity.ok(doctorService.listarTodos(soloVisibles));
+    }
+
+    @PatchMapping("/{id}/disponibilidad-turnos")
+    @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
+    @Operation(summary = "Activar o desactivar la visibilidad pública de turnos del médico (DOCTOR / ADMIN)")
+    public ResponseEntity<Doctor> cambiarDisponibilidadTurnos(
+            @PathVariable UUID id,
+            @RequestParam boolean disponible) {
+        return ResponseEntity.ok(doctorService.cambiarDisponibilidadTurnos(id, disponible));
+    }
+
+    @PatchMapping("/{id}/advertencia-bloqueante")
+    @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
+    @Operation(summary = "Configurar el mensaje de advertencia bloqueante del médico (DOCTOR / ADMIN)")
+    public ResponseEntity<Doctor> configurarAdvertenciaBloqueante(
+            @PathVariable UUID id,
+            @RequestParam boolean activa,
+            @RequestParam(required = false) String mensaje) {
+        return ResponseEntity.ok(doctorService.configurarAdvertenciaBloqueante(id, activa, mensaje));
+    }
+
+    @PatchMapping("/{id}/advertencia-informativa")
+    @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
+    @Operation(summary = "Configurar el mensaje de advertencia informativo del médico (DOCTOR / ADMIN)")
+    public ResponseEntity<Doctor> configurarAdvertenciaInformativa(
+            @PathVariable UUID id,
+            @RequestParam boolean activa,
+            @RequestParam(required = false) String mensaje) {
+        return ResponseEntity.ok(doctorService.configurarAdvertenciaInformativa(id, activa, mensaje));
     }
 
     @GetMapping("/{id}")

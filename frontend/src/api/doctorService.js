@@ -1,9 +1,34 @@
 import axiosClient from './axiosClient';
 
 export const doctorService = {
-  listarDoctores: async (especialidadId = null) => {
-    const url = especialidadId ? `/doctores?especialidadId=${especialidadId}` : '/doctores';
+  listarDoctores: async (especialidadId = null, soloVisibles = false) => {
+    let url = '/doctores';
+    const params = new URLSearchParams();
+    if (especialidadId) params.append('especialidadId', especialidadId);
+    if (soloVisibles) params.append('soloVisibles', 'true');
+    const queryString = params.toString();
+    if (queryString) url += `?${queryString}`;
+
     const response = await axiosClient.get(url);
+    return response.data;
+  },
+
+  cambiarDisponibilidadTurnos: async (id, disponible) => {
+    const response = await axiosClient.patch(`/doctores/${id}/disponibilidad-turnos?disponible=${disponible}`);
+    return response.data;
+  },
+
+  configurarAdvertenciaBloqueante: async (id, activa, mensaje) => {
+    const response = await axiosClient.patch(`/doctores/${id}/advertencia-bloqueante`, null, {
+      params: { activa, mensaje },
+    });
+    return response.data;
+  },
+
+  configurarAdvertenciaInformativa: async (id, activa, mensaje) => {
+    const response = await axiosClient.patch(`/doctores/${id}/advertencia-informativa`, null, {
+      params: { activa, mensaje },
+    });
     return response.data;
   },
 

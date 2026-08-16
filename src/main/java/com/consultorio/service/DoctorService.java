@@ -121,11 +121,48 @@ public class DoctorService {
         doctorRepository.delete(doctor);
     }
 
+    @Transactional
+    public Doctor cambiarDisponibilidadTurnos(UUID id, boolean disponible) {
+        Doctor doctor = obtenerPorId(id);
+        doctor.setDisponibleParaTurnos(disponible);
+        return doctorRepository.save(doctor);
+    }
+
+    @Transactional
+    public Doctor configurarAdvertenciaBloqueante(UUID id, boolean activa, String mensaje) {
+        Doctor doctor = obtenerPorId(id);
+        doctor.setTieneAdvertenciaBloqueante(activa);
+        doctor.setMensajeAdvertenciaBloqueante(mensaje);
+        return doctorRepository.save(doctor);
+    }
+
+    @Transactional
+    public Doctor configurarAdvertenciaInformativa(UUID id, boolean activa, String mensaje) {
+        Doctor doctor = obtenerPorId(id);
+        doctor.setTieneAdvertenciaInformativa(activa);
+        doctor.setMensajeAdvertenciaInformativa(mensaje);
+        return doctorRepository.save(doctor);
+    }
+
     public List<Doctor> listarTodos() {
+        return listarTodos(false);
+    }
+
+    public List<Doctor> listarTodos(boolean soloVisibles) {
+        if (soloVisibles) {
+            return doctorRepository.findByDisponibleParaTurnosTrue();
+        }
         return doctorRepository.findAll();
     }
 
     public List<Doctor> listarPorEspecialidad(Long especialidadId) {
+        return listarPorEspecialidad(especialidadId, false);
+    }
+
+    public List<Doctor> listarPorEspecialidad(Long especialidadId, boolean soloVisibles) {
+        if (soloVisibles) {
+            return doctorRepository.findByEspecialidadesIdAndDisponibleParaTurnosTrue(especialidadId);
+        }
         return doctorRepository.findByEspecialidadesId(especialidadId);
     }
 

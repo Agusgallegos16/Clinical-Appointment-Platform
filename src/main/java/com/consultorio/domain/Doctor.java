@@ -48,4 +48,34 @@ public class Doctor {
     )
     @Builder.Default
     private List<Especialidad> especialidades = new ArrayList<>();
+
+    @Builder.Default
+    @Column(name = "disponible_para_turnos", columnDefinition = "boolean default true")
+    private Boolean disponibleParaTurnos = true;
+
+    public boolean isDisponibleParaTurnos() {
+        return Boolean.TRUE.equals(this.disponibleParaTurnos);
+    }
+
+    @Builder.Default
+    @Column(name = "tiene_advertencia_bloqueante", columnDefinition = "boolean default false")
+    private Boolean tieneAdvertenciaBloqueante = false;
+
+    @Column(name = "mensaje_advertencia_bloqueante", length = 1000)
+    private String mensajeAdvertenciaBloqueante;
+
+    public boolean isTieneAdvertenciaBloqueante() {
+        return Boolean.TRUE.equals(this.tieneAdvertenciaBloqueante);
+    }
+
+    @Builder.Default
+    @Column(name = "tiene_advertencia_informativa", columnDefinition = "boolean default false")
+    private Boolean tieneAdvertenciaInformativa = false;
+
+    @Column(name = "mensaje_advertencia_informativa", length = 1000)
+    private String mensajeAdvertenciaInformativa;
+
+    public boolean isTieneAdvertenciaInformativa() {
+        return Boolean.TRUE.equals(this.tieneAdvertenciaInformativa);
+    }
 }

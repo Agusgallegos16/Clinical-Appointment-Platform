@@ -336,7 +336,7 @@ const DoctorPlantillas = () => {
                   onClick={handleAgregarFranja}
                   variant="outlined"
                 >
-                  + Agregar Franja
+                   Agregar Franja
                 </Button>
               </Box>
 

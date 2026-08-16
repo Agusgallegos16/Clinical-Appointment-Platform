@@ -12,8 +12,6 @@ import {
   Container,
   InputAdornment,
   IconButton,
-  Chip,
-  Divider,
 } from '@mui/material';
 import {
   Email as EmailIcon,
@@ -54,12 +52,6 @@ const Login = () => {
         'Error al iniciar sesión. Verifique sus credenciales (email y contraseña).'
       );
     }
-  };
-
-  // Rellenar automáticamente credenciales de prueba
-  const handleQuickLogin = (demoEmail, demoPass) => {
-    setEmail(demoEmail);
-    setPassword(demoPass);
   };
 
   return (
@@ -136,7 +128,7 @@ const Login = () => {
                 {loading ? <CircularProgress size={24} color="inherit" /> : 'Iniciar Sesión'}
               </Button>
 
-              <Box textAlign="rigth" mt={2}>
+              <Box textAlign="left" mt={2}>
                 <Typography variant="body2" color="text.secondary">
                   ¿Olvidaste tu contraseña?{' '}
                   <Link to="/recuperar-password" style={{ color: '#0284c7', textDecoration: 'none', fontWeight: 600 }}>
@@ -145,30 +137,13 @@ const Login = () => {
                 </Typography>
               </Box>
 
-              <Box textAlign="rigth" mt={2}>
+              <Box textAlign="left" mt={2}>
                 <Typography variant="body2" color="text.secondary">
                   ¿No tenés una cuenta?{' '}
                   <Link to="/registro" style={{ color: '#0284c7', textDecoration: 'none', fontWeight: 600 }}>
                     Registrate como Paciente
                   </Link>
                 </Typography>
-              </Box>
-
-              <Divider sx={{ my: 3 }}>
-                <Typography variant="caption" color="text.secondary">
-                  Acceso Rápido de Prueba (Demo)
-                </Typography>
-              </Divider>
-
-              {/* Chips de Login Rápido */}
-              <Box display="flex" flexWrap="wrap" gap={1} justifyContent="center">
-                <Chip
-                  label="🔑 Autocompletar Admin"
-                  onClick={() => handleQuickLogin('admin@adminconsultorio.com', '82HgaPoa9Aq')}
-                  clickable
-                  color="primary"
-                  variant="outlined"
-                />
               </Box>
             </Box>
           </CardContent>

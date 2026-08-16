@@ -18,6 +18,11 @@ import {
   Paper,
   Avatar,
   Radio,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material';
 import {
   MedicalServices as SpecialtyIcon,
@@ -29,6 +34,8 @@ import {
   ChildCare as ChildIcon,
   Person as PersonIcon,
   ArrowForward as ArrowForwardIcon,
+  Warning as WarningIcon,
+  Info as InfoIcon,
 } from '@mui/icons-material';
 import { especialidadService } from '../../api/especialidadService';
 import { doctorService } from '../../api/doctorService';
@@ -53,6 +60,9 @@ const ReservarTurno = () => {
   const [menores, setMenores] = useState([]);
   const [selectedPaciente, setSelectedPaciente] = useState(null);
   const [loadingPacientes, setLoadingPacientes] = useState(true);
+
+  // Modal Advertencia del Doctor
+  const [warningDoctorModal, setWarningDoctorModal] = useState(null);
 
   // Pasos de navegación
   const [activeStep, setActiveStep] = useState(0);
@@ -133,7 +143,7 @@ const ReservarTurno = () => {
     setLoading(true);
     setError('');
     try {
-      const data = await doctorService.listarDoctores(especialidad.id);
+      const data = await doctorService.listarDoctores(especialidad.id, true);
       setDoctores(data);
       setActiveStep(pasoDoctorIndex);
     } catch (err) {
@@ -144,9 +154,32 @@ const ReservarTurno = () => {
   };
 
   const handleSelectDoctor = async (doctor) => {
+    // 1. Prioridad: Advertencia Bloqueante (Impide reserva web)
+    if (doctor.tieneAdvertenciaBloqueante && doctor.mensajeAdvertenciaBloqueante) {
+      setWarningDoctorModal({ doctor, type: 'BLOQUEANTE' });
+      return;
+    }
+
+    // 2. Advertencia Informativa (Permite continuar a la reserva web tras confirmación)
+    if (doctor.tieneAdvertenciaInformativa && doctor.mensajeAdvertenciaInformativa) {
+      setWarningDoctorModal({ doctor, type: 'INFORMATIVA' });
+      return;
+    }
+
+    procederASeleccionHorario(doctor);
+  };
+
+  const procederASeleccionHorario = (doctor) => {
     setSelectedDoctor(doctor);
     setActiveStep(pasoHorarioIndex);
     cargarDisponibilidad(doctor.id, selectedFecha, selectedEspecialidad?.id);
+  };
+
+  const handleContinuarTrasAdvertenciaInformativa = () => {
+    if (!warningDoctorModal?.doctor) return;
+    const doc = warningDoctorModal.doctor;
+    setWarningDoctorModal(null);
+    procederASeleccionHorario(doc);
   };
 
   const cargarDisponibilidad = async (doctorId, fechaStr, especialidadId) => {
@@ -415,7 +448,7 @@ const ReservarTurno = () => {
           {loading ? (
             <Box display="flex" justifyContent="center" py={4}><CircularProgress /></Box>
           ) : doctores.length === 0 ? (
-            <Alert severity="info">No hay médicos registrados actualmente para esta especialidad.</Alert>
+            <Alert severity="info">No hay médicos disponibles actualmente para esta especialidad.</Alert>
           ) : (
             <Grid container spacing={2}>
               {doctores.map((doc) => (
@@ -694,6 +727,58 @@ const ReservarTurno = () => {
           </Box>
         </Box>
       )}
+
+      {/* Modal Advertencia (Bloqueante vs Informativa) */}
+      <Dialog open={!!warningDoctorModal} onClose={() => setWarningDoctorModal(null)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ color: warningDoctorModal?.type === 'BLOQUEANTE' ? 'warning.dark' : 'info.dark', display: 'flex', alignItems: 'center', gap: 1, fontWeight: 700 }}>
+          {warningDoctorModal?.type === 'BLOQUEANTE' ? (
+            <WarningIcon color="warning" fontSize="large" />
+          ) : (
+            <InfoIcon color="info" fontSize="large" />
+          )}
+          {warningDoctorModal?.type === 'BLOQUEANTE' ? 'Advertencia Importante — ' : 'Aviso Importante — '}
+          Dr/a. {warningDoctorModal?.doctor?.nombre} {warningDoctorModal?.doctor?.apellido}
+        </DialogTitle>
+        <DialogContent dividers>
+          <Alert
+            severity={warningDoctorModal?.type === 'BLOQUEANTE' ? 'warning' : 'info'}
+            icon={false}
+            sx={{
+              borderRadius: 2,
+              mb: 2,
+              border: warningDoctorModal?.type === 'BLOQUEANTE' ? '1px solid #fde047' : '1px solid #7dd3fc',
+              bgcolor: warningDoctorModal?.type === 'BLOQUEANTE' ? '#fefce8' : '#f0f9ff',
+            }}
+          >
+            <Typography variant="body1" fontWeight={600} color={warningDoctorModal?.type === 'BLOQUEANTE' ? '#854d0e' : '#0369a1'} sx={{ whiteSpace: 'pre-line' }}>
+              {warningDoctorModal?.type === 'BLOQUEANTE'
+                ? warningDoctorModal?.doctor?.mensajeAdvertenciaBloqueante
+                : warningDoctorModal?.doctor?.mensajeAdvertenciaInformativa}
+            </Typography>
+          </Alert>
+          <Typography variant="caption" color="text.secondary">
+            {warningDoctorModal?.type === 'BLOQUEANTE'
+              ? 'Este profesional ha suspendido la reserva web de sus turnos. Por favor seguí las instrucciones indicadas arriba.'
+              : ''}
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2, justifyContent: 'space-between' }}>
+          {warningDoctorModal?.type === 'BLOQUEANTE' ? (
+            <Button onClick={() => setWarningDoctorModal(null)} color="primary" variant="contained" fullWidth sx={{ fontWeight: 700 }}>
+              Entendido
+            </Button>
+          ) : (
+            <>
+              <Button onClick={() => setWarningDoctorModal(null)} variant="outlined">
+                Cancelar
+              </Button>
+              <Button onClick={handleContinuarTrasAdvertenciaInformativa} color="primary" variant="contained" sx={{ fontWeight: 700 }}>
+                Entendido, continuar con la reserva
+              </Button>
+            </>
+          )}
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
