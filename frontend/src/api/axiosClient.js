@@ -1,8 +1,18 @@
 import axios from 'axios';
 
+// Obtener URL base del backend desde las variables de entorno de Vite
+const envApiUrl = import.meta.env.VITE_API_URL;
+
+// Normalizar la baseURL: si VITE_API_URL está definida, asegurar formato absoluto con '/api'
+const getBaseUrl = () => {
+  if (!envApiUrl || !envApiUrl.trim()) return '/api';
+  const cleanUrl = envApiUrl.trim().endsWith('/') ? envApiUrl.trim().slice(0, -1) : envApiUrl.trim();
+  return cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
+};
+
 // Instancia centralizada de Axios con timeout defensivo
 const axiosClient = axios.create({
-  baseURL: '/api',
+  baseURL: getBaseUrl(),
   headers: {
     'Content-Type': 'application/json',
   },
