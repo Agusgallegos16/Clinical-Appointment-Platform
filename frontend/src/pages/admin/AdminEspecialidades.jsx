@@ -17,7 +17,12 @@ import {
   DialogContentText,
   DialogActions,
 } from '@mui/material';
-import { Add as AddIcon, MedicalServices as MedicalIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import {
+  Add as AddIcon,
+  MedicalServices as MedicalIcon,
+  Delete as DeleteIcon,
+  Edit as EditIcon,
+} from '@mui/icons-material';
 import { especialidadService } from '../../api/especialidadService';
 
 const AdminEspecialidades = () => {
@@ -29,6 +34,12 @@ const AdminEspecialidades = () => {
 
   const [nombre, setNombre] = useState('');
   const [descripcion, setDescripcion] = useState('');
+
+  // Modal Editar
+  const [selectedEdit, setSelectedEdit] = useState(null);
+  const [editNombre, setEditNombre] = useState('');
+  const [editDescripcion, setEditDescripcion] = useState('');
+  const [updating, setUpdating] = useState(false);
 
   // Modal Eliminar
   const [selectedDelete, setSelectedDelete] = useState(null);
@@ -68,6 +79,34 @@ const AdminEspecialidades = () => {
     }
   };
 
+  const handleOpenEditModal = (esp) => {
+    setSelectedEdit(esp);
+    setEditNombre(esp.nombre || '');
+    setEditDescripcion(esp.descripcion || '');
+  };
+
+  const handleGuardarEdicion = async (e) => {
+    e.preventDefault();
+    if (!selectedEdit) return;
+    setUpdating(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      await especialidadService.actualizar(selectedEdit.id, {
+        nombre: editNombre,
+        descripcion: editDescripcion,
+      });
+      setSuccess(`¡Especialidad "${editNombre}" actualizada exitosamente!`);
+      setSelectedEdit(null);
+      cargarEspecialidades();
+    } catch (err) {
+      setError(err.response?.data?.mensaje || err.response?.data?.message || 'Error al actualizar la especialidad.');
+    } finally {
+      setUpdating(false);
+    }
+  };
+
   const handleConfirmEliminar = async () => {
     if (!selectedDelete) return;
     setDeleting(true);
@@ -102,7 +141,7 @@ const AdminEspecialidades = () => {
       <Grid container spacing={3}>
         {/* Formulario Nueva Especialidad */}
         <Grid item xs={12} md={5}>
-          <Paper sx={{ p: 3 }}>
+          <Paper sx={{ p: 3, borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
             <Typography variant="h6" fontWeight={600} mb={2}>
               Dar de Alta Especialidad
             </Typography>
@@ -147,7 +186,7 @@ const AdminEspecialidades = () => {
 
         {/* Lista de Especialidades */}
         <Grid item xs={12} md={7}>
-          <Paper sx={{ p: 3 }}>
+          <Paper sx={{ p: 3, borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
             <Typography variant="h6" fontWeight={600} mb={2}>
               Especialidades Existentes ({especialidades.length})
             </Typography>
@@ -158,7 +197,7 @@ const AdminEspecialidades = () => {
               <Grid container spacing={2}>
                 {especialidades.map((esp) => (
                   <Grid item xs={12} key={esp.id}>
-                    <Card variant="outlined">
+                    <Card variant="outlined" sx={{ borderRadius: 2.5, transition: '0.2s', '&:hover': { borderColor: 'primary.main' } }}>
                       <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
                         <Box display="flex" justifyContent="space-between" alignItems="center">
                           <Box display="flex" alignItems="center" gap={1.5}>
@@ -172,13 +211,22 @@ const AdminEspecialidades = () => {
                               </Typography>
                             </Box>
                           </Box>
-                          <IconButton
-                            color="error"
-                            onClick={() => setSelectedDelete(esp)}
-                            title="Eliminar especialidad"
-                          >
-                            <DeleteIcon />
-                          </IconButton>
+                          <Box display="flex" gap={0.5}>
+                            <IconButton
+                              color="primary"
+                              onClick={() => handleOpenEditModal(esp)}
+                              title="Editar especialidad"
+                            >
+                              <EditIcon />
+                            </IconButton>
+                            <IconButton
+                              color="error"
+                              onClick={() => setSelectedDelete(esp)}
+                              title="Eliminar especialidad"
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                          </Box>
                         </Box>
                       </CardContent>
                     </Card>
@@ -189,6 +237,46 @@ const AdminEspecialidades = () => {
           </Paper>
         </Grid>
       </Grid>
+
+      {/* Modal Editar Especialidad */}
+      <Dialog open={!!selectedEdit} onClose={() => setSelectedEdit(null)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700 }}>
+          Editar Especialidad Médica ✏️
+        </DialogTitle>
+        <Box component="form" onSubmit={handleGuardarEdicion}>
+          <DialogContent dividers>
+            <TextField
+              fullWidth
+              margin="normal"
+              label="Nombre de la Especialidad"
+              value={editNombre}
+              onChange={(e) => setEditNombre(e.target.value)}
+              required
+            />
+            <TextField
+              fullWidth
+              margin="normal"
+              multiline
+              rows={3}
+              label="Descripción"
+              value={editDescripcion}
+              onChange={(e) => setEditDescripcion(e.target.value)}
+              required
+            />
+          </DialogContent>
+          <DialogActions sx={{ p: 2 }}>
+            <Button onClick={() => setSelectedEdit(null)}>Cancelar</Button>
+            <Button
+              type="submit"
+              variant="contained"
+              color="primary"
+              disabled={updating || !editNombre}
+            >
+              {updating ? <CircularProgress size={20} color="inherit" /> : 'Guardar Cambios'}
+            </Button>
+          </DialogActions>
+        </Box>
+      </Dialog>
 
       {/* Modal Confirmación Eliminación */}
       <Dialog open={!!selectedDelete} onClose={() => setSelectedDelete(null)}>

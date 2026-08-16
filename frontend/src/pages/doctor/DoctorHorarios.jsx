@@ -27,6 +27,11 @@ import {
   TableRow,
   TableCell,
   TableContainer,
+  Stepper,
+  Step,
+  StepLabel,
+  CardActionArea,
+  Divider,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -35,14 +40,15 @@ import {
   DeleteSweep as DeleteSweepIcon,
   Settings as SettingsIcon,
   FolderCopy as TemplateIcon,
-  Info as InfoIcon,
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
   Today as TodayIcon,
   Block as BlockIcon,
   Warning as WarningIcon,
   MedicalServices as MedicalIcon,
-  History as HistoryIcon,
+  CheckCircle as CheckCircleIcon,
+  ArrowForward as ArrowForwardIcon,
+  ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { doctorService } from '../../api/doctorService';
@@ -52,7 +58,6 @@ const diasSemanaEnum = ['DOMINGO', 'LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VI
 const diasNombreEs = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
 // Funciones de normalización defensiva para datos de bloqueos
-// Maneja tanto arrays numéricos [2026,8,11] como strings ISO "2026-08-11"
 const normalizeFecha = (f) => {
   if (f == null) return null;
   if (Array.isArray(f)) {
@@ -99,6 +104,19 @@ const generateTimeSlots = () => {
   return times;
 };
 
+const stepsManualWizard = [
+  'Especialidad Médica',
+  'Configuración & Día',
+  'Horarios & Duración',
+  'Resumen & Confirmación',
+];
+
+const stepsTemplateWizard = [
+  'Seleccionar Plantilla',
+  'Día & Vigencia',
+  'Resumen & Confirmación',
+];
+
 const DoctorHorarios = () => {
   const { entidadId } = useAuth();
   const todayStr = dayjs().format('YYYY-MM-DD');
@@ -117,10 +135,12 @@ const DoctorHorarios = () => {
   const [errorModalTitle, setErrorModalTitle] = useState('Atención');
   const [success, setSuccess] = useState('');
 
-  // Navegación de semana (Inicio de semana actual: Domingo)
+  // Navegación de semana
   const [currentWeekStart, setCurrentWeekStart] = useState(dayjs().startOf('week'));
 
-  // Formulario nuevo horario manual
+  // WIZARD MODAL 1: AGREGAR FRANJA HORARIA MANUAL
+  const [openManualWizard, setOpenManualWizard] = useState(false);
+  const [activeStepManual, setActiveStepManual] = useState(0);
   const [selectedEspecialidadId, setSelectedEspecialidadId] = useState('');
   const [tipoHorario, setTipoHorario] = useState('RECURRENTE');
   const [diaSemana, setDiaSemana] = useState('LUNES');
@@ -131,7 +151,9 @@ const DoctorHorarios = () => {
   const [horaFin, setHoraFin] = useState('13:00');
   const [duracionTurno, setDuracionTurno] = useState(30);
 
-  // Formulario aplicar plantilla
+  // WIZARD MODAL 2: APLICAR PLANTILLA
+  const [openTemplateWizard, setOpenTemplateWizard] = useState(false);
+  const [activeStepTemplate, setActiveStepTemplate] = useState(0);
   const [selectedPlantillaId, setSelectedPlantillaId] = useState('');
   const [tipoAplicacion, setTipoAplicacion] = useState('RECURRENTE');
   const [diaAplicar, setDiaAplicar] = useState('LUNES');
@@ -140,11 +162,9 @@ const DoctorHorarios = () => {
   const [fechaHastaAplicar, setFechaHastaAplicar] = useState('');
   const [applying, setApplying] = useState(false);
 
-  // Modal para deshabilitar / bloquear slot individual
+  // Modales de bloqueo / edición / eliminación
   const [selectedSlotBlock, setSelectedSlotBlock] = useState(null);
   const [blocking, setBlocking] = useState(false);
-
-  // Modal para editar / configurar franja horaria existente ⚙️
   const [editingHorario, setEditingHorario] = useState(null);
   const [editFormData, setEditFormData] = useState({
     especialidadId: '',
@@ -156,12 +176,8 @@ const DoctorHorarios = () => {
     horaFin: '13:00',
     duracionTurnoMinutos: 30,
   });
-
-  // Modal para borrar horarios de toda la semana visible
   const [showClearWeekModal, setShowClearWeekModal] = useState(false);
   const [clearingWeek, setClearingWeek] = useState(false);
-
-  // Modal para eliminar franja horaria completa
   const [selectedHorarioDelete, setSelectedHorarioDelete] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
@@ -189,7 +205,6 @@ const DoctorHorarios = () => {
   const cargarHorarios = async () => {
     try {
       const data = await doctorService.obtenerHorarios(entidadId);
-      // Normalizar fechas y horas para manejar ambos formatos (array/string) de Jackson
       const normalized = data.map((h) => ({
         ...h,
         fecha: normalizeFecha(h.fecha),
@@ -233,7 +248,6 @@ const DoctorHorarios = () => {
 
   const timeSlots = useMemo(() => generateTimeSlots(), []);
 
-  // Días de la semana visible con sus fechas reales (Domingo a Sábado) y estado de fecha pasada
   const weekDaysWithDates = useMemo(() => {
     const todayStart = dayjs().startOf('day');
 
@@ -254,7 +268,6 @@ const DoctorHorarios = () => {
     });
   }, [currentWeekStart]);
 
-  // Renderizar la grilla con los slots instanciados concretos directamente cargados desde la BD
   const weekSlotsByDate = useMemo(() => {
     const slotsMap = {};
 
@@ -299,7 +312,6 @@ const DoctorHorarios = () => {
     return slotsMap;
   }, [slots, weekDaysWithDates]);
 
-  // Precalculo de filas absorbidas por rowSpan previa en la grilla estilo Excel
   const coveredRowsByDate = useMemo(() => {
     const map = {};
     weekDaysWithDates.forEach((d) => {
@@ -335,7 +347,6 @@ const DoctorHorarios = () => {
     return map;
   }, [weekDaysWithDates, weekSlotsByDate, timeSlots]);
 
-  // FILTRADO Y ORDENAMIENTO DINÁMICO DE LA LISTA INFERIOR
   const horariosVisiblesEnSemana = useMemo(() => {
     const weekStart = currentWeekStart.startOf('day');
     const weekEnd = currentWeekStart.add(6, 'day').endOf('day');
@@ -383,8 +394,32 @@ const DoctorHorarios = () => {
   const handleNextWeek = () => setCurrentWeekStart((prev) => prev.add(1, 'week'));
   const handleToday = () => setCurrentWeekStart(dayjs().startOf('week'));
 
-  const handleGuardarHorario = async (e) => {
-    e.preventDefault();
+  // MÉTODOS DEL WIZARD MANUAL
+  const handleOpenManualWizard = () => {
+    setActiveStepManual(0);
+    setOpenManualWizard(true);
+  };
+
+  const handleNextManual = () => {
+    if (activeStepManual === 1) {
+      if (tipoHorario === 'PUNTUAL' && !fechaPuntual) {
+        triggerErrorModal('Por favor selecciona una fecha puntual específica.', 'Campo Requerido');
+        return;
+      }
+    } else if (activeStepManual === 2) {
+      if (!horaInicio || !horaFin) {
+        triggerErrorModal('Por favor indica la hora de inicio y fin de la franja.', 'Campos Requeridos');
+        return;
+      }
+    }
+    setActiveStepManual((prev) => prev + 1);
+  };
+
+  const handleBackManual = () => {
+    setActiveStepManual((prev) => prev - 1);
+  };
+
+  const handleGuardarHorarioWizard = async () => {
     setSaving(true);
     setErrorModal('');
     setSuccess('');
@@ -406,16 +441,77 @@ const DoctorHorarios = () => {
       }
 
       await doctorService.agregarHorario(entidadId, payload);
-      setSuccess('¡Horario de atención agregado y slots generados exitosamente!');
+      setSuccess('¡Franja horaria agregada y turnos generados exitosamente!');
+      setOpenManualWizard(false);
       setFechaDesde('');
       setFechaHasta('');
+      setFechaPuntual('');
       cargarHorarios();
       cargarSlots();
     } catch (err) {
-      const msg = err.response?.data?.mensaje || err.response?.data?.message || 'Error al guardar el horario.';
+      const msg = err.response?.data?.mensaje || err.response?.data?.message || 'Error al guardar la franja horaria.';
       triggerErrorModal(msg, 'Conflicto de Horario');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // MÉTODOS DEL WIZARD PLANTILLA
+  const handleOpenTemplateWizard = () => {
+    if (plantillas.length > 0 && !selectedPlantillaId) {
+      setSelectedPlantillaId(plantillas[0].id);
+    }
+    setActiveStepTemplate(0);
+    setOpenTemplateWizard(true);
+  };
+
+  const handleNextTemplate = () => {
+    if (activeStepTemplate === 0 && !selectedPlantillaId) {
+      triggerErrorModal('Por favor selecciona una plantilla de la lista.', 'Campo Requerido');
+      return;
+    }
+    if (activeStepTemplate === 1) {
+      if (tipoAplicacion === 'PUNTUAL' && !fechaAplicar) {
+        triggerErrorModal('Por favor indica la fecha específica de aplicación.', 'Campo Requerido');
+        return;
+      }
+    }
+    setActiveStepTemplate((prev) => prev + 1);
+  };
+
+  const handleBackTemplate = () => {
+    setActiveStepTemplate((prev) => prev - 1);
+  };
+
+  const handleAplicarPlantillaWizard = async () => {
+    if (!selectedPlantillaId) return;
+    setApplying(true);
+    setErrorModal('');
+    setSuccess('');
+
+    try {
+      const payload = { plantillaId: Number(selectedPlantillaId) };
+      if (tipoAplicacion === 'RECURRENTE') {
+        payload.diaSemana = diaAplicar;
+        payload.fechaDesde = fechaDesdeAplicar || null;
+        payload.fechaHasta = fechaHastaAplicar || null;
+      } else {
+        payload.fecha = fechaAplicar;
+      }
+
+      await doctorService.aplicarPlantilla(entidadId, payload);
+      setSuccess('¡Plantilla aplicada correctamente con su período de atención!');
+      setOpenTemplateWizard(false);
+      setFechaDesdeAplicar('');
+      setFechaHastaAplicar('');
+      setFechaAplicar('');
+      cargarHorarios();
+      cargarSlots();
+    } catch (err) {
+      const msg = err.response?.data?.mensaje || err.response?.data?.message || 'Error al aplicar la plantilla.';
+      triggerErrorModal(msg, 'Aplicar Plantilla');
+    } finally {
+      setApplying(false);
     }
   };
 
@@ -486,37 +582,6 @@ const DoctorHorarios = () => {
     }
   };
 
-  const handleAplicarPlantilla = async (e) => {
-    e.preventDefault();
-    if (!selectedPlantillaId) return;
-    setApplying(true);
-    setErrorModal('');
-    setSuccess('');
-
-    try {
-      const payload = { plantillaId: Number(selectedPlantillaId) };
-      if (tipoAplicacion === 'RECURRENTE') {
-        payload.diaSemana = diaAplicar;
-        payload.fechaDesde = fechaDesdeAplicar || null;
-        payload.fechaHasta = fechaHastaAplicar || null;
-      } else {
-        payload.fecha = fechaAplicar;
-      }
-
-      await doctorService.aplicarPlantilla(entidadId, payload);
-      setSuccess('¡Plantilla aplicada correctamente con su período de vigencia!');
-      setFechaDesdeAplicar('');
-      setFechaHastaAplicar('');
-      cargarHorarios();
-      cargarSlots();
-    } catch (err) {
-      const msg = err.response?.data?.mensaje || err.response?.data?.message || 'Error al aplicar la plantilla.';
-      triggerErrorModal(msg, 'Aplicar Plantilla');
-    } finally {
-      setApplying(false);
-    }
-  };
-
   const handleConfirmEliminarHorario = async () => {
     if (!selectedHorarioDelete) return;
     setDeleting(true);
@@ -554,15 +619,27 @@ const DoctorHorarios = () => {
     }
   };
 
+  const especialidadSeleccionadaNombre = useMemo(() => {
+    if (!doctorInfo?.especialidades) return 'General';
+    const esp = doctorInfo.especialidades.find((e) => Number(e.id) === Number(selectedEspecialidadId));
+    return esp ? esp.nombre : 'General';
+  }, [doctorInfo, selectedEspecialidadId]);
+
+  const plantillaSeleccionadaNombre = useMemo(() => {
+    const p = plantillas.find((item) => Number(item.id) === Number(selectedPlantillaId));
+    return p ? p.nombre : '';
+  }, [plantillas, selectedPlantillaId]);
+
   return (
     <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2} mb={2}>
+      {/* CABECERA PRINCIPAL CON CHIP INDICADOR */}
+      <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2} mb={3}>
         <Box>
           <Typography variant="h4" fontWeight={700} color="primary" mb={0.5}>
             Gestión de Horarios por Especialidad
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Configurá tus días y horarios de atención.
+            Configurá tus días y horarios de atención médica.
           </Typography>
         </Box>
 
@@ -686,12 +763,10 @@ const DoctorHorarios = () => {
                       const daySlots = weekSlotsByDate[dateStr] || [];
                       const isPastCell = dayInfo.isPastDay || (dayInfo.isTodayDay && rowEndMin <= currentMinutesToday);
 
-                      // Si esta celda fue absorbida por un rowSpan previo, no renderizar <TableCell>
                       if (coveredRowsByDate[dateStr]?.has(rowStartMin)) {
                         return null;
                       }
 
-                      // Turnos que COMIENZAN dentro del rango de esta fila [rowStartMin, rowEndMin)
                       const startingSlots = daySlots.filter(
                         (s) => s.startMinutes >= rowStartMin && s.startMinutes < rowEndMin
                       );
@@ -729,8 +804,6 @@ const DoctorHorarios = () => {
                               {startingSlots.map((slot) => {
                                 const palette = slot.colorPalette;
                                 const isPastSlot = isPastCell;
-
-                                // Escala Exacta de Unidad Base: 15m = 24px (1X), 30m = 48px (2X), 45m = 72px (3X), 60m = 96px (4X)
                                 const topOffsetPx = Math.round(((slot.startMinutes - rowStartMin) / 15) * 24);
                                 const slotHeightPx = Math.max(22, Math.round((slot.durationMinutes / 15) * 24) - 2);
 
@@ -813,275 +886,109 @@ const DoctorHorarios = () => {
         </TableContainer>
       </Paper>
 
-      <Grid container spacing={3}>
-        {/* Formularios a la Izquierda */}
+      {/* PARTE INFERIOR DIVIDIDA A LA MITAD: IZQUIERDA (BOTONES GRANDES) | DERECHA (FRANJAS CONFIGURADAS) */}
+      <Grid container spacing={3} alignItems="flex-start">
+        {/* COLUMNA IZQUIERDA: BOTONES DE ACCIÓN GRANDES Y ALARGADOS */}
         <Grid item xs={12} md={5}>
-          {/* Opción 1: Aplicar Plantilla Directamente */}
-          {plantillas.length > 0 && (
-            <Paper sx={{ p: 3, mb: 3, borderColor: 'secondary.main', borderWidth: 2 }}>
-              <Box display="flex" alignItems="center" gap={1} mb={1}>
-                <TemplateIcon color="secondary" />
-                <Typography variant="h6" fontWeight={700} color="secondary.dark">
-                  Aplicar una Plantilla
-                </Typography>
-              </Box>
+          <Paper sx={{ p: 3, borderRadius: 3, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+            <Box display="flex" flexDirection="column" gap={2}>
+              {/* Botón Grande 1: Agregar Franja Horaria Manual */}
+              <Button
+                variant="contained"
+                color="primary"
+                size="large"
+                fullWidth
+                startIcon={<AddIcon sx={{ fontSize: 28 }} />}
+                onClick={handleOpenManualWizard}
+                sx={{
+                  py: 1.8,
+                  px: 2.5,
+                  borderRadius: 2.5,
+                  fontWeight: 700,
+                  fontSize: '0.95rem',
+                  justifyContent: 'flex-start',
+                  textAlign: 'left',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
+                  '&:hover': {
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                  },
+                }}
+              >
+                <Box textTransform="none">
+                  <Typography variant="subtitle1" fontWeight={700} lineHeight={1.2}>
+                    Agregar Franja De Turnos
+                  </Typography>
+                  <Typography variant="caption" sx={{ opacity: 0.95 }}>
+                    Configurá un día, rango horario y especialidad manualmente.
+                  </Typography>
+                </Box>
+              </Button>
 
-              <Box component="form" onSubmit={handleAplicarPlantilla}>
-                <FormControl fullWidth margin="dense">
-                  <InputLabel>Seleccionar Plantilla</InputLabel>
-                  <Select
-                    value={selectedPlantillaId}
-                    onChange={(e) => setSelectedPlantillaId(e.target.value)}
-                    label="Seleccionar Plantilla"
-                    required
-                  >
-                    {plantillas.map((p) => (
-                      <MenuItem key={p.id} value={p.id}>{p.nombre}</MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
-
-                <FormControl fullWidth margin="dense">
-                  <InputLabel>Aplicar A</InputLabel>
-                  <Select
-                    value={tipoAplicacion}
-                    onChange={(e) => setTipoAplicacion(e.target.value)}
-                    label="Aplicar A"
-                  >
-                    <MenuItem value="RECURRENTE">Día Semanal Recurrente</MenuItem>
-                    <MenuItem value="PUNTUAL">Fecha Puntual Específica</MenuItem>
-                  </Select>
-                </FormControl>
-
-                {tipoAplicacion === 'RECURRENTE' ? (
-                  <>
-                    <FormControl fullWidth margin="dense">
-                      <InputLabel>Día de la Semana</InputLabel>
-                      <Select
-                        value={diaAplicar}
-                        onChange={(e) => setDiaAplicar(e.target.value)}
-                        label="Día de la Semana"
-                      >
-                        {['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO'].map((d) => (
-                          <MenuItem key={d} value={d}>{d}</MenuItem>
-                        ))}
-                      </Select>
-                    </FormControl>
-
-                    <Grid container spacing={2} sx={{ mt: 0.5 }}>
-                      <Grid item xs={6}>
-                        <TextField
-                          fullWidth
-                          label="Vigencia Desde (Opcional)"
-                          type="date"
-                          value={fechaDesdeAplicar}
-                          onChange={(e) => setFechaDesdeAplicar(e.target.value)}
-                          inputProps={{ min: todayStr }}
-                          InputLabelProps={{ shrink: true }}
-                        />
-                      </Grid>
-                      <Grid item xs={6}>
-                        <TextField
-                          fullWidth
-                          label="Vigencia Hasta (Opcional)"
-                          type="date"
-                          value={fechaHastaAplicar}
-                          onChange={(e) => setFechaHastaAplicar(e.target.value)}
-                          inputProps={{ min: fechaDesdeAplicar || todayStr }}
-                          InputLabelProps={{ shrink: true }}
-                        />
-                      </Grid>
-                    </Grid>
-                  </>
-                ) : (
-                  <TextField
-                    fullWidth
-                    margin="dense"
-                    label="Fecha Específica"
-                    type="date"
-                    value={fechaAplicar}
-                    onChange={(e) => setFechaAplicar(e.target.value)}
-                    required
-                    inputProps={{ min: todayStr }}
-                    InputLabelProps={{ shrink: true }}
-                  />
-                )}
-
+              {/* Botón Grande 2: Aplicar Plantilla */}
+              {plantillas.length > 0 && (
                 <Button
-                  type="submit"
                   variant="contained"
                   color="secondary"
+                  size="large"
                   fullWidth
-                  disabled={applying || !selectedPlantillaId}
-                  sx={{ mt: 2 }}
+                  startIcon={<TemplateIcon sx={{ fontSize: 28 }} />}
+                  onClick={handleOpenTemplateWizard}
+                  sx={{
+                    py: 1.8,
+                    px: 2.5,
+                    borderRadius: 2.5,
+                    fontWeight: 700,
+                    fontSize: '0.95rem',
+                    justifyContent: 'flex-start',
+                    textAlign: 'left',
+                    boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
+                    '&:hover': {
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
+                    },
+                  }}
                 >
-                  {applying ? <CircularProgress size={24} color="inherit" /> : 'Aplicar Plantilla'}
+                  <Box textTransform="none">
+                    <Typography variant="subtitle1" fontWeight={700} lineHeight={1.2}>
+                      Aplicar una Plantilla
+                    </Typography>
+                    <Typography variant="caption" sx={{ opacity: 0.95 }}>
+                      Reutilizá un modelo de horario guardado previamente
+                    </Typography>
+                  </Box>
                 </Button>
-              </Box>
-            </Paper>
-          )}
-
-          {/* Opción 2: Agregar Horario Manual con Selección de Especialidad */}
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" fontWeight={600} mb={2}>
-              Agregar Franja Horaria Manual
-            </Typography>
-
-            <Box component="form" onSubmit={handleGuardarHorario}>
-              {doctorInfo?.especialidades && doctorInfo.especialidades.length > 0 && (
-                <FormControl fullWidth margin="normal">
-                  <InputLabel>Especialidad Médica</InputLabel>
-                  <Select
-                    value={selectedEspecialidadId}
-                    onChange={(e) => setSelectedEspecialidadId(e.target.value)}
-                    label="Especialidad Médica"
-                  >
-                    {doctorInfo.especialidades.map((esp) => (
-                      <MenuItem key={esp.id} value={esp.id}>
-                        {esp.nombre}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
               )}
-
-              <FormControl fullWidth margin="normal">
-                <InputLabel>Tipo de Configuración</InputLabel>
-                <Select
-                  value={tipoHorario}
-                  onChange={(e) => setTipoHorario(e.target.value)}
-                  label="Tipo de Configuración"
-                >
-                  <MenuItem value="RECURRENTE">Semanal Recurrente (Ej. Todos los Lunes)</MenuItem>
-                  <MenuItem value="PUNTUAL">Fecha Puntual Específica</MenuItem>
-                </Select>
-              </FormControl>
-
-              {tipoHorario === 'RECURRENTE' ? (
-                <>
-                  <FormControl fullWidth margin="normal">
-                    <InputLabel>Día de la Semana</InputLabel>
-                    <Select
-                      value={diaSemana}
-                      onChange={(e) => setDiaSemana(e.target.value)}
-                      label="Día de la Semana"
-                    >
-                      {['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO'].map((d) => (
-                        <MenuItem key={d} value={d}>{d}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-
-                  <Grid container spacing={2} sx={{ mt: 0.5 }}>
-                    <Grid item xs={6}>
-                      <TextField
-                        fullWidth
-                        label="Vigencia Desde (Opcional)"
-                        type="date"
-                        value={fechaDesde}
-                        onChange={(e) => setFechaDesde(e.target.value)}
-                        inputProps={{ min: todayStr }}
-                        InputLabelProps={{ shrink: true }}
-                      />
-                    </Grid>
-                    <Grid item xs={6}>
-                      <TextField
-                        fullWidth
-                        label="Vigencia Hasta (Opcional)"
-                        type="date"
-                        value={fechaHasta}
-                        onChange={(e) => setFechaHasta(e.target.value)}
-                        inputProps={{ min: todayStr }}
-                        InputLabelProps={{ shrink: true }}
-                      />
-                    </Grid>
-                  </Grid>
-                </>
-              ) : (
-                <TextField
-                  fullWidth
-                  margin="normal"
-                  label="Fecha Puntual"
-                  type="date"
-                  value={fechaPuntual}
-                  onChange={(e) => setFechaPuntual(e.target.value)}
-                  required
-                  inputProps={{ min: todayStr }}
-                  InputLabelProps={{ shrink: true }}
-                />
-              )}
-
-              <Grid container spacing={2} sx={{ mt: 0.5 }}>
-                <Grid item xs={6}>
-                  <TextField
-                    fullWidth
-                    label="Hora Inicio"
-                    type="time"
-                    value={horaInicio}
-                    onChange={(e) => setHoraInicio(e.target.value)}
-                    required
-                    InputLabelProps={{ shrink: true }}
-                  />
-                </Grid>
-                <Grid item xs={6}>
-                  <TextField
-                    fullWidth
-                    label="Hora Fin"
-                    type="time"
-                    value={horaFin}
-                    onChange={(e) => setHoraFin(e.target.value)}
-                    required
-                    InputLabelProps={{ shrink: true }}
-                  />
-                </Grid>
-              </Grid>
-
-              <TextField
-                fullWidth
-                margin="normal"
-                label="Duración de Turno (Minutos)"
-                type="number"
-                value={duracionTurno}
-                onChange={(e) => setDuracionTurno(e.target.value)}
-                required
-              />
-
-              <Button
-                type="submit"
-                variant="contained"
-                fullWidth
-                size="large"
-                startIcon={<AddIcon />}
-                disabled={saving}
-                sx={{ mt: 3 }}
-              >
-                {saving ? <CircularProgress size={24} color="inherit" /> : 'Aplicar Franja Horaria'}
-              </Button>
             </Box>
           </Paper>
         </Grid>
 
-        {/* Lista de Horarios Existentes Filtrados y Ordenados por Día y Hora */}
+        {/* COLUMNA DERECHA: FRANJAS HORARIAS VIGENTES ESTA SEMANA */}
         <Grid item xs={12} md={7}>
-          <Paper sx={{ p: 3 }}>
-            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-              <Typography variant="h6" fontWeight={600}>
-                Franjas Vigentes esta Semana ({horariosVisiblesEnSemana.length})
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
+          <Paper sx={{ p: 3, borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.06)', height: '100%' }}>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2.5}>
+              <Box display="flex" alignItems="center" gap={1}>
+                <MedicalIcon color="primary" />
+                <Typography variant="h6" fontWeight={700}>
+                  Franjas Vigentes esta Semana ({horariosVisiblesEnSemana.length})
+                </Typography>
+              </Box>
+              <Typography variant="caption" color="text.secondary" fontWeight={500}>
                 {currentWeekStart.format('DD/MM')} al {currentWeekStart.add(6, 'day').format('DD/MM')}
               </Typography>
             </Box>
 
             {loading ? (
-              <CircularProgress />
+              <Box display="flex" justifyContent="center" py={4}>
+                <CircularProgress />
+              </Box>
             ) : horariosVisiblesEnSemana.length === 0 ? (
-              <Alert severity="info">No hay franjas horarias vigentes configuradas para la semana visible.</Alert>
+              <Alert severity="info" sx={{ borderRadius: 2 }}>
+                No tienes franjas horarias configuradas para la semana actual. Haz clic en el botón de la izquierda <strong>"Agregar Franja De Turnos"</strong> o <strong>"Aplicar una Plantilla"</strong> para habilitar tus turnos.
+              </Alert>
             ) : (
               <Grid container spacing={2}>
                 {horariosVisiblesEnSemana.map((h) => (
                   <Grid item xs={12} key={h.id}>
-                    <Card variant="outlined">
+                    <Card variant="outlined" sx={{ borderRadius: 2.5, transition: '0.2s', '&:hover': { borderColor: 'primary.main', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' } }}>
                       <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
                         <Box display="flex" justifyContent="space-between" alignItems="center">
                           <Box display="flex" alignItems="center" gap={1.5}>
@@ -1103,18 +1010,20 @@ const DoctorHorarios = () => {
 
                           <Box display="flex" gap={0.5}>
                             <IconButton
+                              size="small"
                               color="primary"
                               onClick={() => handleOpenEditModal(h)}
-                              title="Configurar / Editar Franja ⚙️"
+                              title="Editar Franja ⚙️"
                             >
-                              <SettingsIcon />
+                              <SettingsIcon fontSize="small" />
                             </IconButton>
                             <IconButton
+                              size="small"
                               color="error"
                               onClick={() => setSelectedHorarioDelete(h)}
-                              title="Eliminar Franja Completa"
+                              title="Eliminar Franja"
                             >
-                              <DeleteIcon />
+                              <DeleteIcon fontSize="small" />
                             </IconButton>
                           </Box>
                         </Box>
@@ -1127,6 +1036,556 @@ const DoctorHorarios = () => {
           </Paper>
         </Grid>
       </Grid>
+
+      {/* ------------------------------------------------------------------ */}
+      {/* AGREGAR FRANJA HORARIA MANUAL       */}
+      {/* ------------------------------------------------------------------ */}
+      <Dialog open={openManualWizard} onClose={() => setOpenManualWizard(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700, pb: 1 }}>
+          ➕ Agregar Franja De Turnos
+        </DialogTitle>
+
+        <DialogContent dividers>
+          <Stepper activeStep={activeStepManual} alternativeLabel sx={{ mb: 3 }}>
+            {stepsManualWizard.map((label) => (
+              <Step key={label}>
+                <StepLabel>{label}</StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+
+          {/* PASO 0: ESPECIALIDAD MÉDICA */}
+          {activeStepManual === 0 && (
+            <Box>
+              <Typography variant="subtitle1" fontWeight={700} mb={1}>
+                Paso 1: Selecciona la Especialidad Médica 🩺
+              </Typography>
+              <Typography variant="body2" color="text.secondary" mb={2}>
+                Indica para cuál de tus especialidades habilitarás este horario de atención.
+              </Typography>
+
+              {doctorInfo?.especialidades && doctorInfo.especialidades.length > 0 ? (
+                <Grid container spacing={1.5}>
+                  {doctorInfo.especialidades.map((esp) => {
+                    const isSelected = Number(selectedEspecialidadId) === Number(esp.id);
+                    return (
+                      <Grid item xs={12} key={esp.id}>
+                        <Card
+                          variant="outlined"
+                          onClick={() => setSelectedEspecialidadId(esp.id)}
+                          sx={{
+                            borderRadius: 2,
+                            borderColor: isSelected ? 'primary.main' : 'divider',
+                            bgcolor: isSelected ? 'primary.50' : 'background.paper',
+                            boxShadow: isSelected ? '0 0 0 2px #0284c7' : 'none',
+                          }}
+                        >
+                          <CardActionArea sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <Box display="flex" alignItems="center" gap={1.5}>
+                              <MedicalIcon color={isSelected ? 'primary' : 'action'} />
+                              <Typography fontWeight={700} color={isSelected ? 'primary.main' : 'text.primary'}>
+                                {esp.nombre}
+                              </Typography>
+                            </Box>
+                            {isSelected && <CheckCircleIcon color="primary" />}
+                          </CardActionArea>
+                        </Card>
+                      </Grid>
+                    );
+                  })}
+                </Grid>
+              ) : (
+                <Alert severity="info">Atendiendo como Medicina General</Alert>
+              )}
+            </Box>
+          )}
+
+          {/* PASO 1: TIPO DE CONFIGURACIÓN Y FECHA / DÍA */}
+          {activeStepManual === 1 && (
+            <Box>
+              <Typography variant="subtitle1" fontWeight={700} mb={1}>
+                Paso 2: ¿Cómo querés aplicar este horario? 📅
+              </Typography>
+              <Typography variant="body2" color="text.secondary" mb={2}>
+                Elegí si es un horario que se repite todas las semanas o una fecha específica única.
+              </Typography>
+
+              <Grid container spacing={2} mb={3}>
+                <Grid item xs={6}>
+                  <Card
+                    variant="outlined"
+                    onClick={() => setTipoHorario('RECURRENTE')}
+                    sx={{
+                      borderRadius: 2,
+                      borderColor: tipoHorario === 'RECURRENTE' ? 'primary.main' : 'divider',
+                      bgcolor: tipoHorario === 'RECURRENTE' ? 'primary.50' : 'background.paper',
+                      boxShadow: tipoHorario === 'RECURRENTE' ? '0 0 0 2px #0284c7' : 'none',
+                    }}
+                  >
+                    <CardActionArea sx={{ p: 2, textAlign: 'center' }}>
+                      <Typography fontWeight={700} color={tipoHorario === 'RECURRENTE' ? 'primary.main' : 'text.primary'}>
+                        Semanal Recurrente
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Ej: Todos los Lunes
+                      </Typography>
+                    </CardActionArea>
+                  </Card>
+                </Grid>
+
+                <Grid item xs={6}>
+                  <Card
+                    variant="outlined"
+                    onClick={() => setTipoHorario('PUNTUAL')}
+                    sx={{
+                      borderRadius: 2,
+                      borderColor: tipoHorario === 'PUNTUAL' ? 'primary.main' : 'divider',
+                      bgcolor: tipoHorario === 'PUNTUAL' ? 'primary.50' : 'background.paper',
+                      boxShadow: tipoHorario === 'PUNTUAL' ? '0 0 0 2px #0284c7' : 'none',
+                    }}
+                  >
+                    <CardActionArea sx={{ p: 2, textAlign: 'center' }}>
+                      <Typography fontWeight={700} color={tipoHorario === 'PUNTUAL' ? 'primary.main' : 'text.primary'}>
+                        Fecha Puntual
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Día único específico
+                      </Typography>
+                    </CardActionArea>
+                  </Card>
+                </Grid>
+              </Grid>
+
+              {tipoHorario === 'RECURRENTE' ? (
+                <>
+                  <FormControl fullWidth margin="normal">
+                    <InputLabel>Día de la Semana</InputLabel>
+                    <Select
+                      value={diaSemana}
+                      onChange={(e) => setDiaSemana(e.target.value)}
+                      label="Día de la Semana"
+                    >
+                      {['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO'].map((d) => (
+                        <MenuItem key={d} value={d}>{d}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+
+                  <Typography variant="caption" color="text.secondary" display="block" mt={1} mb={0.5}>
+                    Período de Vigencia (Opcional - dejar vacío para vigencia indefinida)
+                  </Typography>
+
+                  <Grid container spacing={2}>
+                    <Grid item xs={6}>
+                      <TextField
+                        fullWidth
+                        label="Vigencia Desde"
+                        type="date"
+                        value={fechaDesde}
+                        onChange={(e) => setFechaDesde(e.target.value)}
+                        inputProps={{ min: todayStr }}
+                        InputLabelProps={{ shrink: true }}
+                      />
+                    </Grid>
+                    <Grid item xs={6}>
+                      <TextField
+                        fullWidth
+                        label="Vigencia Hasta"
+                        type="date"
+                        value={fechaHasta}
+                        onChange={(e) => setFechaHasta(e.target.value)}
+                        inputProps={{ min: fechaDesde || todayStr }}
+                        InputLabelProps={{ shrink: true }}
+                      />
+                    </Grid>
+                  </Grid>
+                </>
+              ) : (
+                <TextField
+                  fullWidth
+                  margin="normal"
+                  label="Seleccionar Fecha Puntual"
+                  type="date"
+                  value={fechaPuntual}
+                  onChange={(e) => setFechaPuntual(e.target.value)}
+                  required
+                  inputProps={{ min: todayStr }}
+                  InputLabelProps={{ shrink: true }}
+                />
+              )}
+            </Box>
+          )}
+
+          {/* PASO 2: HORARIOS Y DURACIÓN DE TURNO */}
+          {activeStepManual === 2 && (
+            <Box>
+              <Typography variant="subtitle1" fontWeight={700} mb={1}>
+                Paso 3: Definí el Rango Horario y Duración ⏰
+              </Typography>
+              <Typography variant="body2" color="text.secondary" mb={2}>
+                Indicá la hora de inicio, hora de fin y cuánto durará cada consulta médica.
+              </Typography>
+
+              <Grid container spacing={2} mb={2}>
+                <Grid item xs={6}>
+                  <TextField
+                    fullWidth
+                    label="Hora de Inicio"
+                    type="time"
+                    value={horaInicio}
+                    onChange={(e) => setHoraInicio(e.target.value)}
+                    required
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+                <Grid item xs={6}>
+                  <TextField
+                    fullWidth
+                    label="Hora de Fin"
+                    type="time"
+                    value={horaFin}
+                    onChange={(e) => setHoraFin(e.target.value)}
+                    required
+                    InputLabelProps={{ shrink: true }}
+                  />
+                </Grid>
+              </Grid>
+
+              <Typography variant="subtitle2" fontWeight={600} mb={1}>
+                Duración de cada turno:
+              </Typography>
+              <TextField
+                fullWidth
+                margin="dense"
+                label="Duración (En Minutos)"
+                type="number"
+                value={duracionTurno}
+                onChange={(e) => setDuracionTurno(e.target.value)}
+                required
+              />
+            </Box>
+          )}
+
+          {/* PASO 3: RESUMEN Y CONFIRMACIÓN */}
+          {activeStepManual === 3 && (
+            <Box>
+              <Typography variant="subtitle1" fontWeight={700} mb={1}>
+                Paso 4: Confirma la Configuración 📋
+              </Typography>
+              <Typography variant="body2" color="text.secondary" mb={2}>
+                Revisá que los datos ingresados sean correctos antes de habilitar tus turnos.
+              </Typography>
+
+              <Paper variant="outlined" sx={{ p: 2.5, bgcolor: 'primary.50', borderRadius: 3, mb: 2 }}>
+                <Box display="flex" alignItems="center" gap={1} mb={1.5}>
+                  <MedicalIcon color="primary" />
+                  <Typography fontWeight={700} color="primary.main" variant="h6">
+                    {especialidadSeleccionadaNombre}
+                  </Typography>
+                </Box>
+                <Divider sx={{ my: 1 }} />
+
+                <Grid container spacing={1.5} sx={{ mt: 0.5 }}>
+                  <Grid item xs={12}>
+                    <Typography variant="body2" color="text.secondary">Frecuencia:</Typography>
+                    <Typography variant="subtitle2" fontWeight={700}>
+                      {tipoHorario === 'RECURRENTE' ? `Todos los ${diaSemana}` : `Fecha Puntual: ${fechaPuntual}`}
+                    </Typography>
+                  </Grid>
+
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">Rango Horario:</Typography>
+                    <Typography variant="subtitle2" fontWeight={700}>
+                      {horaInicio} hs a {horaFin} hs
+                    </Typography>
+                  </Grid>
+
+                  <Grid item xs={6}>
+                    <Typography variant="body2" color="text.secondary">Duración por Turno:</Typography>
+                    <Typography variant="subtitle2" fontWeight={700}>
+                      {duracionTurno} minutos
+                    </Typography>
+                  </Grid>
+
+                  {tipoHorario === 'RECURRENTE' && (fechaDesde || fechaHasta) && (
+                    <Grid item xs={12}>
+                      <Typography variant="body2" color="text.secondary">Vigencia:</Typography>
+                      <Typography variant="subtitle2" fontWeight={700} color="primary.dark">
+                        Desde: {fechaDesde || 'Inmediata'} ➔ Hasta: {fechaHasta || 'Indefinida'}
+                      </Typography>
+                    </Grid>
+                  )}
+                </Grid>
+              </Paper>
+            </Box>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{ p: 2.5, justifyContent: 'space-between' }}>
+          <Button
+            disabled={activeStepManual === 0 || saving}
+            onClick={handleBackManual}
+            startIcon={<ArrowBackIcon />}
+          >
+            Anterior
+          </Button>
+
+          {activeStepManual < stepsManualWizard.length - 1 ? (
+            <Button
+              variant="contained"
+              onClick={handleNextManual}
+              endIcon={<ArrowForwardIcon />}
+            >
+              Siguiente
+            </Button>
+          ) : (
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={handleGuardarHorarioWizard}
+              disabled={saving}
+              startIcon={saving ? <CircularProgress size={20} color="inherit" /> : <CheckCircleIcon />}
+              sx={{ fontWeight: 700, px: 3 }}
+            >
+              Confirmar y Habilitar Turnos
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
+
+      {/* ------------------------------------------------------------------ */}
+      {/* WIZARD MODAL 2: APLICAR PLANTILLA PASO A PASO                      */}
+      {/* ------------------------------------------------------------------ */}
+      <Dialog open={openTemplateWizard} onClose={() => setOpenTemplateWizard(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ fontWeight: 700, pb: 1 }}>
+          🟣 Aplicar Plantilla de Horario
+        </DialogTitle>
+
+        <DialogContent dividers>
+          <Stepper activeStep={activeStepTemplate} alternativeLabel sx={{ mb: 3 }}>
+            {stepsTemplateWizard.map((label) => (
+              <Step key={label}>
+                <StepLabel>{label}</StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+
+          {/* PASO 0: SELECCIONAR PLANTILLA */}
+          {activeStepTemplate === 0 && (
+            <Box>
+              <Typography variant="subtitle1" fontWeight={700} mb={1}>
+                Paso 1: Selecciona una Plantilla Guardada 📂
+              </Typography>
+              <Typography variant="body2" color="text.secondary" mb={2}>
+                Elegí la plantilla de turnos previamente configurada que deseas aplicar.
+              </Typography>
+
+              <Grid container spacing={1.5}>
+                {plantillas.map((p) => {
+                  const isSelected = Number(selectedPlantillaId) === Number(p.id);
+                  return (
+                    <Grid item xs={12} key={p.id}>
+                      <Card
+                        variant="outlined"
+                        onClick={() => setSelectedPlantillaId(p.id)}
+                        sx={{
+                          borderRadius: 2,
+                          borderColor: isSelected ? 'secondary.main' : 'divider',
+                          bgcolor: isSelected ? 'secondary.50' : 'background.paper',
+                        }}
+                      >
+                        <CardActionArea sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Box display="flex" alignItems="center" gap={1.5}>
+                            <TemplateIcon color={isSelected ? 'secondary' : 'action'} />
+                            <Box>
+                              <Typography fontWeight={700} color={isSelected ? 'secondary.dark' : 'text.primary'}>
+                                {p.nombre}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {p.especialidad ? p.especialidad.nombre : 'Medicina General'}
+                              </Typography>
+                            </Box>
+                          </Box>
+                          {isSelected && <CheckCircleIcon color="secondary" />}
+                        </CardActionArea>
+                      </Card>
+                    </Grid>
+                  );
+                })}
+              </Grid>
+            </Box>
+          )}
+
+          {/* PASO 1: DÍA Y VIGENCIA DE APLICACIÓN */}
+          {activeStepTemplate === 1 && (
+            <Box>
+              <Typography variant="subtitle1" fontWeight={700} mb={1}>
+                Paso 2: ¿Cuándo querés aplicar esta plantilla? 📅
+              </Typography>
+
+              <Grid container spacing={2} mb={3}>
+                <Grid item xs={6}>
+                  <Card
+                    variant="outlined"
+                    onClick={() => setTipoAplicacion('RECURRENTE')}
+                    sx={{
+                      borderRadius: 2,
+                      borderColor: tipoAplicacion === 'RECURRENTE' ? 'secondary.main' : 'divider',
+                      bgcolor: tipoAplicacion === 'RECURRENTE' ? 'secondary.50' : 'background.paper',
+                    }}
+                  >
+                    <CardActionArea sx={{ p: 2, textAlign: 'center' }}>
+                      <Typography fontWeight={700} color={tipoAplicacion === 'RECURRENTE' ? 'secondary.dark' : 'text.primary'}>
+                        Semanal Recurrente
+                      </Typography>
+                    </CardActionArea>
+                  </Card>
+                </Grid>
+
+                <Grid item xs={6}>
+                  <Card
+                    variant="outlined"
+                    onClick={() => setTipoAplicacion('PUNTUAL')}
+                    sx={{
+                      borderRadius: 2,
+                      borderColor: tipoAplicacion === 'PUNTUAL' ? 'secondary.main' : 'divider',
+                      bgcolor: tipoAplicacion === 'PUNTUAL' ? 'secondary.50' : 'background.paper',
+                    }}
+                  >
+                    <CardActionArea sx={{ p: 2, textAlign: 'center' }}>
+                      <Typography fontWeight={700} color={tipoAplicacion === 'PUNTUAL' ? 'secondary.dark' : 'text.primary'}>
+                        Fecha Puntual
+                      </Typography>
+                    </CardActionArea>
+                  </Card>
+                </Grid>
+              </Grid>
+
+              {tipoAplicacion === 'RECURRENTE' ? (
+                <>
+                  <FormControl fullWidth margin="normal">
+                    <InputLabel>Día de la Semana</InputLabel>
+                    <Select
+                      value={diaAplicar}
+                      onChange={(e) => setDiaAplicar(e.target.value)}
+                      label="Día de la Semana"
+                    >
+                      {['LUNES', 'MARTES', 'MIERCOLES', 'JUEVES', 'VIERNES', 'SABADO', 'DOMINGO'].map((d) => (
+                        <MenuItem key={d} value={d}>{d}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+
+                  <Grid container spacing={2} sx={{ mt: 0.5 }}>
+                    <Grid item xs={6}>
+                      <TextField
+                        fullWidth
+                        label="Vigencia Desde (Opcional)"
+                        type="date"
+                        value={fechaDesdeAplicar}
+                        onChange={(e) => setFechaDesdeAplicar(e.target.value)}
+                        inputProps={{ min: todayStr }}
+                        InputLabelProps={{ shrink: true }}
+                      />
+                    </Grid>
+                    <Grid item xs={6}>
+                      <TextField
+                        fullWidth
+                        label="Vigencia Hasta (Opcional)"
+                        type="date"
+                        value={fechaHastaAplicar}
+                        onChange={(e) => setFechaHastaAplicar(e.target.value)}
+                        inputProps={{ min: fechaDesdeAplicar || todayStr }}
+                        InputLabelProps={{ shrink: true }}
+                      />
+                    </Grid>
+                  </Grid>
+                </>
+              ) : (
+                <TextField
+                  fullWidth
+                  margin="normal"
+                  label="Fecha Puntual"
+                  type="date"
+                  value={fechaAplicar}
+                  onChange={(e) => setFechaAplicar(e.target.value)}
+                  required
+                  inputProps={{ min: todayStr }}
+                  InputLabelProps={{ shrink: true }}
+                />
+              )}
+            </Box>
+          )}
+
+          {/* PASO 2: RESUMEN Y CONFIRMACIÓN */}
+          {activeStepTemplate === 2 && (
+            <Box>
+              <Typography variant="subtitle1" fontWeight={700} mb={1}>
+                Paso 3: Confirmación de Aplicación 📋
+              </Typography>
+              <Typography variant="body2" color="text.secondary" mb={2}>
+                Revisá los datos de la plantilla antes de aplicar los turnos.
+              </Typography>
+
+              <Paper variant="outlined" sx={{ p: 2.5, bgcolor: 'secondary.50', borderRadius: 3, mb: 2 }}>
+                <Box display="flex" alignItems="center" gap={1} mb={1.5}>
+                  <TemplateIcon color="secondary" />
+                  <Typography fontWeight={700} color="secondary.dark" variant="h6">
+                    Plantilla: {plantillaSeleccionadaNombre}
+                  </Typography>
+                </Box>
+                <Divider sx={{ my: 1 }} />
+
+                <Typography variant="body2" color="text.secondary" mt={1}>Frecuencia / Aplica A:</Typography>
+                <Typography variant="subtitle2" fontWeight={700}>
+                  {tipoAplicacion === 'RECURRENTE' ? `Todos los ${diaAplicar}` : `Fecha Puntual: ${fechaAplicar}`}
+                </Typography>
+
+                {tipoAplicacion === 'RECURRENTE' && (fechaDesdeAplicar || fechaHastaAplicar) && (
+                  <>
+                    <Typography variant="body2" color="text.secondary" mt={1}>Período de Vigencia:</Typography>
+                    <Typography variant="subtitle2" fontWeight={700} color="secondary.dark">
+                      Desde: {fechaDesdeAplicar || 'Inmediata'} ➔ Hasta: {fechaHastaAplicar || 'Indefinida'}
+                    </Typography>
+                  </>
+                )}
+              </Paper>
+            </Box>
+          )}
+        </DialogContent>
+
+        <DialogActions sx={{ p: 2.5, justifyContent: 'space-between' }}>
+          <Button
+            disabled={activeStepTemplate === 0 || applying}
+            onClick={handleBackTemplate}
+            startIcon={<ArrowBackIcon />}
+          >
+            Anterior
+          </Button>
+
+          {activeStepTemplate < stepsTemplateWizard.length - 1 ? (
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={handleNextTemplate}
+              endIcon={<ArrowForwardIcon />}
+            >
+              Siguiente
+            </Button>
+          ) : (
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={handleAplicarPlantillaWizard}
+              disabled={applying}
+              startIcon={applying ? <CircularProgress size={20} color="inherit" /> : <CheckCircleIcon />}
+              sx={{ fontWeight: 700, px: 3 }}
+            >
+              Confirmar y Aplicar Plantilla
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
 
       {/* Modal Confirmar Limpieza de Semana Completa */}
       <Dialog open={showClearWeekModal} onClose={() => setShowClearWeekModal(false)}>

@@ -39,6 +39,14 @@ public class EspecialidadController {
         return ResponseEntity.status(HttpStatus.CREATED).body(nueva);
     }
 
+    @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Actualizar una especialidad médica existente (Exclusivo ADMIN)")
+    public ResponseEntity<Especialidad> actualizar(@PathVariable Long id, @Valid @RequestBody Especialidad especialidad) {
+        Especialidad actualizada = especialidadService.actualizarEspecialidad(id, especialidad);
+        return ResponseEntity.ok(actualizada);
+    }
+
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Eliminar una especialidad médica por su ID (Exclusivo ADMIN)")

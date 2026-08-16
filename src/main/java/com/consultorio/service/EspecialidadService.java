@@ -31,6 +31,21 @@ public class EspecialidadService {
     }
 
     @Transactional
+    public Especialidad actualizarEspecialidad(Long id, Especialidad datosActualizados) {
+        Especialidad existente = especialidadRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Especialidad no encontrada con ID: " + id));
+
+        if (especialidadRepository.existsByNombreIgnoreCaseAndIdNot(datosActualizados.getNombre(), id)) {
+            throw new IllegalArgumentException("Ya existe otra especialidad con el nombre: " + datosActualizados.getNombre());
+        }
+
+        existente.setNombre(datosActualizados.getNombre());
+        existente.setDescripcion(datosActualizados.getDescripcion());
+
+        return especialidadRepository.save(existente);
+    }
+
+    @Transactional
     public void eliminarEspecialidad(Long id) {
         if (!especialidadRepository.existsById(id)) {
             throw new IllegalArgumentException("Especialidad no encontrada con ID: " + id);

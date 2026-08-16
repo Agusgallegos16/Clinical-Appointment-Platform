@@ -11,6 +11,11 @@ export const especialidadService = {
     return response.data;
   },
 
+  actualizar: async (id, especialidadData) => {
+    const response = await axiosClient.put(`/especialidades/${id}`, especialidadData);
+    return response.data;
+  },
+
   eliminar: async (id) => {
     const response = await axiosClient.delete(`/especialidades/${id}`);
     return response.data;
