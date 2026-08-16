@@ -64,8 +64,8 @@ const Login = () => {
               <Typography variant="h5" align="center" color="primary" fontWeight={700}>
                 {CLINIC_CONFIG.name}
               </Typography>
-              <Typography variant="body2" color="text.secondary" align="center">
-                Ingrese a su cuenta para gestionar sus turnos
+              <Typography variant="body2" color="text.secondary" align="center" sx={{ mt: 1, px: 1, fontWeight: 500, lineHeight: 1.4 }}>
+                Sistema de gestión y reserva de turnos médicos online para pacientes y profesionales del Instituto Doctor Oscar Bustos.
               </Typography>
             </Box>
 
