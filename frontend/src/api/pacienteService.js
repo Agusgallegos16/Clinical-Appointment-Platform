@@ -10,4 +10,14 @@ export const pacienteService = {
     const response = await axiosClient.get(`/pacientes/${id}/estadisticas`);
     return response.data;
   },
+
+  obtenerMiPerfil: async () => {
+    const response = await axiosClient.get('/pacientes/mi-perfil');
+    return response.data;
+  },
+
+  actualizarMiPerfil: async (data) => {
+    const response = await axiosClient.put('/pacientes/mi-perfil', data);
+    return response.data;
+  },
 };

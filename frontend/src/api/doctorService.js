@@ -13,6 +13,21 @@ export const doctorService = {
     return response.data;
   },
 
+  obtenerMiPerfil: async () => {
+    const response = await axiosClient.get('/doctores/mi-perfil');
+    return response.data;
+  },
+
+  actualizarMiPerfil: async (data) => {
+    const response = await axiosClient.put('/doctores/mi-perfil', data);
+    return response.data;
+  },
+
+  actualizarPerfilDoctor: async (id, data) => {
+    const response = await axiosClient.put('/doctores/mi-perfil', data);
+    return response.data;
+  },
+
   cambiarDisponibilidadTurnos: async (id, disponible) => {
     const response = await axiosClient.patch(`/doctores/${id}/disponibilidad-turnos?disponible=${disponible}`);
     return response.data;

@@ -6,6 +6,11 @@ export const especialidadService = {
     return response.data;
   },
 
+  obtenerTodas: async () => {
+    const response = await axiosClient.get('/especialidades');
+    return response.data;
+  },
+
   crear: async (especialidadData) => {
     const response = await axiosClient.post('/especialidades', especialidadData);
     return response.data;

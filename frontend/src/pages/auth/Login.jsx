@@ -76,7 +76,7 @@ const Login = () => {
                   display: 'block',
                 }}
               >
-                Sistema de gestión y reserva de turnos médicos online para pacientes y profesionales del Instituto Doctor Oscar Bustos.
+                Sistema de gestión y reserva de turnos médicos online para pacientes y profesionales del {CLINIC_CONFIG.name}.
               </Typography>
             </Box>
 

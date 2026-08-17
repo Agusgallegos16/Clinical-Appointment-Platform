@@ -26,6 +26,24 @@ public class PacienteController {
         this.securityUtils = securityUtils;
     }
 
+    @GetMapping("/mi-perfil")
+    @PreAuthorize("hasRole('PACIENTE')")
+    @Operation(summary = "Obtener los datos del perfil del paciente autenticado (PACIENTE)")
+    public ResponseEntity<Paciente> obtenerMiPerfil() {
+        String emailAutenticado = securityUtils.obtenerEmailUsuarioAutenticado();
+        return ResponseEntity.ok(pacienteService.obtenerPorUsuarioEmail(emailAutenticado));
+    }
+
+    @PutMapping("/mi-perfil")
+    @PreAuthorize("hasRole('PACIENTE')")
+    @Operation(summary = "Actualizar los datos del perfil del paciente autenticado (PACIENTE)")
+    public ResponseEntity<Paciente> actualizarMiPerfil(
+            @jakarta.validation.Valid @RequestBody com.consultorio.dto.ActualizarPerfilPacienteDTO dto) {
+        String emailAutenticado = securityUtils.obtenerEmailUsuarioAutenticado();
+        Paciente paciente = pacienteService.obtenerPorUsuarioEmail(emailAutenticado);
+        return ResponseEntity.ok(pacienteService.actualizarPerfilPaciente(paciente.getId(), dto));
+    }
+
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('PACIENTE') or hasRole('ADMIN') or hasRole('DOCTOR')")
     @Operation(summary = "Obtener el detalle de un paciente por su ID (PACIENTE / ADMIN / DOCTOR)")

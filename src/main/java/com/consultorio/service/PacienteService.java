@@ -292,4 +292,37 @@ public class PacienteService {
                 .tutorNombre(menor.getTutor() != null ? menor.getTutor().getNombre() + " " + menor.getTutor().getApellido() : null)
                 .build();
     }
+
+    @Transactional
+    public Paciente actualizarPerfilPaciente(UUID id, com.consultorio.dto.ActualizarPerfilPacienteDTO dto) {
+        Paciente paciente = pacienteRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Paciente no encontrado con id: " + id));
+
+        paciente.setNombre(dto.getNombre().trim());
+        paciente.setApellido(dto.getApellido().trim());
+        if (dto.getTelefono() != null) {
+            paciente.setTelefono(dto.getTelefono().trim());
+        }
+
+        Usuario usuario = paciente.getUsuario();
+        if (usuario != null) {
+            String nuevoEmail = dto.getEmail().trim();
+            if (!usuario.getEmail().equalsIgnoreCase(nuevoEmail)) {
+                if (usuarioRepository.existsByEmail(nuevoEmail)) {
+                    throw new IllegalArgumentException("Ya existe una cuenta registrada con el email: " + nuevoEmail);
+                }
+                usuario.setEmail(nuevoEmail);
+            }
+
+            if (dto.getPassword() != null && !dto.getPassword().trim().isEmpty()) {
+                if (dto.getPassword().trim().length() < 6) {
+                    throw new IllegalArgumentException("La nueva contraseña debe tener al menos 6 caracteres.");
+                }
+                usuario.setPassword(passwordEncoder.encode(dto.getPassword().trim()));
+            }
+            usuarioRepository.save(usuario);
+        }
+
+        return pacienteRepository.save(paciente);
+    }
 }
