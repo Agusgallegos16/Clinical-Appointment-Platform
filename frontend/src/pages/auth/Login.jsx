@@ -19,6 +19,8 @@ import {
   Visibility,
   VisibilityOff,
   LocalHospital as HospitalIcon,
+  ArrowBack as ArrowBackIcon,
+  Home as HomeIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { CLINIC_CONFIG } from '../../config/clinicConfig';
@@ -75,13 +77,32 @@ const Login = () => {
 
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
-      <Container maxWidth="xs" sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', py: 4 }}>
+      <Container maxWidth="xs" sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 4 }}>
+        
+        {/* Botón para volver a la página principal / Landing Page */}
+        <Box width="100%" display="flex" justifyContent="flex-start" mb={2}>
+          <Button
+            component={Link}
+            to="/"
+            startIcon={<ArrowBackIcon />}
+            sx={{
+              textTransform: 'none',
+              fontWeight: 600,
+              color: 'text.secondary',
+              fontSize: '0.88rem',
+              '&:hover': { color: 'primary.main', bgcolor: 'transparent' },
+            }}
+          >
+            Volver a la página principal
+          </Button>
+        </Box>
+
         <Card sx={{ width: '100%', p: 2, borderRadius: 3, boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}>
           <CardContent>
             <Box display="flex" flexDirection="column" alignItems="center" mb={3}>
               <HospitalIcon color="primary" sx={{ fontSize: 48, mb: 1 }} />
               <Typography variant="h5" align="center" color="primary" fontWeight={700}>
-                {CLINIC_CONFIG.name}
+                Iniciar Sesión
               </Typography>
               <Typography
                 variant="caption"
@@ -95,7 +116,7 @@ const Login = () => {
                   display: 'block',
                 }}
               >
-                Sistema de gestión y reserva de turnos médicos online para pacientes y profesionales del {CLINIC_CONFIG.name}.
+                Ingresa tus credenciales para ingresar al portal del {CLINIC_CONFIG.name}.
               </Typography>
             </Box>
 
