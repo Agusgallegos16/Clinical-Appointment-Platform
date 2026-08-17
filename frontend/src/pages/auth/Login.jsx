@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   Box,
   Card,
@@ -30,8 +30,19 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const { login, loading } = useAuth();
+  const { login, loading, isAuthenticated, role } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const from = location.state?.from?.pathname;
+
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      if (role === 'ADMIN') navigate('/admin', { replace: true });
+      else if (role === 'DOCTOR') navigate('/doctor', { replace: true });
+      else if (role === 'PACIENTE') navigate('/paciente', { replace: true });
+    }
+  }, [isAuthenticated, role, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -40,8 +51,16 @@ const Login = () => {
     try {
       const userData = await login({ email, password });
 
-      // Redirigir según el rol del usuario
-      if (userData.rol === 'ADMIN') navigate('/admin');
+      // Verificar si hay una ruta previa permitida según el rol del usuario
+      const isTargetAllowed = from && (
+        (userData.rol === 'PACIENTE' && from.startsWith('/paciente')) ||
+        (userData.rol === 'DOCTOR' && from.startsWith('/doctor')) ||
+        (userData.rol === 'ADMIN' && from.startsWith('/admin'))
+      );
+
+      if (isTargetAllowed) {
+        navigate(from, { replace: true });
+      } else if (userData.rol === 'ADMIN') navigate('/admin');
       else if (userData.rol === 'DOCTOR') navigate('/doctor');
       else if (userData.rol === 'PACIENTE') navigate('/paciente');
       else navigate('/');

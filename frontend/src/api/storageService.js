@@ -16,11 +16,7 @@ export const uploadDoctorAvatar = async (file, doctorId = 'temp') => {
   const cleanFileName = `doctor_${doctorId}_${Date.now()}.${fileExt}`;
   const filePath = `avatars/${cleanFileName}`;
 
-  console.log(`📤 Iniciando subida a Supabase Storage (Bucket: fotos-doctores, Ruta: ${filePath})...`);
-  console.log('📄 Detalles del archivo:', { name: file.name, size: file.size, type: file.type });
-
   try {
-    // 1. Subir la foto al bucket 'fotos-doctores'
     const { data, error } = await supabase.storage
       .from('fotos-doctores')
       .upload(filePath, file, {
@@ -30,22 +26,121 @@ export const uploadDoctorAvatar = async (file, doctorId = 'temp') => {
 
     if (error) {
       console.error('❌ Error devuelto por Supabase Storage:', error);
-      console.error('💡 Verifica que el bucket "fotos-doctores" exista en Supabase, sea público y tenga políticas RLS para INSERT/SELECT.');
       return null;
     }
 
-    console.log('✅ Archivo subido con éxito a Supabase. Path:', data.path);
-
-    // 2. Obtener la URL pública resultante
     const { data: publicUrlData } = supabase.storage
       .from('fotos-doctores')
       .getPublicUrl(data.path);
 
-    const publicUrl = publicUrlData?.publicUrl;
-    console.log('🔗 URL pública obtenida de Supabase Storage:', publicUrl);
-    return publicUrl;
+    return publicUrlData?.publicUrl || null;
   } catch (err) {
     console.error('💥 Excepción durante la subida a Supabase Storage:', err);
     return null;
+  }
+};
+
+/**
+ * Obtener la lista de imágenes públicas de la galería del Instituto desde Supabase Storage (Bucket: 'fotos-institucion')
+ * @returns {Promise<Array<{name: string, url: string, path: string}>>}
+ */
+export const getInstitucionGallery = async () => {
+  try {
+    const { data, error } = await supabase.storage
+      .from('fotos-institucion')
+      .list('', {
+        limit: 100,
+        sortBy: { column: 'created_at', order: 'desc' },
+      });
+
+    if (error || !data) {
+      console.warn('⚠️ No se pudo listar imágenes de "fotos-institucion" en Supabase:', error);
+      return [];
+    }
+
+    // Filtrar archivos válidos (que no sean carpetas o nulos)
+    const validFiles = data.filter((item) => item.name && !item.name.startsWith('.'));
+
+    const galleryList = validFiles.map((file) => {
+      const { data: publicUrlData } = supabase.storage
+        .from('fotos-institucion')
+        .getPublicUrl(file.name);
+
+      return {
+        name: file.name,
+        path: file.name,
+        url: publicUrlData?.publicUrl || '',
+      };
+    });
+
+    return galleryList;
+  } catch (err) {
+    console.error('💥 Error al obtener galería de Supabase Storage:', err);
+    return [];
+  }
+};
+
+/**
+ * Subir una nueva foto para la galería de la institución (Admin)
+ * @param {File} file - Archivo de imagen seleccionado
+ * @returns {Promise<{success: boolean, url?: string, errorMsg?: string}>}
+ */
+export const uploadInstitucionImage = async (file) => {
+  if (!file) return { success: false, errorMsg: 'No se seleccionó ningún archivo de imagen.' };
+
+  const fileExt = file.name.split('.').pop() || 'jpg';
+  const fileName = `galeria_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+
+  try {
+    const { data, error } = await supabase.storage
+      .from('fotos-institucion')
+      .upload(fileName, file, {
+        cacheControl: '3600',
+        upsert: true,
+      });
+
+    if (error) {
+      console.error('❌ Error al subir imagen de galería:', error);
+      const isBucketError = error.message?.toLowerCase().includes('bucket') || error.statusCode === '404' || error.error === 'Bucket not found';
+      const userFriendlyMsg = isBucketError
+        ? 'El bucket "fotos-institucion" no está configurado en Supabase Storage. Verificá que exista y tenga políticas públicas.'
+        : (error.message || 'Error en el servidor de almacenamiento Supabase.');
+      
+      return { success: false, errorMsg: userFriendlyMsg };
+    }
+
+    const { data: publicUrlData } = supabase.storage
+      .from('fotos-institucion')
+      .getPublicUrl(data.path);
+
+    return { success: true, url: publicUrlData?.publicUrl || null };
+  } catch (err) {
+    console.error('💥 Excepción al subir imagen de galería a Supabase:', err);
+    return { success: false, errorMsg: 'Ocurrió una falla de conexión al intentar subir la imagen.' };
+  }
+};
+
+/**
+ * Eliminar una foto de la galería de la institución (Admin)
+ * @param {string} fileName - Nombre o ruta del archivo en el bucket 'fotos-institucion'
+ * @returns {Promise<boolean>}
+ */
+export const deleteInstitucionImage = async (fileName) => {
+  if (!fileName) return false;
+
+  try {
+    const { error } = await supabase.storage
+      .from('fotos-institucion')
+      .remove([fileName]);
+
+    if (error) {
+      console.error('❌ Error al eliminar imagen de galería en Supabase:', error);
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error('💥 Excepción al eliminar imagen de galería:', err);
+    return false;
   }
 };

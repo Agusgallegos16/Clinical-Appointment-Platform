@@ -11,5 +11,6 @@ export const CLINIC_CONFIG = {
   cancellationNoticeHours: import.meta.env.VITE_CANCELLATION_HOURS || "24 horas",
   toleranceMinutes: import.meta.env.VITE_TOLERANCE_MINUTES || "15 minutos",
   jurisdictionCity: import.meta.env.VITE_JURISDICTION_CITY || "Ciudad Autónoma de Buenos Aires",
-  lastUpdatedDate: import.meta.env.VITE_LAST_UPDATED_DATE || "Agosto 2026"
+  lastUpdatedDate: import.meta.env.VITE_LAST_UPDATED_DATE || "Agosto 2026",
+  description : import.meta.env.VITE_ACTIVITY_DESCRIPTION || "Excelencia y Cuidado Médico"
 };

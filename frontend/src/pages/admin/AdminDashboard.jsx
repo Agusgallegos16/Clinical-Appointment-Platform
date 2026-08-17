@@ -147,6 +147,31 @@ const AdminDashboard = () => {
             color="primary"
             size="large"
             fullWidth
+            onClick={() => navigate('/admin/galeria')}
+            startIcon={<ReportIcon sx={{ fontSize: 36 }} />}
+            endIcon={<ArrowForwardIcon />}
+            sx={{
+              py: 2.8,
+              px: 3.5,
+              justifyContent: 'space-between',
+              fontSize: '1.15rem',
+              fontWeight: 700,
+              borderRadius: 3,
+              boxShadow: '0 4px 14px rgba(2, 132, 199, 0.25)',
+            }}
+          >
+            <Box textAlign="left">
+              <Typography variant="h6" fontWeight={700}>
+                Modificar Galería de Fotos del Instituto
+              </Typography>
+            </Box>
+          </Button>
+
+          <Button
+            variant="contained"
+            color="primary"
+            size="large"
+            fullWidth
             onClick={() => navigate('/admin/reportes')}
             startIcon={<ReportIcon sx={{ fontSize: 36 }} />}
             endIcon={<ArrowForwardIcon />}

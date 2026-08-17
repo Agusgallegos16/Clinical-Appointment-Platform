@@ -32,6 +32,7 @@ import AdminDoctores from './pages/admin/AdminDoctores';
 import AdminNuevoDoctor from './pages/admin/AdminNuevoDoctor';
 import AdminReportes from './pages/admin/AdminReportes';
 import AdminUsuarios from './pages/admin/AdminUsuarios';
+import AdminGaleria from './pages/admin/AdminGaleria';
 
 import ConfirmarEmail from './pages/auth/ConfirmarEmail';
 import RecuperarPassword from './pages/auth/RecuperarPassword';
@@ -40,8 +41,10 @@ import EstablecerPasswordDoctor from './pages/auth/EstablecerPasswordDoctor';
 import GoogleCalendarSuccess from './pages/GoogleCalendarSuccess';
 import TerminosYCondiciones from './pages/public/TerminosYCondiciones';
 import Contacto from './pages/public/Contacto';
+import LandingPage from './pages/LandingPage';
+import { CLINIC_CONFIG } from './config/clinicConfig';
 
-// Redirección inteligente en la raíz '/' según rol
+// Redirección inteligente opcional si el usuario ya está en panel
 const RootRedirect = () => {
   const { isAuthenticated, role } = useAuth();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
@@ -55,12 +58,19 @@ const AppContent = () => {
   const { mode } = useColorMode();
   const theme = getCustomTheme(mode);
 
+  React.useEffect(() => {
+    if (CLINIC_CONFIG.name) {
+      document.title = CLINIC_CONFIG.name;
+    }
+  }, []);
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <BrowserRouter>
         <Routes>
           {/* Rutas Públicas */}
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/registro" element={<Register />} />
           <Route path="/recuperar-password" element={<RecuperarPassword />} />
@@ -70,7 +80,6 @@ const AppContent = () => {
           <Route path="/google-calendar/success" element={<GoogleCalendarSuccess />} />
           <Route path="/terminos-y-condiciones" element={<TerminosYCondiciones />} />
           <Route path="/contacto" element={<Contacto />} />
-          <Route path="/" element={<RootRedirect />} />
 
           {/* Rutas Protegidas dentro del MainLayout */}
           <Route element={<MainLayout />}>
@@ -98,6 +107,7 @@ const AppContent = () => {
               <Route path="/admin/doctores" element={<AdminDoctores />} />
               <Route path="/admin/doctores/nuevo" element={<AdminNuevoDoctor />} />
               <Route path="/admin/reportes" element={<AdminReportes />} />
+              <Route path="/admin/galeria" element={<AdminGaleria />} />
             </Route>
           </Route>
 
