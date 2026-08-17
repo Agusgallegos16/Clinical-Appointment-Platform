@@ -523,7 +523,7 @@ const LandingPage = () => {
 
                     <div className="lp-doctor-schedule">
                       <AccessTime sx={{ fontSize: 16, color: 'var(--lp-blue-600)' }} />
-                      <span>Atención en Consultorios & Turnos Web</span>
+                      <span>Atención en Consultorios</span>
                     </div>
 
                     <div className="lp-doctor-card-action">
