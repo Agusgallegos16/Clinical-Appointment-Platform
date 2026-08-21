@@ -136,6 +136,8 @@ const AdminUsuarios = () => {
         return 'secondary';
       case 'DOCTOR':
         return 'primary';
+      case 'SECRETARIA':
+        return 'warning';
       case 'PACIENTE':
         return 'info';
       default:

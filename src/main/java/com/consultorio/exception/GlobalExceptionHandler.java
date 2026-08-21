@@ -73,8 +73,17 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorDTO> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
         String errorMsg = ex.getMessage() != null ? ex.getMessage().toLowerCase() : "";
         String mensaje = "Error de integridad de datos. Verifique que los campos ingresados sean válidos y no dupliquen datos existentes.";
+
         if (errorMsg.contains("delete") || errorMsg.contains("foreign key")) {
             mensaje = "No se puede eliminar el registro porque posee elementos asociados (doctores o turnos activos).";
+        } else if (errorMsg.contains("dni")) {
+            mensaje = "El DNI ingresado ya pertenece a otro registro en la base de datos.";
+        } else if (errorMsg.contains("email") || errorMsg.contains("usuarios_email_key")) {
+            mensaje = "El correo electrónico ingresado ya pertenece a otra cuenta registrada en el sistema.";
+        } else if (errorMsg.contains("uk_turnos_doctor_fecha")) {
+            mensaje = "El horario seleccionado acaba de ser reservado por otro usuario. Por favor elija otro turno disponible.";
+        } else if (errorMsg.contains("usuarios_rol_check")) {
+            mensaje = "La restricción SQL de roles en la base de datos está siendo actualizada. Por favor reintente la operación.";
         }
 
         log.warn("Restricción de integridad: {}", mensaje);

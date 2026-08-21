@@ -21,6 +21,7 @@ import {
   Biotech,
   CalendarMonth,
   CheckCircle,
+  WhatsApp,
 } from '@mui/icons-material';
 
 import { CLINIC_CONFIG } from '../config/clinicConfig';
@@ -610,8 +611,27 @@ const LandingPage = () => {
                     <Phone />
                   </div>
                   <div>
-                    <div className="lp-contact-title">Número de contacto</div>
+                    <div className="lp-contact-title">Teléfono Fijo</div>
                     <div className="lp-contact-desc">{CLINIC_CONFIG.phone}</div>
+                  </div>
+                </div>
+
+                <div className="lp-contact-item">
+                  <div className="lp-contact-icon" style={{ background: 'rgba(37, 211, 102, 0.1)', color: '#25D366' }}>
+                    <WhatsApp />
+                  </div>
+                  <div>
+                    <div className="lp-contact-title">WhatsApp</div>
+                    <div className="lp-contact-desc">
+                      <a
+                        href={`https://wa.me/${CLINIC_CONFIG.whatsapp?.replace(/[^0-9]/g, '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ fontWeight: 600, textDecoration: 'none' }}
+                      >
+                        {CLINIC_CONFIG.whatsapp}
+                      </a>
+                    </div>
                   </div>
                 </div>
 

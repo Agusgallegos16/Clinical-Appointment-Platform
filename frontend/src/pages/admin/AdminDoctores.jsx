@@ -109,17 +109,15 @@ const AdminDoctores = () => {
       let finalFotoUrl = editFormData.fotoUrl;
 
       if (editSelectedFile) {
-        console.log('Iniciando subida a Supabase Storage...');
         const uploadedUrl = await uploadDoctorAvatar(editSelectedFile, selectedDoctorEdit.id);
 
         if (!uploadedUrl) {
-          setError('Error al subir la imagen a Supabase Storage. Revisa la consola (F12).');
+          setError('Error al subir la imagen. Por favor vuelva a intentarlo.');
           setUpdating(false);
-          return; // Detener el guardado si falló la subida
+          return;
         }
 
         finalFotoUrl = uploadedUrl;
-        console.log('URL Pública obtenida de Supabase:', finalFotoUrl);
       }
 
       await doctorService.actualizarDoctor(selectedDoctorEdit.id, {
@@ -183,9 +181,9 @@ const AdminDoctores = () => {
         <Button
           variant="contained"
           startIcon={<PersonAddIcon />}
-          onClick={() => navigate('/admin/doctores/nuevo')}
+          onClick={() => navigate('/admin/usuarios/nuevo')}
         >
-          Registrar Nuevo Doctor
+          Registrar Nuevo Usuario
         </Button>
       </Box>
 

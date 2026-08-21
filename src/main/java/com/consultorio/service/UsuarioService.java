@@ -1,10 +1,12 @@
 package com.consultorio.service;
 
 import com.consultorio.domain.Doctor;
+import com.consultorio.domain.Especialidad;
 import com.consultorio.domain.Paciente;
 import com.consultorio.domain.Rol;
 import com.consultorio.domain.Usuario;
 import com.consultorio.dto.EstablecerPasswordDoctorDTO;
+import com.consultorio.dto.RegistroUsuarioAdminDTO;
 import com.consultorio.dto.SolicitudRestablecerPasswordDTO;
 import com.consultorio.dto.UsuarioAdminDTO;
 import com.consultorio.repository.DoctorRepository;
@@ -18,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -31,6 +34,7 @@ public class UsuarioService {
     private final UsuarioRepository usuarioRepository;
     private final DoctorRepository doctorRepository;
     private final PacienteRepository pacienteRepository;
+    private final com.consultorio.repository.EspecialidadRepository especialidadRepository;
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
 
@@ -38,11 +42,13 @@ public class UsuarioService {
     public UsuarioService(UsuarioRepository usuarioRepository,
                           DoctorRepository doctorRepository,
                           PacienteRepository pacienteRepository,
+                          com.consultorio.repository.EspecialidadRepository especialidadRepository,
                           EmailService emailService,
                           PasswordEncoder passwordEncoder) {
         this.usuarioRepository = usuarioRepository;
         this.doctorRepository = doctorRepository;
         this.pacienteRepository = pacienteRepository;
+        this.especialidadRepository = especialidadRepository;
         this.emailService = emailService;
         this.passwordEncoder = passwordEncoder;
     }
@@ -136,7 +142,7 @@ public class UsuarioService {
             String nombre = null;
             String apellido = null;
 
-            if (u.getRol() == Rol.PACIENTE) {
+            if (u.getRol() == Rol.PACIENTE || u.getRol() == Rol.SECRETARIA) {
                 Optional<Paciente> p = pacienteRepository.findByUsuarioId(u.getId());
                 if (p.isPresent()) {
                     nombre = p.get().getNombre();
@@ -199,5 +205,108 @@ public class UsuarioService {
 
         usuarioRepository.delete(usuario);
         log.info("🗑️ Usuario {} eliminado del sistema por el admin {}", usuario.getEmail(), emailAdminActual);
+    }
+
+    @Transactional
+    public UsuarioAdminDTO registrarUsuarioPorAdmin(RegistroUsuarioAdminDTO dto) {
+        if (dto.getRol() == null) {
+            throw new IllegalArgumentException("El rol es obligatorio.");
+        }
+
+        String emailLimpio = dto.getEmail() != null ? dto.getEmail().trim().toLowerCase() : "";
+        if (emailLimpio.isBlank()) {
+            throw new IllegalArgumentException("El correo electrónico es obligatorio.");
+        }
+
+        var usuarioExistenteOpt = usuarioRepository.findByEmailIgnoreCase(emailLimpio);
+        if (usuarioExistenteOpt.isPresent()) {
+            Usuario exist = usuarioExistenteOpt.get();
+            if (!exist.isActivo() && !exist.isEmailVerificado() && exist.getTokenVerificacionExpiracion() != null && exist.getTokenVerificacionExpiracion().isBefore(LocalDateTime.now())) {
+                Doctor doc = doctorRepository.findByUsuarioId(exist.getId()).orElse(null);
+                if (doc != null) doctorRepository.delete(doc);
+                Paciente pac = pacienteRepository.findByUsuarioId(exist.getId()).orElse(null);
+                if (pac != null) pacienteRepository.delete(pac);
+                usuarioRepository.delete(exist);
+                usuarioRepository.flush();
+            } else {
+                throw new IllegalArgumentException("El correo electrónico " + dto.getEmail() + " ya se encuentra registrado por otro usuario.");
+            }
+        }
+
+        // Si se especificó DNI, verificar que no pertenezca a otra cuenta activa
+        if (dto.getDni() != null) {
+            Optional<Paciente> pacienteExistenteDni = pacienteRepository.findByDni(dto.getDni());
+            if (pacienteExistenteDni.isPresent() && pacienteExistenteDni.get().getUsuario() != null) {
+                Usuario userDni = pacienteExistenteDni.get().getUsuario();
+                if (!userDni.getEmail().equalsIgnoreCase(emailLimpio)) {
+                    throw new IllegalArgumentException("El DNI " + dto.getDni() + " ya pertenece a otra cuenta registrada (" + userDni.getEmail() + ").");
+                }
+            }
+        }
+
+        String tokenActivacion = UUID.randomUUID().toString();
+
+        Usuario usuario = Usuario.builder()
+                .email(emailLimpio)
+                .password(passwordEncoder.encode(UUID.randomUUID().toString()))
+                .rol(dto.getRol())
+                .activo(false)
+                .emailVerificado(false)
+                .tokenVerificacionEmail(tokenActivacion)
+                .tokenVerificacionExpiracion(LocalDateTime.now().plusHours(24))
+                .build();
+
+        Usuario usuarioGuardado = usuarioRepository.save(usuario);
+
+        if (dto.getRol() == Rol.DOCTOR) {
+            List<Especialidad> especialidades = new ArrayList<>();
+            if (dto.getEspecialidadIds() != null && !dto.getEspecialidadIds().isEmpty()) {
+                especialidades = especialidadRepository.findAllById(dto.getEspecialidadIds());
+            }
+            Doctor doctor = Doctor.builder()
+                    .usuario(usuarioGuardado)
+                    .nombre(dto.getNombre().trim())
+                    .apellido(dto.getApellido().trim())
+                    .fotoUrl(dto.getFotoUrl() != null ? dto.getFotoUrl().trim() : null)
+                    .especialidades(especialidades)
+                    .build();
+            doctorRepository.save(doctor);
+        } else if (dto.getRol() == Rol.PACIENTE || dto.getRol() == Rol.SECRETARIA) {
+            Paciente pacienteExistente = null;
+            if (dto.getDni() != null) {
+                pacienteExistente = pacienteRepository.findByDni(dto.getDni()).orElse(null);
+            }
+            if (pacienteExistente != null) {
+                pacienteExistente.setUsuario(usuarioGuardado);
+                pacienteExistente.setNombre(dto.getNombre().trim());
+                pacienteExistente.setApellido(dto.getApellido().trim());
+                if (dto.getTelefono() != null) pacienteExistente.setTelefono(dto.getTelefono().trim());
+                if (dto.getFechaNacimiento() != null) pacienteExistente.setFechaNacimiento(dto.getFechaNacimiento());
+                pacienteRepository.save(pacienteExistente);
+            } else {
+                Paciente nuevoPaciente = Paciente.builder()
+                        .usuario(usuarioGuardado)
+                        .dni(dto.getDni())
+                        .nombre(dto.getNombre().trim())
+                        .apellido(dto.getApellido().trim())
+                        .telefono(dto.getTelefono() != null ? dto.getTelefono().trim() : null)
+                        .fechaNacimiento(dto.getFechaNacimiento())
+                        .build();
+                pacienteRepository.save(nuevoPaciente);
+            }
+        }
+
+        emailService.enviarEmailActivacionDoctor(usuarioGuardado.getEmail(), dto.getNombre(), tokenActivacion);
+
+        return UsuarioAdminDTO.builder()
+                .id(usuarioGuardado.getId())
+                .email(usuarioGuardado.getEmail())
+                .rol(usuarioGuardado.getRol())
+                .activo(usuarioGuardado.isActivo())
+                .bloqueado(usuarioGuardado.isBloqueado())
+                .emailVerificado(usuarioGuardado.isEmailVerificado())
+                .nombre(dto.getNombre())
+                .apellido(dto.getApellido())
+                .build();
     }
 }

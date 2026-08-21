@@ -18,6 +18,7 @@ public class TurnoResponseDTO {
     private String pacienteNombre;
     private UUID doctorId;
     private String doctorNombre;
+    private Long especialidadId;
     private String especialidadNombre;
     private LocalDateTime fechaHora;
     private EstadoTurno estado;

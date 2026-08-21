@@ -66,4 +66,7 @@ public class Turno {
 
     @Column(name = "google_event_id_doctor")
     private String googleEventIdDoctor;
+
+    @Column(name = "google_event_id_secretaria")
+    private String googleEventIdSecretaria;
 }

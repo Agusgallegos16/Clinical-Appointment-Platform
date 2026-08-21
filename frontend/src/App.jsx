@@ -25,11 +25,16 @@ import DoctorAgenda from './pages/doctor/DoctorAgenda';
 import DoctorHorarios from './pages/doctor/DoctorHorarios';
 import DoctorPlantillas from './pages/doctor/DoctorPlantillas';
 
+// Secretaria Pages
+import SecretariaDashboard from './pages/secretaria/SecretariaDashboard';
+import SecretariaAgenda from './pages/secretaria/SecretariaAgenda';
+
 // Admin Pages
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminEspecialidades from './pages/admin/AdminEspecialidades';
 import AdminDoctores from './pages/admin/AdminDoctores';
 import AdminNuevoDoctor from './pages/admin/AdminNuevoDoctor';
+import AdminNuevoUsuario from './pages/admin/AdminNuevoUsuario';
 import AdminReportes from './pages/admin/AdminReportes';
 import AdminUsuarios from './pages/admin/AdminUsuarios';
 import AdminGaleria from './pages/admin/AdminGaleria';
@@ -50,6 +55,7 @@ const RootRedirect = () => {
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (role === 'ADMIN') return <Navigate to="/admin" replace />;
   if (role === 'DOCTOR') return <Navigate to="/doctor" replace />;
+  if (role === 'SECRETARIA') return <Navigate to="/secretaria" replace />;
   if (role === 'PACIENTE') return <Navigate to="/paciente" replace />;
   return <Navigate to="/login" replace />;
 };
@@ -99,13 +105,20 @@ const AppContent = () => {
               <Route path="/doctor/plantillas" element={<DoctorPlantillas />} />
             </Route>
 
+            {/* Módulo Secretaría */}
+            <Route element={<ProtectedRoute allowedRoles={['SECRETARIA', 'ADMIN']} />}>
+              <Route path="/secretaria" element={<SecretariaDashboard />} />
+              <Route path="/secretaria/agenda" element={<SecretariaAgenda />} />
+            </Route>
+
             {/* Módulo Admin */}
             <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/usuarios" element={<AdminUsuarios />} />
+              <Route path="/admin/usuarios/nuevo" element={<AdminNuevoUsuario />} />
               <Route path="/admin/especialidades" element={<AdminEspecialidades />} />
               <Route path="/admin/doctores" element={<AdminDoctores />} />
-              <Route path="/admin/doctores/nuevo" element={<AdminNuevoDoctor />} />
+              <Route path="/admin/doctores/nuevo" element={<AdminNuevoUsuario />} />
               <Route path="/admin/reportes" element={<AdminReportes />} />
               <Route path="/admin/galeria" element={<AdminGaleria />} />
             </Route>

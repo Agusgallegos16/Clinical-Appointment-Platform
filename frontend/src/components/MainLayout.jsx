@@ -81,13 +81,18 @@ const MainLayout = () => {
           { text: 'Mis Horarios', icon: <ScheduleIcon />, path: '/doctor/horarios' },
           { text: 'Mis Plantillas', icon: <TemplateIcon />, path: '/doctor/plantillas' },
         ];
+      case 'SECRETARIA':
+        return [
+          { text: 'Inicio', icon: <DashboardIcon />, path: '/secretaria' },
+          { text: 'Agenda Médica', icon: <CalendarIcon />, path: '/secretaria/agenda' },
+        ];
       case 'ADMIN':
         return [
           { text: 'Inicio', icon: <DashboardIcon />, path: '/admin' },
           { text: 'Gestionar Usuarios', icon: <ManageAccountsIcon />, path: '/admin/usuarios' },
           { text: 'Especialidades', icon: <MedicalIcon />, path: '/admin/especialidades' },
           { text: 'Doctores', icon: <HospitalIcon />, path: '/admin/doctores' },
-          { text: 'Registrar Doctor', icon: <PersonAddIcon />, path: '/admin/doctores/nuevo' },
+          { text: 'Registrar Usuario', icon: <PersonAddIcon />, path: '/admin/usuarios/nuevo' },
           { text: 'Reportes y Notificaciones', icon: <ReportIcon />, path: '/admin/reportes' },
         ];
       default:
@@ -155,7 +160,7 @@ const MainLayout = () => {
           </Box>
         </Box>
 
-        {(role === 'PACIENTE' || role === 'DOCTOR') && (
+        {(role === 'PACIENTE' || role === 'DOCTOR' || role === 'SECRETARIA') && (
           <Button
             variant="outlined"
             size="small"

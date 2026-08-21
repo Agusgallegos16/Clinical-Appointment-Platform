@@ -42,6 +42,7 @@ const Login = () => {
     if (isAuthenticated) {
       if (role === 'ADMIN') navigate('/admin', { replace: true });
       else if (role === 'DOCTOR') navigate('/doctor', { replace: true });
+      else if (role === 'SECRETARIA') navigate('/secretaria', { replace: true });
       else if (role === 'PACIENTE') navigate('/paciente', { replace: true });
     }
   }, [isAuthenticated, role, navigate]);
@@ -57,6 +58,7 @@ const Login = () => {
       const isTargetAllowed = from && (
         (userData.rol === 'PACIENTE' && from.startsWith('/paciente')) ||
         (userData.rol === 'DOCTOR' && from.startsWith('/doctor')) ||
+        (userData.rol === 'SECRETARIA' && from.startsWith('/secretaria')) ||
         (userData.rol === 'ADMIN' && from.startsWith('/admin'))
       );
 
@@ -64,6 +66,7 @@ const Login = () => {
         navigate(from, { replace: true });
       } else if (userData.rol === 'ADMIN') navigate('/admin');
       else if (userData.rol === 'DOCTOR') navigate('/doctor');
+      else if (userData.rol === 'SECRETARIA') navigate('/secretaria');
       else if (userData.rol === 'PACIENTE') navigate('/paciente');
       else navigate('/');
     } catch (err) {

@@ -68,7 +68,7 @@ const EditarPerfilModal = ({ open, onClose }) => {
     setLoading(true);
     setError('');
     try {
-      if (role === 'PACIENTE') {
+      if (role === 'PACIENTE' || role === 'SECRETARIA') {
         const data = await pacienteService.obtenerMiPerfil();
         setNombre(data.nombre || '');
         setApellido(data.apellido || '');
@@ -122,7 +122,7 @@ const EditarPerfilModal = ({ open, onClose }) => {
 
     setSaving(true);
     try {
-      if (role === 'PACIENTE') {
+      if (role === 'PACIENTE' || role === 'SECRETARIA') {
         const payload = {
           nombre,
           apellido,
@@ -244,8 +244,8 @@ const EditarPerfilModal = ({ open, onClose }) => {
                 helperText="Si cambias tu correo, este será tu nuevo usuario de acceso"
               />
 
-              {/* Teléfono (Solo para Pacientes) */}
-              {role === 'PACIENTE' && (
+              {/* Teléfono (Para Pacientes y Secretaría) */}
+              {(role === 'PACIENTE' || role === 'SECRETARIA') && (
                 <TextField
                   fullWidth
                   label="Teléfono de Contacto"

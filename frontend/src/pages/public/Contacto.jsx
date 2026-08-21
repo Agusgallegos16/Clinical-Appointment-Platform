@@ -1,13 +1,12 @@
 import React from 'react';
 import { Container, Paper, Typography, Box, Divider, Button, Grid, Card, CardContent } from '@mui/material';
-import { ArrowBack as ArrowBackIcon, Email as EmailIcon, Phone as PhoneIcon, LocationOn as LocationIcon, AccessTime as TimeIcon } from '@mui/icons-material';
+import { ArrowBack as ArrowBackIcon, Email as EmailIcon, Phone as PhoneIcon, LocationOn as LocationIcon, AccessTime as TimeIcon, WhatsApp as WhatsAppIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import Footer from '../../components/Footer';
 import { CLINIC_CONFIG } from '../../config/clinicConfig';
 
 const Contacto = () => {
   const navigate = useNavigate();
-
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
       <Container maxWidth="md" sx={{ py: 5, flex: 1 }}>
@@ -25,7 +24,7 @@ const Contacto = () => {
             Medios de Contacto y Atención
           </Typography>
           <Typography variant="body1" color="text.secondary" mb={3}>
-            Canales oficiales de información y atención de {CLINIC_CONFIG.name}.
+            Canales oficiales de información y atención del {CLINIC_CONFIG.name}.
           </Typography>
 
           <Divider sx={{ mb: 4 }} />
@@ -45,6 +44,22 @@ const Contacto = () => {
                   </Typography>
                   <Typography variant="caption" color="text.disabled" display="block">
                     Atención directa en recepción
+                  </Typography>
+                </CardContent>
+              </Card>
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <Card variant="outlined" sx={{ borderRadius: 3, height: '100%' }}>
+                <CardContent>
+                  <Box display="flex" alignItems="center" gap={1.5} mb={1.5}>
+                    <WhatsAppIcon sx={{ color: '#25D366' }} />
+                    <Typography variant="h6" fontWeight={700}>
+                      WhatsApp
+                    </Typography>
+                  </Box>
+                  <Typography variant="body2" color="text.secondary">
+                    {CLINIC_CONFIG.whatsapp}
                   </Typography>
                 </CardContent>
               </Card>

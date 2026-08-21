@@ -230,12 +230,12 @@ const DoctorDashboard = () => {
       }}
     >
       <Box maxWidth="480px" width="100%" textAlign="center">
-        <Box mb={3}>
+        <Box mb={4}>
           <Typography variant="h4" fontWeight={700} color="primary" gutterBottom>
-            Portal Médico — Dr/a. {nombreDoctor}
+            ¡Hola, Dr/a. {nombreDoctor}! 🩺
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Seleccioná lo que querés hacer hoy:
+            ¿Qué te gustaría hacer hoy?
           </Typography>
         </Box>
 
@@ -254,7 +254,7 @@ const DoctorDashboard = () => {
           </CardContent>
         </Card>
 
-        {/* 1. Botones Principales de Navegación */}
+        {/* 1. Botones Principales de Navegación con Estética Premium */}
         <Stack spacing={2.5}>
           <Button
             variant="contained"
@@ -271,12 +271,20 @@ const DoctorDashboard = () => {
               fontSize: '1.15rem',
               fontWeight: 700,
               borderRadius: 3,
-              boxShadow: '0 4px 14px rgba(2, 132, 199, 0.25)',
+              boxShadow: '0 6px 20px rgba(2, 132, 199, 0.28)',
+              transition: '0.2s',
+              '&:hover': {
+                transform: 'translateY(-2px)',
+                boxShadow: '0 8px 24px rgba(2, 132, 199, 0.35)',
+              },
             }}
           >
             <Box textAlign="left">
               <Typography variant="h6" fontWeight={700}>
                 Ver y Gestionar Mi Agenda del Día
+              </Typography>
+              <Typography variant="caption" sx={{ opacity: 0.9, display: 'block', fontWeight: 400, mt: 0.3 }}>
+                Revisá los pacientes agendados y asistencias de la jornada
               </Typography>
             </Box>
           </Button>
@@ -296,12 +304,20 @@ const DoctorDashboard = () => {
               fontSize: '1.15rem',
               fontWeight: 700,
               borderRadius: 3,
-              boxShadow: '0 4px 14px rgba(2, 132, 199, 0.25)',
+              boxShadow: '0 6px 20px rgba(2, 132, 199, 0.28)',
+              transition: '0.2s',
+              '&:hover': {
+                transform: 'translateY(-2px)',
+                boxShadow: '0 8px 24px rgba(2, 132, 199, 0.35)',
+              },
             }}
           >
             <Box textAlign="left">
               <Typography variant="h6" fontWeight={700}>
                 Configurar Mis Horarios de Atención
+              </Typography>
+              <Typography variant="caption" sx={{ opacity: 0.9, display: 'block', fontWeight: 400, mt: 0.3 }}>
+                Definí los días y bloques horarios para la reserva web
               </Typography>
             </Box>
           </Button>
@@ -321,12 +337,20 @@ const DoctorDashboard = () => {
               fontSize: '1.15rem',
               fontWeight: 700,
               borderRadius: 3,
-              boxShadow: '0 4px 14px rgba(2, 132, 199, 0.25)',
+              boxShadow: '0 6px 20px rgba(2, 132, 199, 0.28)',
+              transition: '0.2s',
+              '&:hover': {
+                transform: 'translateY(-2px)',
+                boxShadow: '0 8px 24px rgba(2, 132, 199, 0.35)',
+              },
             }}
           >
             <Box textAlign="left">
               <Typography variant="h6" fontWeight={700}>
                 Ver Mis Plantillas de Agenda
+              </Typography>
+              <Typography variant="caption" sx={{ opacity: 0.9, display: 'block', fontWeight: 400, mt: 0.3 }}>
+                Aplicá estructuras de horarios frecuentes en fechas puntuales
               </Typography>
             </Box>
           </Button>

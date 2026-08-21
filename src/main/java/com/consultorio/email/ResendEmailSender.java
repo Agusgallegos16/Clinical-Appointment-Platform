@@ -34,19 +34,6 @@ public class ResendEmailSender implements EmailSender {
         this.restTemplate = new RestTemplate();
     }
 
-    @PostConstruct
-    public void init() {
-        if (apiKey != null && !apiKey.trim().isEmpty()) {
-            String cleanKey = apiKey.trim();
-            String maskedKey = cleanKey.length() > 8
-                    ? cleanKey.substring(0, 4) + "...." + cleanKey.substring(cleanKey.length() - 4)
-                    : "****";
-            log.info("🔑 Resend API Key cargada correctamente: [{}] (From: {})", maskedKey, mailFrom);
-        } else {
-            log.warn("⚠️ Resend API Key NO configurada (propiedad 'mail.resend.api-key').");
-        }
-    }
-
     @Override
     public String getProviderName() {
         return "Resend";
@@ -66,7 +53,7 @@ public class ResendEmailSender implements EmailSender {
 
         // Dirección de remitente parametrizable (onboarding@resend.dev para pruebas o dominio propio verificado en producción)
         String fromAddress = (mailFrom != null && !mailFrom.isBlank()) ? mailFrom.trim() : "onboarding@resend.dev";
-        String fromFormatted = fromAddress.contains("@resend.dev") 
+        String fromFormatted = fromAddress.contains("@resend.dev")
                 ? "onboarding@resend.dev"
                 : (clinicName != null ? clinicName + " <" + fromAddress + ">" : fromAddress);
 

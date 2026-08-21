@@ -11,6 +11,9 @@ import java.time.LocalTime;
 @AllArgsConstructor
 @Builder
 public class SlotDisponibilidadDTO {
+    private Long id;
     private LocalTime hora;
     private boolean disponible;
+    private Long especialidadId;
+    private String especialidadNombre;
 }

@@ -33,6 +33,9 @@ public class EmailService {
     @Value("${app.frontend.url:${APP_FRONTEND_URL:http://localhost:5173}}")
     private String frontendUrl;
 
+    @Value("${app.mail.console-mode:false}")
+    private boolean consoleMode;
+
     @Autowired
     public EmailService(EmailSender emailSender,
                         ObjectProvider<JavaMailSender> mailSenderProvider,
@@ -119,6 +122,14 @@ public class EmailService {
                 mailFrom, destino, asunto);
 
         log.info(logMessage);
+
+        if (consoleMode) {
+            log.info("\n📺 [MODO CONSOLA DESARROLLO LOCAL - EMAIL NO ENVIADO A RED]\n" +
+                    "Para: {}\nAsunto: {}\nContenido:\n{}\n" +
+                    "====================================================================",
+                    destino, asunto, cuerpoHtml);
+            return;
+        }
 
         try {
             emailSender.sendHtmlEmail(destino, asunto, cuerpoHtml);

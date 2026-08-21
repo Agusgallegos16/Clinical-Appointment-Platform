@@ -203,8 +203,8 @@ public class DoctorController {
     }
 
     @DeleteMapping("/slots/{slotId}")
-    @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
-    @Operation(summary = "Eliminar/Deshabilitar un slot individual concreto (DOCTOR / ADMIN)")
+    @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN') or hasRole('SECRETARIA')")
+    @Operation(summary = "Eliminar/Deshabilitar un slot individual concreto (DOCTOR / ADMIN / SECRETARIA)")
     public ResponseEntity<Void> eliminarSlot(@PathVariable Long slotId) {
         doctorService.eliminarSlotIndividual(slotId);
         return ResponseEntity.noContent().build();
@@ -264,8 +264,8 @@ public class DoctorController {
     }
 
     @GetMapping("/{id}/agenda")
-    @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
-    @Operation(summary = "Consultar la agenda privada de turnos confirmados del doctor para un día (DOCTOR / ADMIN)")
+    @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN') or hasRole('SECRETARIA')")
+    @Operation(summary = "Consultar la agenda privada de turnos confirmados del doctor para un día (DOCTOR / ADMIN / SECRETARIA)")
     public ResponseEntity<List<TurnoResponseDTO>> obtenerAgenda(
             @PathVariable UUID id,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {

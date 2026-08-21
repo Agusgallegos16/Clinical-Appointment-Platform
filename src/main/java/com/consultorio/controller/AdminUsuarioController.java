@@ -51,4 +51,11 @@ public class AdminUsuarioController {
         usuarioService.eliminarUsuario(id, emailAdminActual);
         return ResponseEntity.ok(Map.of("message", "Usuario eliminado exitosamente de la base de datos."));
     }
+
+    @PostMapping("/registro")
+    @Operation(summary = "Registrar un nuevo usuario (Doctor, Secretaria o Paciente) sin contraseña (Exclusivo ADMIN)")
+    public ResponseEntity<UsuarioAdminDTO> registrarUsuario(@jakarta.validation.Valid @RequestBody com.consultorio.dto.RegistroUsuarioAdminDTO dto) {
+        UsuarioAdminDTO creado = usuarioService.registrarUsuarioPorAdmin(dto);
+        return ResponseEntity.status(org.springframework.http.HttpStatus.CREATED).body(creado);
+    }
 }

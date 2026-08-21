@@ -22,16 +22,22 @@ La solución ofrece una experiencia simple y accesible para pacientes al reserva
 ### 🩺 Portal para Médicos
 - **Control de Visibilidad Pública**: Switch para ocultar temporalmente el perfil de las búsquedas web de pacientes.
 - **Configuración de Mensajes Personalizados**: 
-  - *Advertencia Bloqueante*: Suspende la reserva web despliegano instrucciones personalizadas de contacto.
+  - *Advertencia Bloqueante*: Suspende la reserva web desplegando instrucciones personalizadas de contacto.
   - *Advertencia Informativa*: Despliega aclaraciones operativas permitiendo al paciente confirmar la cita.
-- **Gestión de Agendas y Plantillas**: Creación de plantillas semanales reutilizables e instanciación concreta de slots horarios (`SlotHorario`).
+- **Gestión de Agendas y Plantillas**: Creación de plantillas semanales reutilizables e instanciación concreta de slots horarios.
 - **Edición de Slots**: Capacidad de inhabilitar turnos individuales o limpiar semanas completas.
 - **Sincronización con Google Calendar**: Conexión OAuth2 por usuario para reflejar automáticamente los turnos agendados en su calendario personal.
 - **Reportes y Resúmenes por Email**: Recepción programada de la agenda diaria de pacientes y estadísticas de actividad semanal.
 
+### 👩‍💼 Módulo para Secretaría / Recepción
+- **Reserva Presencial / Telefónica**: Agendamiento directo de turnos para pacientes registrados o nuevos pacientes sin necesidad de registro web previo.
+- **Agenda Consolidada de Profesionales**: Vista unificada de citas médicas reservadas y horarios disponibles por médico y fecha.
+- **Inhabilitación de Slots en Tiempo Real**: Capacidad de suspender o deshabilitar turnos libres individuales en la disponibilidad del médico.
+- **Cancelación Justificada con Notificación**: Cancelación de citas con justificación obligatoria y envío automático de email informativo al paciente.
+
 ### 🛡️ Panel de Administración
-- **Gestión de Especialidades Médicas**: Altas, bajas y modificaciones (`PUT`) de especialidades y descripciones.
-- **Gestión de Profesionales**: Alta de médicos con asignación de especialidades y envío de enlace de activación de cuenta.
+- **Gestión de Especialidades Médicas**: Altas, bajas y modificaciones de especialidades y descripciones.
+- **Gestión de Profesionales y Secretaría**: Alta de usuarios con rol `DOCTOR` o `SECRETARIA` y envío de credenciales/enlace de activación.
 - **Control de Usuarios**: Búsqueda por correo, bloqueo/desbloqueo preventivo de accesos y eliminación definitiva.
 - **Ejecución Manual de Notificaciones**: Botones para desencadenar el envío masivo de resúmenes diarios y reportes semanales.
 
@@ -64,7 +70,7 @@ La solución ofrece una experiencia simple y accesible para pacientes al reserva
 
 ```mermaid
 graph TD
-    User[📱 Paciente / Doctor / Admin] -->|HTTP / React UI| FE[💻 Frontend - React 18 + MUI]
+    User[📱 Paciente / Doctor / Secretaría / Admin] -->|HTTP / React UI| FE[💻 Frontend - React 18 + MUI]
     FE -->|REST API + JWT Bearer| BE[⚙️ Backend - Spring Boot 3]
     BE -->|Spring Data JPA| DB[(🗄️ PostgreSQL Database)]
     BE -->|JavaMailSender / SMTP| Mail[📧 Servicio de Email Transaccional]
@@ -124,7 +130,7 @@ cd sistema-gestion-turnos
    spring.mail.properties.mail.smtp.auth=true
    spring.mail.properties.mail.smtp.starttls.enable=true
 
-   # Integración Google Calendar OAuth2 (Opcional)
+   # Integración Google Calendar OAuth2
    google.client.id=TU_GOOGLE_CLIENT_ID.apps.googleusercontent.com
    google.client.secret=TU_GOOGLE_CLIENT_SECRET
    google.redirect.uri=http://localhost:8080/api/google-calendar/callback
@@ -148,7 +154,21 @@ cd sistema-gestion-turnos
 
 2. Crea un archivo `.env` en la raíz de la carpeta `frontend/`:
    ```env
-   VITE_API_URL=http://localhost:8080/api
+   # Configuración de Backend y Almacenamiento
+   VITE_SUPABASE_URL=https://tu-proyecto.supabase.co
+   VITE_SUPABASE_ANON_KEY=tu-anon-key-de-supabase
+
+   # Configuración Parametrizada del Consultorio / Instituto Médico
+   VITE_CLINIC_NAME="Instituto Médico Consultorios"
+   VITE_CLINIC_EMAIL="contacto@consultorio.com"
+   VITE_CLINIC_LEGAL_EMAIL="legales@consultorio.com"
+   VITE_CLINIC_PHONE="+54 11 1234-5678"
+   VITE_CLINIC_WHATSAPP="+54 9 11 1234-5678"
+   VITE_CLINIC_ADDRESS="Av. Principal 1234, CABA"
+   VITE_CANCELLATION_HOURS="24 horas"
+   VITE_TOLERANCE_MINUTES="15 minutos"
+   VITE_JURISDICTION_CITY="Ciudad Autónoma de Buenos Aires"
+   VITE_LAST_UPDATED_DATE="Agosto 2026"
    ```
 
 3. Inicia el servidor de desarrollo local:
@@ -179,7 +199,7 @@ SistemaDeGestionDeTurnos/
 │   │   ├── api/            # Clientes de servicios API con Axios
 │   │   ├── components/     # Componentes reutilizables de UI (Navbar, Footer, Modales)
 │   │   ├── context/        # Contexto global de autenticación (AuthContext)
-│   │   ├── pages/          # Vistas principales organizadas por módulo (admin, doctor, paciente)
+│   │   ├── pages/          # Vistas principales organizadas por módulo (admin, doctor, paciente, secretaria)
 │   │   └── config/         # Configuración clínica parametrizable
 │   ├── package.json
 │   └── vite.config.js

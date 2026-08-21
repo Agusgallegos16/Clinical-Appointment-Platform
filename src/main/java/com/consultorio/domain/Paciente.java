@@ -51,6 +51,9 @@ public class Paciente {
     @Column(length = 50)
     private String telefono;
 
+    @Column(length = 100)
+    private String email;
+
     private java.time.LocalDate fechaNacimiento;
 
     public String getTelefono() {
@@ -60,13 +63,22 @@ public class Paciente {
         return this.tutor != null ? this.tutor.getTelefono() : null;
     }
 
+    public String getEmail() {
+        if (this.email != null && !this.email.trim().isEmpty()) {
+            return this.email.trim();
+        }
+        if (this.usuario != null && this.usuario.getEmail() != null && !this.usuario.getEmail().trim().isEmpty()) {
+            return this.usuario.getEmail().trim();
+        }
+        if (this.tutor != null && this.tutor.getEmail() != null) {
+            return this.tutor.getEmail();
+        }
+        return null;
+    }
+
     public Integer getEdad() {
         if (this.fechaNacimiento == null) return null;
         return java.time.Period.between(this.fechaNacimiento, java.time.LocalDate.now()).getYears();
     }
 
-    public boolean esMenor() {
-        Integer edad = getEdad();
-        return edad != null && edad < 18;
-    }
 }

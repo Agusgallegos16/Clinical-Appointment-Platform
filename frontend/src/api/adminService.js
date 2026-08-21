@@ -30,4 +30,9 @@ export const adminService = {
     const response = await axiosClient.delete(`/admin/usuarios/${id}`);
     return response.data;
   },
+
+  registrarUsuario: async (usuarioData) => {
+    const response = await axiosClient.post('/admin/usuarios/registro', usuarioData);
+    return response.data;
+  },
 };

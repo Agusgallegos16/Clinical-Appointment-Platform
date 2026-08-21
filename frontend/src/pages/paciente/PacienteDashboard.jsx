@@ -6,7 +6,6 @@ import {
   Card,
   CardContent,
   Button,
-  CircularProgress,
   Alert,
   Stack,
 } from '@mui/material';
@@ -72,6 +71,7 @@ const PacienteDashboard = () => {
       }}
     >
       <Box maxWidth="480px" width="100%" textAlign="center">
+        {/* Header de Saludo */}
         <Box mb={4}>
           <Typography variant="h4" fontWeight={700} color="primary" gutterBottom>
             ¡Hola, {nombreMostrar}!
@@ -100,7 +100,7 @@ const PacienteDashboard = () => {
           </Card>
         )}
 
-        {/* Botones Centrados, más altos y de ancho contenido */}
+        {/* Botones de Acción con Estética Premium */}
         <Stack spacing={2.5}>
           <Button
             variant="contained"
@@ -117,12 +117,20 @@ const PacienteDashboard = () => {
               fontSize: '1.15rem',
               fontWeight: 700,
               borderRadius: 3,
-              boxShadow: '0 4px 14px rgba(2, 132, 199, 0.25)',
+              boxShadow: '0 6px 20px rgba(2, 132, 199, 0.28)',
+              transition: '0.2s',
+              '&:hover': {
+                transform: 'translateY(-2px)',
+                boxShadow: '0 8px 24px rgba(2, 132, 199, 0.35)',
+              },
             }}
           >
             <Box textAlign="left">
               <Typography variant="h6" fontWeight={700}>
                 Reservar Nuevo Turno
+              </Typography>
+              <Typography variant="caption" sx={{ opacity: 0.9, display: 'block', fontWeight: 400, mt: 0.3 }}>
+                Elegí especialidad, médico y fecha para agendar tu cita
               </Typography>
             </Box>
           </Button>
@@ -142,12 +150,20 @@ const PacienteDashboard = () => {
               fontSize: '1.15rem',
               fontWeight: 700,
               borderRadius: 3,
-              boxShadow: '0 4px 14px rgba(2, 132, 199, 0.25)',
+              boxShadow: '0 6px 20px rgba(2, 132, 199, 0.28)',
+              transition: '0.2s',
+              '&:hover': {
+                transform: 'translateY(-2px)',
+                boxShadow: '0 8px 24px rgba(2, 132, 199, 0.35)',
+              },
             }}
           >
             <Box textAlign="left">
               <Typography variant="h6" fontWeight={700}>
                 Ver Mis Turnos
+              </Typography>
+              <Typography variant="caption" sx={{ opacity: 0.9, display: 'block', fontWeight: 400, mt: 0.3 }}>
+                Consultá tus turnos activos e historial de atenciones
               </Typography>
             </Box>
           </Button>
@@ -167,11 +183,21 @@ const PacienteDashboard = () => {
               fontSize: '1.15rem',
               fontWeight: 700,
               borderRadius: 3,
+              borderWidth: 2,
+              transition: '0.2s',
+              '&:hover': {
+                borderWidth: 2,
+                transform: 'translateY(-2px)',
+                boxShadow: '0 6px 18px rgba(2, 132, 199, 0.15)',
+              },
             }}
           >
             <Box textAlign="left">
               <Typography variant="h6" fontWeight={700}>
                 Gestionar Menores a Cargo
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', fontWeight: 400, mt: 0.3 }}>
+                Registrá o administrá las citas de tus hijos a cargo
               </Typography>
             </Box>
           </Button>

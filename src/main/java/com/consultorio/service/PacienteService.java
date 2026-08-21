@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -30,10 +31,10 @@ public class PacienteService {
 
     @Autowired
     public PacienteService(PacienteRepository pacienteRepository,
-                           UsuarioRepository usuarioRepository,
-                           TurnoRepository turnoRepository,
-                           EmailService emailService,
-                           PasswordEncoder passwordEncoder) {
+            UsuarioRepository usuarioRepository,
+            TurnoRepository turnoRepository,
+            EmailService emailService,
+            PasswordEncoder passwordEncoder) {
         this.pacienteRepository = pacienteRepository;
         this.usuarioRepository = usuarioRepository;
         this.turnoRepository = turnoRepository;
@@ -73,7 +74,8 @@ public class PacienteService {
         Paciente paciente;
         if (pacienteExistenteOpt.isPresent()) {
             // El paciente ya existía previamente como menor a cargo (sin usuario propio).
-            // Le vinculamos la nueva cuenta de Usuario sin perder su historial médico ni DNI.
+            // Le vinculamos la nueva cuenta de Usuario sin perder su historial médico ni
+            // DNI.
             paciente = pacienteExistenteOpt.get();
             paciente.setUsuario(usuario);
             paciente.setNombre(dto.getNombre());
@@ -107,8 +109,10 @@ public class PacienteService {
         Usuario usuario = usuarioRepository.findByTokenVerificacionEmail(token)
                 .orElseThrow(() -> new IllegalArgumentException("El token de activación es inválido o no existe."));
 
-        if (usuario.getTokenVerificacionExpiracion() != null && usuario.getTokenVerificacionExpiracion().isBefore(LocalDateTime.now())) {
-            throw new IllegalArgumentException("El token de activación ha expirado. Por favor solicite un nuevo registro.");
+        if (usuario.getTokenVerificacionExpiracion() != null
+                && usuario.getTokenVerificacionExpiracion().isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException(
+                    "El token de activación ha expirado. Por favor solicite un nuevo registro.");
         }
 
         usuario.setActivo(true);
@@ -134,6 +138,13 @@ public class PacienteService {
                 .orElseThrow(() -> new IllegalArgumentException("Paciente no encontrado con email: " + email));
     }
 
+    @Transactional(readOnly = true)
+    public Optional<Paciente> obtenerPorDniOpt(Long dni) {
+        if (dni == null)
+            return Optional.empty();
+        return pacienteRepository.findByDni(dni);
+    }
+
     public List<Paciente> listarTodos() {
         return pacienteRepository.findAll();
     }
@@ -149,7 +160,8 @@ public class PacienteService {
         int completados = (int) turnos.stream().filter(t -> t.getEstado() == EstadoTurno.COMPLETADO).count();
         int ausentes = (int) turnos.stream().filter(t -> t.getEstado() == EstadoTurno.AUSENTE).count();
         int cancelados = (int) turnos.stream().filter(t -> t.getEstado() == EstadoTurno.CANCELADO).count();
-        int pendientes = (int) turnos.stream().filter(t -> t.getEstado() == EstadoTurno.CONFIRMADO || t.getEstado() == EstadoTurno.PENDIENTE).count();
+        int pendientes = (int) turnos.stream()
+                .filter(t -> t.getEstado() == EstadoTurno.CONFIRMADO || t.getEstado() == EstadoTurno.PENDIENTE).count();
 
         double pctCompletados = total > 0 ? Math.round((completados * 100.0 / total) * 10.0) / 10.0 : 0.0;
         double pctAusentes = total > 0 ? Math.round((ausentes * 100.0 / total) * 10.0) / 10.0 : 0.0;
@@ -162,7 +174,7 @@ public class PacienteService {
                 .apellido(paciente.getApellido())
                 .dni(String.valueOf(paciente.getDni()))
                 .telefono(paciente.getTelefono())
-                .email(paciente.getUsuario() != null ? paciente.getUsuario().getEmail() : "")
+                .email(paciente.getEmail() != null ? paciente.getEmail() : "")
                 .fechaNacimiento(paciente.getFechaNacimiento())
                 .edad(paciente.getEdad())
                 .totalTurnos(total)
@@ -178,14 +190,18 @@ public class PacienteService {
     }
 
     @Transactional
-    public com.consultorio.dto.PacienteMenorResponseDTO registrarMenor(UUID tutorPacienteId, com.consultorio.dto.RegistroMenorDTO dto) {
+    public com.consultorio.dto.PacienteMenorResponseDTO registrarMenor(UUID tutorPacienteId,
+            com.consultorio.dto.RegistroMenorDTO dto) {
         Paciente tutor = pacienteRepository.findById(tutorPacienteId)
-                .orElseThrow(() -> new IllegalArgumentException("Paciente tutor no encontrado con id: " + tutorPacienteId));
+                .orElseThrow(
+                        () -> new IllegalArgumentException("Paciente tutor no encontrado con id: " + tutorPacienteId));
 
         if (dto.getFechaNacimiento() != null) {
-            int edadCalculada = java.time.Period.between(dto.getFechaNacimiento(), java.time.LocalDate.now()).getYears();
+            int edadCalculada = java.time.Period.between(dto.getFechaNacimiento(), java.time.LocalDate.now())
+                    .getYears();
             if (edadCalculada >= 18) {
-                throw new IllegalArgumentException("No es posible vincular a una persona mayor o igual a 18 años como menor a cargo.");
+                throw new IllegalArgumentException(
+                        "No es posible vincular a una persona mayor o igual a 18 años como menor a cargo.");
             }
         }
 
@@ -195,9 +211,11 @@ public class PacienteService {
         if (pacienteExistenteOpt.isPresent()) {
             Paciente existente = pacienteExistenteOpt.get();
 
-            // Si ya posee una cuenta propia independiente con Usuario, no se puede vincular como menor sin cuenta
+            // Si ya posee una cuenta propia independiente con Usuario, no se puede vincular
+            // como menor sin cuenta
             if (existente.getUsuario() != null) {
-                throw new IllegalArgumentException("El DNI ingresado pertenece a un paciente registrado con cuenta propia independiente.");
+                throw new IllegalArgumentException(
+                        "El DNI ingresado pertenece a un paciente registrado con cuenta propia independiente.");
             }
 
             // Si ya está vinculado a este mismo tutor
@@ -289,7 +307,9 @@ public class PacienteService {
                 .edad(menor.getEdad())
                 .telefono(menor.getTelefono()) // Hereda el teléfono del tutor
                 .tutorId(menor.getTutor() != null ? menor.getTutor().getId() : null)
-                .tutorNombre(menor.getTutor() != null ? menor.getTutor().getNombre() + " " + menor.getTutor().getApellido() : null)
+                .tutorNombre(
+                        menor.getTutor() != null ? menor.getTutor().getNombre() + " " + menor.getTutor().getApellido()
+                                : null)
                 .build();
     }
 
