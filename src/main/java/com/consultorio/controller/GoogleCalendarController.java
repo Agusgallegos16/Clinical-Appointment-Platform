@@ -1,9 +1,9 @@
 package com.consultorio.controller;
 
 import com.consultorio.domain.Usuario;
-import com.consultorio.repository.UsuarioRepository;
 import com.consultorio.security.SecurityUtils;
 import com.consultorio.service.GoogleCalendarOAuthService;
+import com.consultorio.service.UsuarioService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
@@ -26,7 +26,7 @@ public class GoogleCalendarController {
 
     private final GoogleCalendarOAuthService oauthService;
     private final SecurityUtils securityUtils;
-    private final UsuarioRepository usuarioRepository;
+    private final UsuarioService usuarioService;
 
     @org.springframework.beans.factory.annotation.Value("${app.frontend.url:${APP_FRONTEND_URL:http://localhost:5173}}")
     private String frontendUrl;
@@ -34,10 +34,10 @@ public class GoogleCalendarController {
     @Autowired
     public GoogleCalendarController(GoogleCalendarOAuthService oauthService,
                                     SecurityUtils securityUtils,
-                                    UsuarioRepository usuarioRepository) {
+                                    UsuarioService usuarioService) {
         this.oauthService = oauthService;
         this.securityUtils = securityUtils;
-        this.usuarioRepository = usuarioRepository;
+        this.usuarioService = usuarioService;
     }
 
     private String getCleanFrontendUrl() {
@@ -52,7 +52,7 @@ public class GoogleCalendarController {
         String email = securityUtils.obtenerEmailUsuarioAutenticado();
         if (email == null) throw new AccessDeniedException("No autenticado");
 
-        Usuario usuario = usuarioRepository.findByEmail(email)
+        Usuario usuario = usuarioService.obtenerPorEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
 
         try {
@@ -84,7 +84,7 @@ public class GoogleCalendarController {
         String email = securityUtils.obtenerEmailUsuarioAutenticado();
         if (email == null) throw new AccessDeniedException("No autenticado");
 
-        Usuario usuario = usuarioRepository.findByEmail(email)
+        Usuario usuario = usuarioService.obtenerPorEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
 
         return ResponseEntity.ok(Map.of(
@@ -99,7 +99,7 @@ public class GoogleCalendarController {
         String email = securityUtils.obtenerEmailUsuarioAutenticado();
         if (email == null) throw new AccessDeniedException("No autenticado");
 
-        Usuario usuario = usuarioRepository.findByEmail(email)
+        Usuario usuario = usuarioService.obtenerPorEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado"));
 
         oauthService.desconectar(usuario.getId());

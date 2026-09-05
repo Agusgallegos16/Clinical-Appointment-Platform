@@ -1,24 +1,23 @@
 package com.consultorio.service;
 
-import com.consultorio.adapter.CalendarioAdapter;
 import com.consultorio.domain.*;
 import com.consultorio.dto.TurnoReservaSecretariaDTO;
 import com.consultorio.dto.TurnoResponseDTO;
-import com.consultorio.repository.*;
+import com.consultorio.event.TurnoReservadoEvent;
+import com.consultorio.repository.TurnoRepository;
 import com.consultorio.security.SecurityUtils;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collections;
-import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -31,21 +30,15 @@ class TurnoServiceSecretariaTest {
     @Mock
     private TurnoRepository turnoRepository;
     @Mock
-    private PacienteRepository pacienteRepository;
+    private PacienteService pacienteService;
     @Mock
-    private DoctorRepository doctorRepository;
+    private DoctorService doctorService;
     @Mock
-    private EspecialidadRepository especialidadRepository;
-    @Mock
-    private UsuarioRepository usuarioRepository;
-    @Mock
-    private EmailService emailService;
+    private EspecialidadService especialidadService;
     @Mock
     private SecurityUtils securityUtils;
     @Mock
-    private CalendarioAdapter calendarioAdapter;
-    @Mock
-    private SlotHorarioRepository slotHorarioRepository;
+    private ApplicationEventPublisher eventPublisher;
 
     @InjectMocks
     private TurnoService turnoService;
@@ -76,11 +69,11 @@ class TurnoServiceSecretariaTest {
                 .nombre("Gregory")
                 .apellido("House")
                 .usuario(usuarioDoctor)
-                .especialidades(Collections.singletonList(especialidadMock))
+                .especialidades(Collections.singleton(especialidadMock))
                 .disponibleParaTurnos(true)
                 .build();
 
-        lenient().when(slotHorarioRepository.existsByDoctorIdAndFechaAndHoraInicio(any(), any(), any())).thenReturn(true);
+        lenient().when(doctorService.existeSlotActivo(any(), any(), any())).thenReturn(true);
     }
 
     @Test
@@ -104,9 +97,8 @@ class TurnoServiceSecretariaTest {
                 .motivoConsulta("Consulta general")
                 .build();
 
-        when(doctorRepository.findById(doctorId)).thenReturn(Optional.of(doctorMock));
-        when(especialidadRepository.findById(especialidadId)).thenReturn(Optional.of(especialidadMock));
-        when(pacienteRepository.findByDni(dni)).thenReturn(Optional.empty());
+        when(doctorService.obtenerPorId(doctorId)).thenReturn(doctorMock);
+        when(especialidadService.obtenerPorId(especialidadId)).thenReturn(especialidadMock);
         when(turnoRepository.existsByDoctorIdAndFechaHoraAndEstadoNot(eq(doctorId), eq(fechaFutura), any())).thenReturn(false);
 
         Paciente pacienteGuardado = Paciente.builder()
@@ -119,7 +111,8 @@ class TurnoServiceSecretariaTest {
                 .usuario(null)
                 .build();
 
-        when(pacienteRepository.save(any(Paciente.class))).thenReturn(pacienteGuardado);
+        when(pacienteService.obtenerORegistrarPacienteExpress(any(), any(), any(), any(), any(), any()))
+                .thenReturn(pacienteGuardado);
 
         Turno turnoGuardado = Turno.builder()
                 .id(UUID.randomUUID())
@@ -141,12 +134,11 @@ class TurnoServiceSecretariaTest {
         assertEquals("Juan Pérez", response.getPacienteNombre());
         assertEquals(EstadoTurno.CONFIRMADO, response.getEstado());
 
-        ArgumentCaptor<Paciente> pacienteCaptor = ArgumentCaptor.forClass(Paciente.class);
-        verify(pacienteRepository).save(pacienteCaptor.capture());
-        Paciente pacienteCreado = pacienteCaptor.getValue();
-        assertNull(pacienteCreado.getUsuario());
-        assertEquals(dni, pacienteCreado.getDni());
-        assertEquals("Juan", pacienteCreado.getNombre());
+        verify(pacienteService).obtenerORegistrarPacienteExpress(
+                dto.getNombre(), dto.getApellido(), dto.getDni(), dto.getTelefono(), dto.getEmail(), dto.getFechaNacimiento()
+        );
+        verify(turnoRepository, times(1)).save(any(Turno.class));
+        verify(eventPublisher, times(1)).publishEvent(any(TurnoReservadoEvent.class));
     }
 
     @Test
@@ -182,9 +174,10 @@ class TurnoServiceSecretariaTest {
                 .telefono("99887766")
                 .build();
 
-        when(doctorRepository.findById(doctorId)).thenReturn(Optional.of(doctorMock));
-        when(especialidadRepository.findById(especialidadId)).thenReturn(Optional.of(especialidadMock));
-        when(pacienteRepository.findByDni(dni)).thenReturn(Optional.of(pacienteExistente));
+        when(doctorService.obtenerPorId(doctorId)).thenReturn(doctorMock);
+        when(especialidadService.obtenerPorId(especialidadId)).thenReturn(especialidadMock);
+        when(pacienteService.obtenerORegistrarPacienteExpress(any(), any(), any(), any(), any(), any()))
+                .thenReturn(pacienteExistente);
         when(turnoRepository.existsByDoctorIdAndFechaHoraAndEstadoNot(eq(doctorId), eq(fechaFutura), any())).thenReturn(false);
 
         Turno turnoGuardado = Turno.builder()
@@ -205,7 +198,7 @@ class TurnoServiceSecretariaTest {
         assertNotNull(response);
         assertEquals(pacienteExistente.getId(), response.getPacienteId());
 
-        verify(pacienteRepository, never()).save(any(Paciente.class));
-        verify(turnoRepository, times(2)).save(any(Turno.class));
+        verify(turnoRepository, times(1)).save(any(Turno.class));
+        verify(eventPublisher, times(1)).publishEvent(any(TurnoReservadoEvent.class));
     }
 }

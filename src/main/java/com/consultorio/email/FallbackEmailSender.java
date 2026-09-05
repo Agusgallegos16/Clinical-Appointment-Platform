@@ -34,17 +34,17 @@ public class FallbackEmailSender implements EmailSender {
             primarySender.sendHtmlEmail(to, subject, htmlContent);
         } catch (EmailProviderException e) {
             if (e.isRetryable()) {
-                log.warn("⚠️ Fallo en proveedor primario {} (HTTP {}). Conmutando inmediatamente a proveedor de respaldo {}...",
+                log.warn("Fallo en proveedor primario {} (HTTP {}). Conmutando inmediatamente a proveedor de respaldo {}...",
                         primarySender.getProviderName(), e.getStatusCode(), fallbackSender.getProviderName());
                 try {
                     fallbackSender.sendHtmlEmail(to, subject, htmlContent);
                 } catch (Exception fallbackEx) {
-                    log.error("❌ Falló también el envío vía proveedor de respaldo {}: {}",
+                    log.error("Falló también el envío vía proveedor de respaldo {}: {}",
                             fallbackSender.getProviderName(), fallbackEx.getMessage());
                     throw fallbackEx;
                 }
             } else {
-                log.error("❌ Error no reintentable en proveedor primario {} (solicitud inválida): {}",
+                log.error("Error no reintentable en proveedor primario {} (solicitud inválida): {}",
                         primarySender.getProviderName(), e.getMessage());
                 throw e;
             }

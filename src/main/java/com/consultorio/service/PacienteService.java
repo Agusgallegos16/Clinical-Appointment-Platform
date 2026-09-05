@@ -1,21 +1,15 @@
 package com.consultorio.service;
 
-import com.consultorio.domain.EstadoTurno;
 import com.consultorio.domain.Paciente;
-import com.consultorio.domain.Rol;
-import com.consultorio.domain.Turno;
 import com.consultorio.domain.Usuario;
-import com.consultorio.dto.PacienteResumenEstadisticasDTO;
+import com.consultorio.dto.PacienteMenorResponseDTO;
+import com.consultorio.dto.RegistroMenorDTO;
 import com.consultorio.dto.RegistroPacienteDTO;
 import com.consultorio.repository.PacienteRepository;
-import com.consultorio.repository.TurnoRepository;
-import com.consultorio.repository.UsuarioRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -24,22 +18,16 @@ import java.util.UUID;
 public class PacienteService {
 
     private final PacienteRepository pacienteRepository;
-    private final UsuarioRepository usuarioRepository;
-    private final TurnoRepository turnoRepository;
+    private final UsuarioService usuarioService;
     private final EmailService emailService;
-    private final PasswordEncoder passwordEncoder;
 
     @Autowired
     public PacienteService(PacienteRepository pacienteRepository,
-            UsuarioRepository usuarioRepository,
-            TurnoRepository turnoRepository,
-            EmailService emailService,
-            PasswordEncoder passwordEncoder) {
+                           UsuarioService usuarioService,
+                           EmailService emailService) {
         this.pacienteRepository = pacienteRepository;
-        this.usuarioRepository = usuarioRepository;
-        this.turnoRepository = turnoRepository;
+        this.usuarioService = usuarioService;
         this.emailService = emailService;
-        this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional
@@ -47,7 +35,7 @@ public class PacienteService {
         if (dto.getConfirmarPassword() != null && !dto.getPassword().equals(dto.getConfirmarPassword())) {
             throw new IllegalArgumentException("Las contraseñas no coinciden. Por favor verifíquelas.");
         }
-        if (usuarioRepository.existsByEmail(dto.getEmail())) {
+        if (usuarioService.existePorEmail(dto.getEmail())) {
             throw new IllegalArgumentException("Ya existe un usuario registrado con el email: " + dto.getEmail());
         }
 
@@ -60,22 +48,10 @@ public class PacienteService {
         }
 
         String tokenVerificacion = UUID.randomUUID().toString();
-
-        Usuario usuario = Usuario.builder()
-                .email(dto.getEmail())
-                .password(passwordEncoder.encode(dto.getPassword()))
-                .rol(Rol.PACIENTE)
-                .activo(false) // Inactivo hasta que confirme por email
-                .emailVerificado(false)
-                .tokenVerificacionEmail(tokenVerificacion)
-                .tokenVerificacionExpiracion(LocalDateTime.now().plusHours(24))
-                .build();
+        Usuario usuario = usuarioService.crearUsuarioParaPaciente(dto.getEmail(), dto.getPassword(), tokenVerificacion);
 
         Paciente paciente;
         if (pacienteExistenteOpt.isPresent()) {
-            // El paciente ya existía previamente como menor a cargo (sin usuario propio).
-            // Le vinculamos la nueva cuenta de Usuario sin perder su historial médico ni
-            // DNI.
             paciente = pacienteExistenteOpt.get();
             paciente.setUsuario(usuario);
             paciente.setNombre(dto.getNombre());
@@ -84,7 +60,7 @@ public class PacienteService {
             if (dto.getFechaNacimiento() != null) {
                 paciente.setFechaNacimiento(dto.getFechaNacimiento());
             }
-            paciente.setTutor(null); // Al registrar su propia cuenta, pasa a ser un paciente independiente
+            paciente.setTutor(null);
         } else {
             paciente = Paciente.builder()
                     .usuario(usuario)
@@ -97,8 +73,6 @@ public class PacienteService {
         }
 
         Paciente guardado = pacienteRepository.save(paciente);
-
-        // Enviar correo de verificación de cuenta (Double Opt-In)
         emailService.enviarEmailVerificacion(guardado.getUsuario().getEmail(), guardado.getNombre(), tokenVerificacion);
 
         return guardado;
@@ -106,25 +80,9 @@ public class PacienteService {
 
     @Transactional
     public boolean confirmarEmail(String token) {
-        Usuario usuario = usuarioRepository.findByTokenVerificacionEmail(token)
-                .orElseThrow(() -> new IllegalArgumentException("El token de activación es inválido o no existe."));
-
-        if (usuario.getTokenVerificacionExpiracion() != null
-                && usuario.getTokenVerificacionExpiracion().isBefore(LocalDateTime.now())) {
-            throw new IllegalArgumentException(
-                    "El token de activación ha expirado. Por favor solicite un nuevo registro.");
-        }
-
-        usuario.setActivo(true);
-        usuario.setEmailVerificado(true);
-        usuario.setTokenVerificacionEmail(null);
-        usuario.setTokenVerificacionExpiracion(null);
-        usuarioRepository.save(usuario);
-
-        // Enviar correo de bienvenida tras activar exitosamente
+        Usuario usuario = usuarioService.activarCuentaPaciente(token);
         pacienteRepository.findByUsuarioEmail(usuario.getEmail())
                 .ifPresent(p -> emailService.enviarEmailBienvenida(usuario.getEmail(), p.getNombre()));
-
         return true;
     }
 
@@ -138,6 +96,50 @@ public class PacienteService {
                 .orElseThrow(() -> new IllegalArgumentException("Paciente no encontrado con email: " + email));
     }
 
+    public Optional<Paciente> obtenerPorUsuarioId(Long usuarioId) {
+        return pacienteRepository.findByUsuarioId(usuarioId);
+    }
+
+    @org.springframework.context.event.EventListener
+    @Transactional
+    public void alEliminarUsuario(com.consultorio.event.UsuarioEliminadoEvent event) {
+        pacienteRepository.findByUsuarioId(event.usuarioId())
+                .ifPresent(pacienteRepository::delete);
+    }
+
+    @Transactional
+    public void eliminarPaciente(Paciente paciente) {
+        if (paciente != null) {
+            pacienteRepository.delete(paciente);
+        }
+    }
+
+    @Transactional
+    public Paciente vincularOCrearPacienteParaUsuario(Usuario usuario, Long dni, String nombre, String apellido, String telefono, java.time.LocalDate fechaNacimiento) {
+        Paciente pacienteExistente = null;
+        if (dni != null) {
+            pacienteExistente = pacienteRepository.findByDni(dni).orElse(null);
+        }
+        if (pacienteExistente != null) {
+            pacienteExistente.setUsuario(usuario);
+            pacienteExistente.setNombre(nombre != null ? nombre.trim() : "");
+            pacienteExistente.setApellido(apellido != null ? apellido.trim() : "");
+            if (telefono != null) pacienteExistente.setTelefono(telefono.trim());
+            if (fechaNacimiento != null) pacienteExistente.setFechaNacimiento(fechaNacimiento);
+            return pacienteRepository.save(pacienteExistente);
+        } else {
+            Paciente nuevoPaciente = Paciente.builder()
+                    .usuario(usuario)
+                    .dni(dni)
+                    .nombre(nombre != null ? nombre.trim() : "")
+                    .apellido(apellido != null ? apellido.trim() : "")
+                    .telefono(telefono != null ? telefono.trim() : null)
+                    .fechaNacimiento(fechaNacimiento)
+                    .build();
+            return pacienteRepository.save(nuevoPaciente);
+        }
+    }
+
     @Transactional(readOnly = true)
     public Optional<Paciente> obtenerPorDniOpt(Long dni) {
         if (dni == null)
@@ -149,49 +151,28 @@ public class PacienteService {
         return pacienteRepository.findAll();
     }
 
-    @Transactional(readOnly = true)
-    public PacienteResumenEstadisticasDTO obtenerEstadisticasPaciente(UUID pacienteId) {
-        Paciente paciente = pacienteRepository.findById(pacienteId)
-                .orElseThrow(() -> new IllegalArgumentException("Paciente no encontrado con id: " + pacienteId));
-
-        List<Turno> turnos = turnoRepository.findByPacienteIdOrderByFechaHoraDesc(pacienteId);
-
-        int total = turnos.size();
-        int completados = (int) turnos.stream().filter(t -> t.getEstado() == EstadoTurno.COMPLETADO).count();
-        int ausentes = (int) turnos.stream().filter(t -> t.getEstado() == EstadoTurno.AUSENTE).count();
-        int cancelados = (int) turnos.stream().filter(t -> t.getEstado() == EstadoTurno.CANCELADO).count();
-        int pendientes = (int) turnos.stream()
-                .filter(t -> t.getEstado() == EstadoTurno.CONFIRMADO || t.getEstado() == EstadoTurno.PENDIENTE).count();
-
-        double pctCompletados = total > 0 ? Math.round((completados * 100.0 / total) * 10.0) / 10.0 : 0.0;
-        double pctAusentes = total > 0 ? Math.round((ausentes * 100.0 / total) * 10.0) / 10.0 : 0.0;
-        double pctCancelados = total > 0 ? Math.round((cancelados * 100.0 / total) * 10.0) / 10.0 : 0.0;
-        double pctPendientes = total > 0 ? Math.round((pendientes * 100.0 / total) * 10.0) / 10.0 : 0.0;
-
-        return PacienteResumenEstadisticasDTO.builder()
-                .id(paciente.getId())
-                .nombre(paciente.getNombre())
-                .apellido(paciente.getApellido())
-                .dni(String.valueOf(paciente.getDni()))
-                .telefono(paciente.getTelefono())
-                .email(paciente.getEmail() != null ? paciente.getEmail() : "")
-                .fechaNacimiento(paciente.getFechaNacimiento())
-                .edad(paciente.getEdad())
-                .totalTurnos(total)
-                .totalCompletados(completados)
-                .totalAusentes(ausentes)
-                .totalCancelados(cancelados)
-                .totalPendientes(pendientes)
-                .porcentajeCompletados(pctCompletados)
-                .porcentajeAusentes(pctAusentes)
-                .porcentajeCancelados(pctCancelados)
-                .porcentajePendientes(pctPendientes)
+    @Transactional
+    public Paciente obtenerORegistrarPacienteExpress(String nombre, String apellido, Long dni, String telefono, String email, java.time.LocalDate fechaNacimiento) {
+        Optional<Paciente> pacienteExistenteOpt = pacienteRepository.findByDni(dni);
+        if (pacienteExistenteOpt.isPresent()) {
+            return pacienteExistenteOpt.get();
+        }
+        Paciente nuevo = Paciente.builder()
+                .nombre(nombre != null ? nombre.trim() : "")
+                .apellido(apellido != null ? apellido.trim() : "")
+                .dni(dni)
+                .telefono(telefono != null && !telefono.trim().isEmpty() ? telefono.trim() : null)
+                .email(email != null && !email.trim().isEmpty() ? email.trim() : null)
+                .fechaNacimiento(fechaNacimiento)
+                .usuario(null)
                 .build();
+        return pacienteRepository.save(nuevo);
     }
 
+
     @Transactional
-    public com.consultorio.dto.PacienteMenorResponseDTO registrarMenor(UUID tutorPacienteId,
-            com.consultorio.dto.RegistroMenorDTO dto) {
+    public PacienteMenorResponseDTO registrarMenor(UUID tutorPacienteId,
+                                                   RegistroMenorDTO dto) {
         Paciente tutor = pacienteRepository.findById(tutorPacienteId)
                 .orElseThrow(
                         () -> new IllegalArgumentException("Paciente tutor no encontrado con id: " + tutorPacienteId));
@@ -252,7 +233,7 @@ public class PacienteService {
     }
 
     @Transactional
-    public List<com.consultorio.dto.PacienteMenorResponseDTO> listarMenoresDeTutor(UUID tutorPacienteId) {
+    public List<PacienteMenorResponseDTO> listarMenoresDeTutor(UUID tutorPacienteId) {
         List<Paciente> menores = pacienteRepository.findByTutorId(tutorPacienteId);
 
         List<Paciente> validos = new java.util.ArrayList<>();
@@ -305,7 +286,7 @@ public class PacienteService {
                 .dni(menor.getDni())
                 .fechaNacimiento(menor.getFechaNacimiento())
                 .edad(menor.getEdad())
-                .telefono(menor.getTelefono()) // Hereda el teléfono del tutor
+                .telefono(menor.getTelefono()) // Hereda teléfono del tutor
                 .tutorId(menor.getTutor() != null ? menor.getTutor().getId() : null)
                 .tutorNombre(
                         menor.getTutor() != null ? menor.getTutor().getNombre() + " " + menor.getTutor().getApellido()
@@ -326,21 +307,7 @@ public class PacienteService {
 
         Usuario usuario = paciente.getUsuario();
         if (usuario != null) {
-            String nuevoEmail = dto.getEmail().trim();
-            if (!usuario.getEmail().equalsIgnoreCase(nuevoEmail)) {
-                if (usuarioRepository.existsByEmail(nuevoEmail)) {
-                    throw new IllegalArgumentException("Ya existe una cuenta registrada con el email: " + nuevoEmail);
-                }
-                usuario.setEmail(nuevoEmail);
-            }
-
-            if (dto.getPassword() != null && !dto.getPassword().trim().isEmpty()) {
-                if (dto.getPassword().trim().length() < 6) {
-                    throw new IllegalArgumentException("La nueva contraseña debe tener al menos 6 caracteres.");
-                }
-                usuario.setPassword(passwordEncoder.encode(dto.getPassword().trim()));
-            }
-            usuarioRepository.save(usuario);
+            usuarioService.actualizarCredenciales(usuario.getId(), dto.getEmail(), dto.getPassword());
         }
 
         return pacienteRepository.save(paciente);

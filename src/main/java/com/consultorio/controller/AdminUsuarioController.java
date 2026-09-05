@@ -2,6 +2,7 @@ package com.consultorio.controller;
 
 import com.consultorio.dto.RegistroUsuarioAdminDTO;
 import com.consultorio.dto.UsuarioAdminDTO;
+import com.consultorio.service.AdminUsuarioFacade;
 import com.consultorio.service.UsuarioPruebaService;
 import com.consultorio.service.UsuarioService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -27,11 +28,15 @@ import java.util.Map;
 @Tag(name = "Gestión de Usuarios (Admin)", description = "Endpoints para búsqueda, bloqueo y eliminación de usuarios.")
 public class AdminUsuarioController {
 
+    private final AdminUsuarioFacade adminUsuarioFacade;
     private final UsuarioService usuarioService;
     private final UsuarioPruebaService usuarioPruebaService;
 
     @Autowired
-    public AdminUsuarioController(UsuarioService usuarioService, UsuarioPruebaService usuarioPruebaService) {
+    public AdminUsuarioController(AdminUsuarioFacade adminUsuarioFacade,
+                                  UsuarioService usuarioService,
+                                  UsuarioPruebaService usuarioPruebaService) {
+        this.adminUsuarioFacade = adminUsuarioFacade;
         this.usuarioService = usuarioService;
         this.usuarioPruebaService = usuarioPruebaService;
     }
@@ -45,7 +50,7 @@ public class AdminUsuarioController {
             @RequestParam(value = "size", defaultValue = "15") int size) {
         String termino = (query != null && !query.isBlank()) ? query : email;
         Pageable pageable = PageRequest.of(page, size, Sort.by(Sort.Order.asc("email").ignoreCase()));
-        Page<UsuarioAdminDTO> resultados = usuarioService.buscarUsuariosPaginados(termino, pageable);
+        Page<UsuarioAdminDTO> resultados = adminUsuarioFacade.buscarUsuariosPaginados(termino, pageable);
         return ResponseEntity.ok(resultados);
     }
 
@@ -71,7 +76,7 @@ public class AdminUsuarioController {
     @PostMapping("/registro")
     @Operation(summary = "Registrar un nuevo usuario sin contraseña")
     public ResponseEntity<UsuarioAdminDTO> registrarUsuario(@Valid @RequestBody RegistroUsuarioAdminDTO dto) {
-        UsuarioAdminDTO creado = usuarioService.registrarUsuarioPorAdmin(dto);
+        UsuarioAdminDTO creado = adminUsuarioFacade.registrarUsuarioPorAdmin(dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(creado);
     }
 

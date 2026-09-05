@@ -2,13 +2,8 @@ package com.consultorio.controller;
 
 import com.consultorio.domain.Doctor;
 import com.consultorio.domain.Paciente;
-import com.consultorio.domain.Rol;
-import com.consultorio.domain.Usuario;
 import com.consultorio.dto.*;
-import com.consultorio.repository.DoctorRepository;
-import com.consultorio.repository.PacienteRepository;
-import com.consultorio.repository.UsuarioRepository;
-import com.consultorio.security.JwtUtils;
+import com.consultorio.service.AuthService;
 import com.consultorio.service.DoctorService;
 import com.consultorio.service.PacienteService;
 import com.consultorio.service.UsuarioService;
@@ -19,14 +14,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
-import java.util.Optional;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -36,29 +26,17 @@ public class AuthController {
     private final PacienteService pacienteService;
     private final DoctorService doctorService;
     private final UsuarioService usuarioService;
-    private final AuthenticationManager authenticationManager;
-    private final JwtUtils jwtUtils;
-    private final UsuarioRepository usuarioRepository;
-    private final PacienteRepository pacienteRepository;
-    private final DoctorRepository doctorRepository;
+    private final AuthService authService;
 
     @Autowired
     public AuthController(PacienteService pacienteService,
                           DoctorService doctorService,
                           UsuarioService usuarioService,
-                          AuthenticationManager authenticationManager,
-                          JwtUtils jwtUtils,
-                          UsuarioRepository usuarioRepository,
-                          PacienteRepository pacienteRepository,
-                          DoctorRepository doctorRepository) {
+                          AuthService authService) {
         this.pacienteService = pacienteService;
         this.doctorService = doctorService;
         this.usuarioService = usuarioService;
-        this.authenticationManager = authenticationManager;
-        this.jwtUtils = jwtUtils;
-        this.usuarioRepository = usuarioRepository;
-        this.pacienteRepository = pacienteRepository;
-        this.doctorRepository = doctorRepository;
+        this.authService = authService;
     }
 
     @PostMapping("/registro-paciente")
@@ -107,43 +85,6 @@ public class AuthController {
     @PostMapping("/login")
     @Operation(summary = "Iniciar Sesión y obtener Token JWT Bearer")
     public ResponseEntity<JwtResponseDTO> login(@Valid @RequestBody LoginDTO loginDTO) {
-        Usuario usuario = usuarioRepository.findByEmail(loginDTO.getEmail())
-                .orElseThrow(() -> new IllegalArgumentException("Credenciales inválidas."));
-
-        if (usuario.isBloqueado()) {
-            throw new IllegalArgumentException("Error: Su cuenta ha sido bloqueada por el administrador.");
-        }
-
-        if (!usuario.isEmailVerificado() || !usuario.isActivo()) {
-            throw new IllegalArgumentException("Debe confirmar su correo electrónico antes de iniciar sesión. Por favor revise su bandeja de entrada.");
-        }
-
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(loginDTO.getEmail(), loginDTO.getPassword())
-        );
-
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-
-        String token = jwtUtils.generarToken(usuario.getEmail(), usuario.getRol().name());
-
-        java.util.UUID entidadId = null;
-        if (usuario.getRol() == Rol.PACIENTE) {
-            Optional<Paciente> paciente = pacienteRepository.findByUsuarioId(usuario.getId());
-            if (paciente.isPresent()) entidadId = paciente.get().getId();
-        } else if (usuario.getRol() == Rol.DOCTOR) {
-            Optional<Doctor> doctor = doctorRepository.findByUsuarioId(usuario.getId());
-            if (doctor.isPresent()) entidadId = doctor.get().getId();
-        }
-
-        JwtResponseDTO response = JwtResponseDTO.builder()
-                .token(token)
-                .tipo("Bearer")
-                .id(usuario.getId())
-                .email(usuario.getEmail())
-                .rol(usuario.getRol())
-                .entidadId(entidadId)
-                .build();
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(authService.autenticar(loginDTO));
     }
 }

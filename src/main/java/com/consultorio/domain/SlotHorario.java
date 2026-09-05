@@ -1,7 +1,5 @@
 package com.consultorio.domain;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -13,7 +11,6 @@ import java.time.LocalTime;
 @Table(name = "slots_horario", indexes = {
     @Index(name = "idx_slots_doctor_fecha", columnList = "doctor_id, fecha")
 })
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -27,7 +24,6 @@ public class SlotHorario {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "doctor_id", nullable = false)
-    @JsonIgnore
     private Doctor doctor;
 
     @ManyToOne(fetch = FetchType.LAZY)

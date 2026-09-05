@@ -5,12 +5,8 @@ import com.consultorio.dto.AplicarPlantillaDTO;
 import com.consultorio.dto.CrearPlantillaDTO;
 import com.consultorio.dto.DetallePlantillaDTO;
 import com.consultorio.dto.HorarioAtencionDTO;
-import com.consultorio.repository.DoctorRepository;
-import com.consultorio.repository.EspecialidadRepository;
-import com.consultorio.repository.HorarioAtencionRepository;
 import com.consultorio.repository.PlantillaAgendaRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,28 +18,21 @@ import java.util.UUID;
 public class PlantillaAgendaService {
 
     private final PlantillaAgendaRepository plantillaAgendaRepository;
-    private final DoctorRepository doctorRepository;
-    private final EspecialidadRepository especialidadRepository;
-    private final HorarioAtencionRepository horarioAtencionRepository;
     private final DoctorService doctorService;
+    private final EspecialidadService especialidadService;
 
     @Autowired
     public PlantillaAgendaService(PlantillaAgendaRepository plantillaAgendaRepository,
-                                  DoctorRepository doctorRepository,
-                                  EspecialidadRepository especialidadRepository,
-                                  HorarioAtencionRepository horarioAtencionRepository,
-                                  @Lazy DoctorService doctorService) {
+                                  DoctorService doctorService,
+                                  EspecialidadService especialidadService) {
         this.plantillaAgendaRepository = plantillaAgendaRepository;
-        this.doctorRepository = doctorRepository;
-        this.especialidadRepository = especialidadRepository;
-        this.horarioAtencionRepository = horarioAtencionRepository;
         this.doctorService = doctorService;
+        this.especialidadService = especialidadService;
     }
 
     @Transactional
     public PlantillaAgenda crearPlantilla(UUID doctorId, CrearPlantillaDTO dto) {
-        Doctor doctor = doctorRepository.findById(doctorId)
-                .orElseThrow(() -> new IllegalArgumentException("Doctor no encontrado con ID: " + doctorId));
+        Doctor doctor = doctorService.obtenerPorId(doctorId);
 
         PlantillaAgenda plantilla = PlantillaAgenda.builder()
                 .doctor(doctor)
@@ -55,7 +44,7 @@ public class PlantillaAgendaService {
         for (DetallePlantillaDTO dDto : dto.getDetalles()) {
             Especialidad especialidad = null;
             if (dDto.getEspecialidadId() != null) {
-                especialidad = especialidadRepository.findById(dDto.getEspecialidadId()).orElse(null);
+                especialidad = especialidadService.buscarPorId(dDto.getEspecialidadId()).orElse(null);
             }
 
             detalles.add(DetallePlantilla.builder()
@@ -83,7 +72,7 @@ public class PlantillaAgendaService {
         for (DetallePlantillaDTO dDto : dto.getDetalles()) {
             Especialidad especialidad = null;
             if (dDto.getEspecialidadId() != null) {
-                especialidad = especialidadRepository.findById(dDto.getEspecialidadId()).orElse(null);
+                especialidad = especialidadService.buscarPorId(dDto.getEspecialidadId()).orElse(null);
             }
 
             plantilla.getDetalles().add(DetallePlantilla.builder()
@@ -98,14 +87,14 @@ public class PlantillaAgendaService {
         return plantillaAgendaRepository.save(plantilla);
     }
 
+    @Transactional(readOnly = true)
     public List<PlantillaAgenda> listarPlantillasDoctor(UUID doctorId) {
         return plantillaAgendaRepository.findByDoctorId(doctorId);
     }
 
     @Transactional
     public List<HorarioAtencion> aplicarPlantilla(UUID doctorId, AplicarPlantillaDTO dto) {
-        Doctor doctor = doctorRepository.findById(doctorId)
-                .orElseThrow(() -> new IllegalArgumentException("Doctor no encontrado con ID: " + doctorId));
+        Doctor doctor = doctorService.obtenerPorId(doctorId);
 
         PlantillaAgenda plantilla = plantillaAgendaRepository.findById(dto.getPlantillaId())
                 .orElseThrow(() -> new IllegalArgumentException("Plantilla no encontrada con ID: " + dto.getPlantillaId()));
@@ -115,9 +104,9 @@ public class PlantillaAgendaService {
         }
 
         if (dto.getFecha() != null) {
-            horarioAtencionRepository.deleteByDoctorIdAndFecha(doctorId, dto.getFecha());
+            doctorService.limpiarHorariosPorFecha(doctorId, dto.getFecha());
         } else {
-            horarioAtencionRepository.deleteByDoctorIdAndDiaSemanaAndFechaIsNull(doctorId, dto.getDiaSemana());
+            doctorService.limpiarHorariosPorDiaSemana(doctorId, dto.getDiaSemana());
         }
 
         List<HorarioAtencion> nuevosHorarios = new ArrayList<>();

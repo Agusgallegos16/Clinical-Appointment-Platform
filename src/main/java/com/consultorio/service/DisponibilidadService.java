@@ -1,17 +1,11 @@
 package com.consultorio.service;
 
-import com.consultorio.domain.EstadoTurno;
 import com.consultorio.domain.SlotHorario;
-import com.consultorio.domain.Turno;
 import com.consultorio.dto.SlotDisponibilidadDTO;
-import com.consultorio.repository.DoctorRepository;
-import com.consultorio.repository.SlotHorarioRepository;
-import com.consultorio.repository.TurnoRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -24,17 +18,13 @@ import java.util.stream.Collectors;
 @Service
 public class DisponibilidadService {
 
-    private final SlotHorarioRepository slotHorarioRepository;
-    private final TurnoRepository turnoRepository;
-    private final DoctorRepository doctorRepository;
+    private final DoctorService doctorService;
+    private final TurnoService turnoService;
 
     @Autowired
-    public DisponibilidadService(SlotHorarioRepository slotHorarioRepository,
-                                 TurnoRepository turnoRepository,
-                                 DoctorRepository doctorRepository) {
-        this.slotHorarioRepository = slotHorarioRepository;
-        this.turnoRepository = turnoRepository;
-        this.doctorRepository = doctorRepository;
+    public DisponibilidadService(DoctorService doctorService, TurnoService turnoService) {
+        this.doctorService = doctorService;
+        this.turnoService = turnoService;
     }
 
     public List<SlotDisponibilidadDTO> obtenerHorariosDisponibles(UUID doctorId, LocalDate fecha) {
@@ -42,24 +32,14 @@ public class DisponibilidadService {
     }
 
     public List<SlotDisponibilidadDTO> obtenerHorariosDisponibles(UUID doctorId, LocalDate fecha, Long especialidadId) {
-        var doctorOpt = doctorRepository.findById(doctorId);
-        if (doctorOpt.isPresent() && !doctorOpt.get().isDisponibleParaTurnos()) {
+        if (!doctorService.estaDisponibleParaTurnos(doctorId)) {
             return Collections.emptyList();
         }
 
-        LocalDateTime inicioDia = fecha.atStartOfDay();
-        LocalDateTime finDia = fecha.atTime(23, 59, 59);
+        Set<LocalTime> horasOcupadas = turnoService.obtenerHorasOcupadasDoctor(doctorId, fecha);
 
-        // Turnos reservados que no están cancelados
-        List<Turno> turnosOcupados = turnoRepository.findByDoctorIdAndFechaHoraBetweenAndEstadoNot(
-                doctorId, inicioDia, finDia, EstadoTurno.CANCELADO);
-
-        Set<LocalTime> horasOcupadas = turnosOcupados.stream()
-                .map(t -> t.getFechaHora().toLocalTime())
-                .collect(Collectors.toSet());
-
-        // Consultar slots concretos guardados para este doctor en esta fecha
-        List<SlotHorario> slotsDoctor = slotHorarioRepository.findByDoctorIdAndFecha(doctorId, fecha);
+        // Consultar slots concretos guardados para este doctor en esta fecha a través de DoctorService
+        List<SlotHorario> slotsDoctor = doctorService.obtenerSlotsDoctorPorFecha(doctorId, fecha);
 
         // Filtrar por especialidad: coincide la especialidad requerida o es General (null)
         List<SlotHorario> slotsFiltrados = slotsDoctor.stream()

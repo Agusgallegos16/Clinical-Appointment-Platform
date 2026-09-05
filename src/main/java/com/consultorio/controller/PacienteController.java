@@ -12,50 +12,62 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
+import com.consultorio.dto.PacienteResponseDTO;
+import com.consultorio.mapper.DtoMapper;
+import com.consultorio.service.TurnoService;
+
 @RestController
 @RequestMapping("/api/pacientes")
 @Tag(name = "Gestión de Pacientes y Menores a Cargo", description = "Endpoints para consulta de perfil del paciente, ficha con estadísticas y gestión de menores a cargo del tutor.")
 public class PacienteController {
 
     private final PacienteService pacienteService;
+    private final TurnoService turnoService;
     private final SecurityUtils securityUtils;
+    private final DtoMapper dtoMapper;
 
     @Autowired
-    public PacienteController(PacienteService pacienteService, SecurityUtils securityUtils) {
+    public PacienteController(PacienteService pacienteService,
+                              TurnoService turnoService,
+                              SecurityUtils securityUtils,
+                              DtoMapper dtoMapper) {
         this.pacienteService = pacienteService;
+        this.turnoService = turnoService;
         this.securityUtils = securityUtils;
+        this.dtoMapper = dtoMapper;
     }
 
     @GetMapping("/mi-perfil")
     @PreAuthorize("hasRole('PACIENTE') or hasRole('SECRETARIA')")
     @Operation(summary = "Obtener los datos del perfil del paciente autenticado (PACIENTE / SECRETARIA)")
-    public ResponseEntity<Paciente> obtenerMiPerfil() {
+    public ResponseEntity<PacienteResponseDTO> obtenerMiPerfil() {
         String emailAutenticado = securityUtils.obtenerEmailUsuarioAutenticado();
-        return ResponseEntity.ok(pacienteService.obtenerPorUsuarioEmail(emailAutenticado));
+        return ResponseEntity.ok(dtoMapper.toDto(pacienteService.obtenerPorUsuarioEmail(emailAutenticado)));
     }
 
     @PutMapping("/mi-perfil")
     @PreAuthorize("hasRole('PACIENTE') or hasRole('SECRETARIA')")
     @Operation(summary = "Actualizar los datos del perfil del paciente autenticado (PACIENTE / SECRETARIA)")
-    public ResponseEntity<Paciente> actualizarMiPerfil(
+    public ResponseEntity<PacienteResponseDTO> actualizarMiPerfil(
             @jakarta.validation.Valid @RequestBody com.consultorio.dto.ActualizarPerfilPacienteDTO dto) {
         String emailAutenticado = securityUtils.obtenerEmailUsuarioAutenticado();
         Paciente paciente = pacienteService.obtenerPorUsuarioEmail(emailAutenticado);
-        return ResponseEntity.ok(pacienteService.actualizarPerfilPaciente(paciente.getId(), dto));
+        return ResponseEntity.ok(dtoMapper.toDto(pacienteService.actualizarPerfilPaciente(paciente.getId(), dto)));
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasRole('PACIENTE') or hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('SECRETARIA')")
     @Operation(summary = "Obtener el detalle de un paciente por su ID (PACIENTE / ADMIN / DOCTOR / SECRETARIA)")
-    public ResponseEntity<Paciente> obtenerPacientePorId(@PathVariable UUID id) {
-        return ResponseEntity.ok(pacienteService.obtenerPorId(id));
+    public ResponseEntity<PacienteResponseDTO> obtenerPacientePorId(@PathVariable UUID id) {
+        return ResponseEntity.ok(dtoMapper.toDto(pacienteService.obtenerPorId(id)));
     }
 
     @GetMapping("/buscar-por-dni/{dni}")
     @PreAuthorize("hasRole('SECRETARIA') or hasRole('ADMIN') or hasRole('DOCTOR')")
     @Operation(summary = "Buscar paciente por DNI para autocompletado en agendamiento (SECRETARIA / ADMIN / DOCTOR)")
-    public ResponseEntity<Paciente> buscarPorDni(@PathVariable Long dni) {
+    public ResponseEntity<PacienteResponseDTO> buscarPorDni(@PathVariable Long dni) {
         return pacienteService.obtenerPorDniOpt(dni)
+                .map(dtoMapper::toDto)
                 .map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
@@ -64,7 +76,7 @@ public class PacienteController {
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN') or hasRole('PACIENTE') or hasRole('SECRETARIA')")
     @Operation(summary = "Obtener ficha y métricas estadísticas del paciente (DOCTOR / ADMIN / PACIENTE / SECRETARIA)")
     public ResponseEntity<com.consultorio.dto.PacienteResumenEstadisticasDTO> obtenerEstadisticasPaciente(@PathVariable UUID id) {
-        return ResponseEntity.ok(pacienteService.obtenerEstadisticasPaciente(id));
+        return ResponseEntity.ok(turnoService.obtenerEstadisticasPaciente(id));
     }
 
     @PostMapping("/menores")

@@ -1,23 +1,28 @@
 package com.consultorio.service;
 
-import com.consultorio.adapter.CalendarioAdapter;
 import com.consultorio.domain.*;
+import com.consultorio.dto.PacienteResumenEstadisticasDTO;
 import com.consultorio.dto.TurnoReservaDTO;
 import com.consultorio.dto.TurnoReservaSecretariaDTO;
 import com.consultorio.dto.TurnoResponseDTO;
-import com.consultorio.repository.*;
+import com.consultorio.event.TurnoCanceladoEvent;
+import com.consultorio.event.TurnoReservadoEvent;
+import com.consultorio.repository.TurnoRepository;
 import com.consultorio.security.SecurityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -27,31 +32,25 @@ public class TurnoService {
     private static final Logger log = LoggerFactory.getLogger(TurnoService.class);
 
     private final TurnoRepository turnoRepository;
-    private final PacienteRepository pacienteRepository;
-    private final DoctorRepository doctorRepository;
-    private final EspecialidadRepository especialidadRepository;
-    private final EmailService emailService;
+    private final PacienteService pacienteService;
+    private final DoctorService doctorService;
+    private final EspecialidadService especialidadService;
     private final SecurityUtils securityUtils;
-    private final CalendarioAdapter calendarioAdapter;
-    private final SlotHorarioRepository slotHorarioRepository;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Autowired
     public TurnoService(TurnoRepository turnoRepository,
-                        PacienteRepository pacienteRepository,
-                        DoctorRepository doctorRepository,
-                        EspecialidadRepository especialidadRepository,
-                        EmailService emailService,
+                        PacienteService pacienteService,
+                        DoctorService doctorService,
+                        EspecialidadService especialidadService,
                         SecurityUtils securityUtils,
-                        CalendarioAdapter calendarioAdapter,
-                        SlotHorarioRepository slotHorarioRepository) {
+                        ApplicationEventPublisher eventPublisher) {
         this.turnoRepository = turnoRepository;
-        this.pacienteRepository = pacienteRepository;
-        this.doctorRepository = doctorRepository;
-        this.especialidadRepository = especialidadRepository;
-        this.emailService = emailService;
+        this.pacienteService = pacienteService;
+        this.doctorService = doctorService;
+        this.especialidadService = especialidadService;
         this.securityUtils = securityUtils;
-        this.calendarioAdapter = calendarioAdapter;
-        this.slotHorarioRepository = slotHorarioRepository;
+        this.eventPublisher = eventPublisher;
     }
 
     @Transactional
@@ -60,14 +59,9 @@ public class TurnoService {
             throw new IllegalArgumentException("No se pueden reservar turnos para fechas o momentos del pasado.");
         }
 
-        Paciente paciente = pacienteRepository.findById(dto.getPacienteId())
-                .orElseThrow(() -> new IllegalArgumentException("Paciente no encontrado"));
-
-        Doctor doctor = doctorRepository.findById(dto.getDoctorId())
-                .orElseThrow(() -> new IllegalArgumentException("Doctor no encontrado"));
-
-        Especialidad especialidad = especialidadRepository.findById(dto.getEspecialidadId())
-                .orElseThrow(() -> new IllegalArgumentException("Especialidad no encontrada"));
+        Paciente paciente = pacienteService.obtenerPorId(dto.getPacienteId());
+        Doctor doctor = doctorService.obtenerPorId(dto.getDoctorId());
+        Especialidad especialidad = especialidadService.obtenerPorId(dto.getEspecialidadId());
 
         // Control de Seguridad IDOR: El paciente autenticado solo puede reservar para sí mismo (salvo ADMIN)
         String emailAutenticado = securityUtils.obtenerEmailUsuarioAutenticado();
@@ -93,39 +87,10 @@ public class TurnoService {
             throw new IllegalStateException("El horario seleccionado acaba de ser reservado por otro usuario. Por favor elija otro turno disponible.");
         }
 
-        // Sincronizar en el Google Calendar personal del Paciente (si lo tiene vinculado)
-        try {
-            if (paciente.getUsuario() != null && paciente.getUsuario().isGoogleCalendarConnected()) {
-                String eventIdPaciente = calendarioAdapter.agendarEventoParaUsuario(guardado, paciente.getUsuario());
-                if (eventIdPaciente != null) {
-                    guardado.setGoogleEventId(eventIdPaciente);
-                }
-            }
-        } catch (Exception e) {
-            log.error("No se pudo agendar en el Google Calendar del paciente: {}", e.getMessage());
-        }
-
-        // Sincronizar en el Google Calendar personal del Doctor (si lo tiene vinculado)
-        try {
-            if (doctor.getUsuario().isGoogleCalendarConnected()) {
-                String eventIdDoctor = calendarioAdapter.agendarEventoParaUsuario(guardado, doctor.getUsuario());
-                if (eventIdDoctor != null) {
-                    guardado.setGoogleEventIdDoctor(eventIdDoctor);
-                }
-            }
-        } catch (Exception e) {
-            log.error("No se pudo agendar en el Google Calendar del doctor: {}", e.getMessage());
-        }
-
-        guardado = turnoRepository.save(guardado);
-
         TurnoResponseDTO responseDTO = mapearResponseDTO(guardado);
 
-        // Notificación por email al paciente/tutor confirmando la reserva
         String emailDestino = obtenerEmailNotificacionPaciente(guardado.getPaciente());
-        if (emailDestino != null) {
-            emailService.enviarConfirmacionTurno(emailDestino, responseDTO);
-        }
+        eventPublisher.publishEvent(new TurnoReservadoEvent(guardado.getId(), emailDestino));
 
         return responseDTO;
     }
@@ -136,29 +101,12 @@ public class TurnoService {
             throw new IllegalArgumentException("No se pueden reservar turnos para fechas o momentos del pasado.");
         }
 
-        Doctor doctor = doctorRepository.findById(dto.getDoctorId())
-                .orElseThrow(() -> new IllegalArgumentException("Doctor no encontrado"));
+        Doctor doctor = doctorService.obtenerPorId(dto.getDoctorId());
+        Especialidad especialidad = especialidadService.obtenerPorId(dto.getEspecialidadId());
 
-        Especialidad especialidad = especialidadRepository.findById(dto.getEspecialidadId())
-                .orElseThrow(() -> new IllegalArgumentException("Especialidad no encontrada"));
-
-        Paciente paciente;
-        Optional<Paciente> pacienteExistenteOpt = pacienteRepository.findByDni(dto.getDni());
-        if (pacienteExistenteOpt.isPresent()) {
-            // Si el paciente ya existe en el sistema por DNI, conservamos sus datos registrados intactos
-            paciente = pacienteExistenteOpt.get();
-        } else {
-            paciente = Paciente.builder()
-                    .nombre(dto.getNombre().trim())
-                    .apellido(dto.getApellido().trim())
-                    .dni(dto.getDni())
-                    .telefono(dto.getTelefono() != null ? dto.getTelefono().trim() : null)
-                    .email(dto.getEmail() != null && !dto.getEmail().trim().isEmpty() ? dto.getEmail().trim() : null)
-                    .fechaNacimiento(dto.getFechaNacimiento())
-                    .usuario(null)
-                    .build();
-            paciente = pacienteRepository.save(paciente);
-        }
+        Paciente paciente = pacienteService.obtenerORegistrarPacienteExpress(
+                dto.getNombre(), dto.getApellido(), dto.getDni(), dto.getTelefono(), dto.getEmail(), dto.getFechaNacimiento()
+        );
 
         Turno turno = validarYConstruirTurno(doctor, especialidad, paciente, dto.getFechaHora(), dto.getTieneObraSocial(), dto.getObraSocial(), dto.getMotivoConsulta());
 
@@ -169,42 +117,13 @@ public class TurnoService {
             throw new IllegalStateException("El horario seleccionado acaba de ser reservado por otro usuario. Por favor elija otro turno disponible.");
         }
 
-        try {
-            if (paciente.getUsuario() != null && paciente.getUsuario().isGoogleCalendarConnected()) {
-                String eventIdPaciente = calendarioAdapter.agendarEventoParaUsuario(guardado, paciente.getUsuario());
-                if (eventIdPaciente != null) {
-                    guardado.setGoogleEventId(eventIdPaciente);
-                }
-            }
-        } catch (Exception e) {
-            log.error("No se pudo agendar en el Google Calendar del paciente: {}", e.getMessage());
-        }
-
-        try {
-            if (doctor.getUsuario() != null && doctor.getUsuario().isGoogleCalendarConnected()) {
-                String eventIdDoctor = calendarioAdapter.agendarEventoParaUsuario(guardado, doctor.getUsuario());
-                if (eventIdDoctor != null) {
-                    guardado.setGoogleEventIdDoctor(eventIdDoctor);
-                }
-            }
-        } catch (Exception e) {
-            log.error("No se pudo agendar en el Google Calendar del doctor: {}", e.getMessage());
-        }
-
-        guardado = turnoRepository.save(guardado);
         TurnoResponseDTO responseDTO = mapearResponseDTO(guardado);
 
         String emailDestino = (dto.getEmail() != null && !dto.getEmail().trim().isEmpty())
                 ? dto.getEmail().trim()
                 : obtenerEmailNotificacionPaciente(guardado.getPaciente());
 
-        if (emailDestino != null && !emailDestino.isEmpty()) {
-            try {
-                emailService.enviarConfirmacionTurno(emailDestino, responseDTO);
-            } catch (Exception e) {
-                log.error("Error enviando email de confirmación: {}", e.getMessage());
-            }
-        }
+        eventPublisher.publishEvent(new TurnoReservadoEvent(guardado.getId(), emailDestino));
 
         return responseDTO;
     }
@@ -237,23 +156,7 @@ public class TurnoService {
         turno.setEstado(EstadoTurno.CANCELADO);
         Turno actualizado = turnoRepository.save(turno);
 
-        // Cancelar evento en el Google Calendar del Paciente (si posee cuenta propia vinculada)
-        if (actualizado.getGoogleEventId() != null && actualizado.getPaciente().getUsuario() != null) {
-            try {
-                calendarioAdapter.cancelarEventoParaUsuario(actualizado.getGoogleEventId(), actualizado.getPaciente().getUsuario());
-            } catch (Exception e) {
-                log.error("No se pudo cancelar el evento en el calendario del paciente: {}", e.getMessage());
-            }
-        }
-
-        // Cancelar evento en el Google Calendar del Doctor
-        if (actualizado.getGoogleEventIdDoctor() != null && actualizado.getDoctor().getUsuario() != null) {
-            try {
-                calendarioAdapter.cancelarEventoParaUsuario(actualizado.getGoogleEventIdDoctor(), actualizado.getDoctor().getUsuario());
-            } catch (Exception e) {
-                log.error("No se pudo cancelar el evento en el calendario del doctor: {}", e.getMessage());
-            }
-        }
+        eventPublisher.publishEvent(new TurnoCanceladoEvent(actualizado.getId(), null, false));
 
         return mapearResponseDTO(actualizado);
     }
@@ -288,40 +191,9 @@ public class TurnoService {
         turno.setMotivoCancelacion(motivoCancelacion.trim());
         Turno actualizado = turnoRepository.save(turno);
 
-        // Cancelar eventos de Google Calendar si existían
-        if (actualizado.getGoogleEventId() != null && actualizado.getPaciente().getUsuario() != null) {
-            try {
-                calendarioAdapter.cancelarEventoParaUsuario(actualizado.getGoogleEventId(), actualizado.getPaciente().getUsuario());
-            } catch (Exception e) {
-                log.error("No se pudo cancelar el evento en el calendario del paciente: {}", e.getMessage());
-            }
-        }
-        if (actualizado.getGoogleEventIdDoctor() != null && actualizado.getDoctor().getUsuario() != null) {
-            try {
-                calendarioAdapter.cancelarEventoParaUsuario(actualizado.getGoogleEventIdDoctor(), actualizado.getDoctor().getUsuario());
-            } catch (Exception e) {
-                log.error("No se pudo cancelar el evento en el calendario del doctor: {}", e.getMessage());
-            }
-        }
+        eventPublisher.publishEvent(new TurnoCanceladoEvent(actualizado.getId(), motivoCancelacion.trim(), true));
 
-        TurnoResponseDTO dto = mapearResponseDTO(actualizado);
-
-        // Notificación por correo electrónico al paciente/tutor con disculpas y la justificación obligatoria
-        String emailDestino = obtenerEmailNotificacionPaciente(actualizado.getPaciente());
-
-        if (emailDestino != null) {
-            try {
-                emailService.enviarEmailCancelacionDoctor(
-                        emailDestino,
-                        dto,
-                        motivoCancelacion.trim()
-                );
-            } catch (Exception e) {
-                log.error("Error al enviar email de cancelación por médico: {}", e.getMessage());
-            }
-        }
-
-        return dto;
+        return mapearResponseDTO(actualizado);
     }
 
     @Transactional
@@ -335,8 +207,7 @@ public class TurnoService {
     }
 
     public List<TurnoResponseDTO> obtenerTurnosPorPaciente(UUID pacienteId) {
-        Paciente paciente = pacienteRepository.findById(pacienteId)
-                .orElseThrow(() -> new IllegalArgumentException("Paciente no encontrado"));
+        Paciente paciente = pacienteService.obtenerPorId(pacienteId);
 
         // Control de Seguridad IDOR: El paciente solo puede listar sus propios turnos (salvo ADMIN)
         String emailAutenticado = securityUtils.obtenerEmailUsuarioAutenticado();
@@ -360,8 +231,7 @@ public class TurnoService {
     }
 
     public List<TurnoResponseDTO> obtenerAgendaDoctor(UUID doctorId, LocalDate fecha) {
-        Doctor doctor = doctorRepository.findById(doctorId)
-                .orElseThrow(() -> new IllegalArgumentException("Doctor no encontrado con id: " + doctorId));
+        Doctor doctor = doctorService.obtenerPorId(doctorId);
 
         String emailAutenticado = securityUtils.obtenerEmailUsuarioAutenticado();
         if (emailAutenticado == null) {
@@ -412,6 +282,55 @@ public class TurnoService {
                 .collect(Collectors.toList());
     }
 
+    public Set<LocalTime> obtenerHorasOcupadasDoctor(UUID doctorId, LocalDate fecha) {
+        LocalDateTime inicioDia = fecha.atStartOfDay();
+        LocalDateTime finDia = fecha.atTime(23, 59, 59);
+        List<Turno> turnosOcupados = turnoRepository.findByDoctorIdAndFechaHoraBetweenAndEstadoNot(
+                doctorId, inicioDia, finDia, EstadoTurno.CANCELADO);
+        return turnosOcupados.stream()
+                .map(t -> t.getFechaHora().toLocalTime())
+                .collect(Collectors.toSet());
+    }
+
+    @Transactional(readOnly = true)
+    public PacienteResumenEstadisticasDTO obtenerEstadisticasPaciente(UUID pacienteId) {
+        Paciente paciente = pacienteService.obtenerPorId(pacienteId);
+
+        List<Turno> turnos = turnoRepository.findByPacienteIdOrderByFechaHoraDesc(pacienteId);
+
+        int total = turnos.size();
+        int completados = (int) turnos.stream().filter(t -> t.getEstado() == EstadoTurno.COMPLETADO).count();
+        int ausentes = (int) turnos.stream().filter(t -> t.getEstado() == EstadoTurno.AUSENTE).count();
+        int cancelados = (int) turnos.stream().filter(t -> t.getEstado() == EstadoTurno.CANCELADO).count();
+        int pendientes = (int) turnos.stream()
+                .filter(t -> t.getEstado() == EstadoTurno.CONFIRMADO || t.getEstado() == EstadoTurno.PENDIENTE).count();
+
+        double pctCompletados = total > 0 ? Math.round((completados * 100.0 / total) * 10.0) / 10.0 : 0.0;
+        double pctAusentes = total > 0 ? Math.round((ausentes * 100.0 / total) * 10.0) / 10.0 : 0.0;
+        double pctCancelados = total > 0 ? Math.round((cancelados * 100.0 / total) * 10.0) / 10.0 : 0.0;
+        double pctPendientes = total > 0 ? Math.round((pendientes * 100.0 / total) * 10.0) / 10.0 : 0.0;
+
+        return PacienteResumenEstadisticasDTO.builder()
+                .id(paciente.getId())
+                .nombre(paciente.getNombre())
+                .apellido(paciente.getApellido())
+                .dni(String.valueOf(paciente.getDni()))
+                .telefono(paciente.getTelefono())
+                .email(paciente.getEmail() != null ? paciente.getEmail() : "")
+                .fechaNacimiento(paciente.getFechaNacimiento())
+                .edad(paciente.getEdad())
+                .totalTurnos(total)
+                .totalCompletados(completados)
+                .totalAusentes(ausentes)
+                .totalCancelados(cancelados)
+                .totalPendientes(pendientes)
+                .porcentajeCompletados(pctCompletados)
+                .porcentajeAusentes(pctAusentes)
+                .porcentajeCancelados(pctCancelados)
+                .porcentajePendientes(pctPendientes)
+                .build();
+    }
+
     private Turno validarYConstruirTurno(Doctor doctor, Especialidad especialidad, Paciente paciente,
                                          LocalDateTime fechaHora, Boolean tieneOS, String osIngresada, String motivo) {
         boolean atiendeEspecialidad = doctor.getEspecialidades().stream()
@@ -431,7 +350,7 @@ public class TurnoService {
         }
 
         boolean slotConfigurado = doctor.isDisponibleParaTurnos() &&
-                slotHorarioRepository.existsByDoctorIdAndFechaAndHoraInicio(doctor.getId(), fechaHora.toLocalDate(), fechaHora.toLocalTime());
+                doctorService.existeSlotActivo(doctor.getId(), fechaHora.toLocalDate(), fechaHora.toLocalTime());
         if (!slotConfigurado) {
             throw new IllegalStateException("El horario seleccionado ya no se encuentra configurado o fue deshabilitado por el profesional.");
         }
@@ -460,16 +379,20 @@ public class TurnoService {
             return paciente.getUsuario().getEmail();
         }
 
-        Paciente pacientePersistido = pacienteRepository.findById(paciente.getId()).orElse(paciente);
+        Paciente pacientePersistido = pacienteService.obtenerPorId(paciente.getId());
         if (pacientePersistido.getUsuario() != null && pacientePersistido.getUsuario().getEmail() != null) {
             return pacientePersistido.getUsuario().getEmail();
         }
 
         if (pacientePersistido.getTutor() != null && pacientePersistido.getTutor().getId() != null) {
-            Paciente tutorCompleto = pacienteRepository.findById(pacientePersistido.getTutor().getId()).orElse(null);
+            Paciente tutorCompleto = pacienteService.obtenerPorId(pacientePersistido.getTutor().getId());
             if (tutorCompleto != null && tutorCompleto.getUsuario() != null && tutorCompleto.getUsuario().getEmail() != null) {
                 return tutorCompleto.getUsuario().getEmail();
             }
+        }
+
+        if (pacientePersistido.getEmail() != null && !pacientePersistido.getEmail().trim().isEmpty()) {
+            return pacientePersistido.getEmail().trim();
         }
 
         return null;

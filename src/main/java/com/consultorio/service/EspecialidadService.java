@@ -22,25 +22,54 @@ public class EspecialidadService {
         return especialidadRepository.findAll();
     }
 
-    @Transactional
-    public Especialidad crearEspecialidad(Especialidad especialidad) {
-        if (especialidadRepository.existsByNombreIgnoreCase(especialidad.getNombre())) {
-            throw new IllegalArgumentException("Ya existe una especialidad con el nombre: " + especialidad.getNombre());
+    public Especialidad obtenerPorId(Long id) {
+        return especialidadRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Especialidad no encontrada con ID: " + id));
+    }
+
+    public java.util.Optional<Especialidad> buscarPorId(Long id) {
+        if (id == null) {
+            return java.util.Optional.empty();
         }
+        return especialidadRepository.findById(id);
+    }
+
+    public List<Especialidad> obtenerTodasPorIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return List.of();
+        }
+        return especialidadRepository.findAllById(ids);
+    }
+
+    @Transactional
+    public Especialidad crearEspecialidad(String nombre, String descripcion) {
+        if (nombre == null || nombre.isBlank()) {
+            throw new IllegalArgumentException("El nombre de la especialidad es obligatorio");
+        }
+        if (especialidadRepository.existsByNombreIgnoreCase(nombre.trim())) {
+            throw new IllegalArgumentException("Ya existe una especialidad con el nombre: " + nombre.trim());
+        }
+        Especialidad especialidad = Especialidad.builder()
+                .nombre(nombre.trim())
+                .descripcion(descripcion != null ? descripcion.trim() : null)
+                .build();
         return especialidadRepository.save(especialidad);
     }
 
     @Transactional
-    public Especialidad actualizarEspecialidad(Long id, Especialidad datosActualizados) {
-        Especialidad existente = especialidadRepository.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Especialidad no encontrada con ID: " + id));
+    public Especialidad actualizarEspecialidad(Long id, String nombre, String descripcion) {
+        Especialidad existente = obtenerPorId(id);
 
-        if (especialidadRepository.existsByNombreIgnoreCaseAndIdNot(datosActualizados.getNombre(), id)) {
-            throw new IllegalArgumentException("Ya existe otra especialidad con el nombre: " + datosActualizados.getNombre());
+        if (nombre == null || nombre.isBlank()) {
+            throw new IllegalArgumentException("El nombre de la especialidad es obligatorio");
         }
 
-        existente.setNombre(datosActualizados.getNombre());
-        existente.setDescripcion(datosActualizados.getDescripcion());
+        if (especialidadRepository.existsByNombreIgnoreCaseAndIdNot(nombre.trim(), id)) {
+            throw new IllegalArgumentException("Ya existe otra especialidad con el nombre: " + nombre.trim());
+        }
+
+        existente.setNombre(nombre.trim());
+        existente.setDescripcion(descripcion != null ? descripcion.trim() : null);
 
         return especialidadRepository.save(existente);
     }

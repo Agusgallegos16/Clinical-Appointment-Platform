@@ -1,12 +1,8 @@
 package com.consultorio.controller;
 
 import com.consultorio.domain.*;
-import com.consultorio.dto.AplicarPlantillaDTO;
-import com.consultorio.dto.CrearPlantillaDTO;
-import com.consultorio.dto.HorarioAtencionDTO;
-import com.consultorio.dto.RegistroDoctorDTO;
-import com.consultorio.dto.SlotDisponibilidadDTO;
-import com.consultorio.dto.TurnoResponseDTO;
+import com.consultorio.dto.*;
+import com.consultorio.mapper.DtoMapper;
 import com.consultorio.service.DisponibilidadService;
 import com.consultorio.service.DoctorService;
 import com.consultorio.service.NotificacionProgramadaService;
@@ -27,6 +23,7 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/doctores")
@@ -39,6 +36,7 @@ public class DoctorController {
     private final PlantillaAgendaService plantillaAgendaService;
     private final NotificacionProgramadaService notificacionProgramadaService;
     private final com.consultorio.security.SecurityUtils securityUtils;
+    private final DtoMapper dtoMapper;
 
     @Autowired
     public DoctorController(DoctorService doctorService,
@@ -46,96 +44,104 @@ public class DoctorController {
                             TurnoService turnoService,
                             PlantillaAgendaService plantillaAgendaService,
                             NotificacionProgramadaService notificacionProgramadaService,
-                            com.consultorio.security.SecurityUtils securityUtils) {
+                            com.consultorio.security.SecurityUtils securityUtils,
+                            DtoMapper dtoMapper) {
         this.doctorService = doctorService;
         this.disponibilidadService = disponibilidadService;
         this.turnoService = turnoService;
         this.plantillaAgendaService = plantillaAgendaService;
         this.notificacionProgramadaService = notificacionProgramadaService;
         this.securityUtils = securityUtils;
+        this.dtoMapper = dtoMapper;
     }
 
     @GetMapping("/mi-perfil")
     @PreAuthorize("hasRole('DOCTOR')")
     @Operation(summary = "Obtener los datos del perfil del médico autenticado (DOCTOR)")
-    public ResponseEntity<Doctor> obtenerMiPerfil() {
+    public ResponseEntity<DoctorResponseDTO> obtenerMiPerfil() {
         String emailAutenticado = securityUtils.obtenerEmailUsuarioAutenticado();
-        return ResponseEntity.ok(doctorService.obtenerPorUsuarioEmail(emailAutenticado));
+        return ResponseEntity.ok(dtoMapper.toDto(doctorService.obtenerPorUsuarioEmail(emailAutenticado)));
     }
 
     @PutMapping("/mi-perfil")
     @PreAuthorize("hasRole('DOCTOR')")
     @Operation(summary = "Actualizar los datos del perfil del médico autenticado (DOCTOR)")
-    public ResponseEntity<Doctor> actualizarMiPerfil(
+    public ResponseEntity<DoctorResponseDTO> actualizarMiPerfil(
             @Valid @RequestBody com.consultorio.dto.ActualizarPerfilDoctorDTO dto) {
         String emailAutenticado = securityUtils.obtenerEmailUsuarioAutenticado();
         Doctor doctor = doctorService.obtenerPorUsuarioEmail(emailAutenticado);
-        return ResponseEntity.ok(doctorService.actualizarPerfilDoctor(doctor.getId(), dto));
+        return ResponseEntity.ok(dtoMapper.toDto(doctorService.actualizarPerfilDoctor(doctor.getId(), dto)));
     }
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Registrar un nuevo médico (Exclusivo ADMIN)")
-    public ResponseEntity<Doctor> registrarDoctor(@Valid @RequestBody RegistroDoctorDTO dto) {
+    public ResponseEntity<DoctorResponseDTO> registrarDoctor(@Valid @RequestBody RegistroDoctorDTO dto) {
         Doctor nuevoDoctor = doctorService.registrarDoctor(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(nuevoDoctor);
+        return ResponseEntity.status(HttpStatus.CREATED).body(dtoMapper.toDto(nuevoDoctor));
     }
 
     @GetMapping
     @Operation(summary = "Listar todos los médicos o filtrar por especialidad (Público)")
-    public ResponseEntity<List<Doctor>> listarDoctores(
+    public ResponseEntity<List<DoctorResponseDTO>> listarDoctores(
             @Parameter(description = "ID opcional de especialidad médica para filtrar") @RequestParam(required = false) Long especialidadId,
             @Parameter(description = "Si es true, solo retorna médicos visibles para reserva por pacientes") @RequestParam(required = false, defaultValue = "false") boolean soloVisibles) {
         if (especialidadId != null) {
-            return ResponseEntity.ok(doctorService.listarPorEspecialidad(especialidadId, soloVisibles));
+            List<DoctorResponseDTO> docs = doctorService.listarPorEspecialidad(especialidadId, soloVisibles).stream()
+                    .map(dtoMapper::toDto)
+                    .collect(Collectors.toList());
+            return ResponseEntity.ok(docs);
         }
-        return ResponseEntity.ok(doctorService.listarTodos(soloVisibles));
+        List<DoctorResponseDTO> todos = doctorService.listarTodos(soloVisibles).stream()
+                .map(dtoMapper::toDto)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(todos);
     }
 
     @PatchMapping("/{id}/disponibilidad-turnos")
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Activar o desactivar la visibilidad pública de turnos del médico (DOCTOR / ADMIN)")
-    public ResponseEntity<Doctor> cambiarDisponibilidadTurnos(
+    public ResponseEntity<DoctorResponseDTO> cambiarDisponibilidadTurnos(
             @Parameter(description = "UUID del profesional médico") @PathVariable UUID id,
             @Parameter(description = "true para perfil visible en reserva web, false para ocultar") @RequestParam boolean disponible) {
-        return ResponseEntity.ok(doctorService.cambiarDisponibilidadTurnos(id, disponible));
+        return ResponseEntity.ok(dtoMapper.toDto(doctorService.cambiarDisponibilidadTurnos(id, disponible)));
     }
 
     @PatchMapping("/{id}/advertencia-bloqueante")
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Configurar el mensaje de advertencia bloqueante del médico (DOCTOR / ADMIN)",
                description = "Si está activa, despliega un cartel emergente al paciente y BLOQUEA la reserva web.")
-    public ResponseEntity<Doctor> configurarAdvertenciaBloqueante(
+    public ResponseEntity<DoctorResponseDTO> configurarAdvertenciaBloqueante(
             @Parameter(description = "UUID del profesional médico") @PathVariable UUID id,
             @Parameter(description = "true para activar el cartel bloqueante") @RequestParam boolean activa,
             @Parameter(description = "Texto de advertencia e instrucciones para el paciente") @RequestParam(required = false) String mensaje) {
-        return ResponseEntity.ok(doctorService.configurarAdvertenciaBloqueante(id, activa, mensaje));
+        return ResponseEntity.ok(dtoMapper.toDto(doctorService.configurarAdvertenciaBloqueante(id, activa, mensaje)));
     }
 
     @PatchMapping("/{id}/advertencia-informativa")
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Configurar el mensaje de advertencia informativo del médico (DOCTOR / ADMIN)",
                description = "Si está activa, despliega un aviso pero PERMITE al paciente presionar Continuar y reservar.")
-    public ResponseEntity<Doctor> configurarAdvertenciaInformativa(
+    public ResponseEntity<DoctorResponseDTO> configurarAdvertenciaInformativa(
             @Parameter(description = "UUID del profesional médico") @PathVariable UUID id,
             @Parameter(description = "true para activar el cartel informativo") @RequestParam boolean activa,
             @Parameter(description = "Texto de indicaciones para el paciente") @RequestParam(required = false) String mensaje) {
-        return ResponseEntity.ok(doctorService.configurarAdvertenciaInformativa(id, activa, mensaje));
+        return ResponseEntity.ok(dtoMapper.toDto(doctorService.configurarAdvertenciaInformativa(id, activa, mensaje)));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Obtener el detalle de un médico por su ID (Público)")
-    public ResponseEntity<Doctor> obtenerDoctorPorId(@PathVariable UUID id) {
-        return ResponseEntity.ok(doctorService.obtenerPorId(id));
+    public ResponseEntity<DoctorResponseDTO> obtenerDoctorPorId(@PathVariable UUID id) {
+        return ResponseEntity.ok(dtoMapper.toDto(doctorService.obtenerPorId(id)));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Actualizar datos de un médico existente (Exclusivo ADMIN)")
-    public ResponseEntity<Doctor> actualizarDoctor(
+    public ResponseEntity<DoctorResponseDTO> actualizarDoctor(
             @PathVariable UUID id,
             @RequestBody RegistroDoctorDTO dto) {
-        return ResponseEntity.ok(doctorService.actualizarDoctor(id, dto));
+        return ResponseEntity.ok(dtoMapper.toDto(doctorService.actualizarDoctor(id, dto)));
     }
 
     @DeleteMapping("/{id}")
@@ -149,27 +155,30 @@ public class DoctorController {
     @PostMapping("/{id}/horarios")
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Agregar un nuevo horario de atención semanal o por fecha puntual (DOCTOR / ADMIN)")
-    public ResponseEntity<HorarioAtencion> agregarHorario(
+    public ResponseEntity<HorarioAtencionResponseDTO> agregarHorario(
             @PathVariable UUID id,
             @Valid @RequestBody HorarioAtencionDTO dto) {
         HorarioAtencion horario = doctorService.agregarHorarioAtencion(id, dto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(horario);
+        return ResponseEntity.status(HttpStatus.CREATED).body(dtoMapper.toDto(horario));
     }
 
     @PutMapping("/horarios/{horarioId}")
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Actualizar parámetros de una franja horaria existente (DOCTOR / ADMIN)")
-    public ResponseEntity<HorarioAtencion> actualizarHorario(
+    public ResponseEntity<HorarioAtencionResponseDTO> actualizarHorario(
             @PathVariable Long horarioId,
             @Valid @RequestBody HorarioAtencionDTO dto) {
-        return ResponseEntity.ok(doctorService.actualizarHorarioAtencion(horarioId, dto));
+        return ResponseEntity.ok(dtoMapper.toDto(doctorService.actualizarHorarioAtencion(horarioId, dto)));
     }
 
     @GetMapping("/{id}/horarios")
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Obtener todos los horarios de atención configurados por un doctor (DOCTOR / ADMIN)")
-    public ResponseEntity<List<HorarioAtencion>> obtenerHorarios(@PathVariable UUID id) {
-        return ResponseEntity.ok(doctorService.obtenerHorariosDoctor(id));
+    public ResponseEntity<List<HorarioAtencionResponseDTO>> obtenerHorarios(@PathVariable UUID id) {
+        List<HorarioAtencionResponseDTO> horarios = doctorService.obtenerHorariosDoctor(id).stream()
+                .map(dtoMapper::toDto)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(horarios);
     }
 
     @DeleteMapping("/horarios/{horarioId}")
@@ -195,11 +204,14 @@ public class DoctorController {
     @GetMapping("/{id}/slots")
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Obtener la lista de slots instanciados concretos del doctor (DOCTOR / ADMIN)")
-    public ResponseEntity<List<SlotHorario>> obtenerSlots(
+    public ResponseEntity<List<SlotHorarioResponseDTO>> obtenerSlots(
             @PathVariable UUID id,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta) {
-        return ResponseEntity.ok(doctorService.obtenerSlotsDoctor(id, desde, hasta));
+        List<SlotHorarioResponseDTO> slots = doctorService.obtenerSlotsDoctor(id, desde, hasta).stream()
+                .map(dtoMapper::toDto)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(slots);
     }
 
     @DeleteMapping("/slots/{slotId}")
@@ -213,27 +225,30 @@ public class DoctorController {
     @PostMapping("/{id}/plantillas")
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Crear una nueva plantilla de agenda personalizada (DOCTOR / ADMIN)")
-    public ResponseEntity<PlantillaAgenda> crearPlantilla(
+    public ResponseEntity<PlantillaAgendaResponseDTO> crearPlantilla(
             @PathVariable UUID id,
             @Valid @RequestBody CrearPlantillaDTO dto) {
         PlantillaAgenda plantilla = plantillaAgendaService.crearPlantilla(id, dto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(plantilla);
+        return ResponseEntity.status(HttpStatus.CREATED).body(dtoMapper.toDto(plantilla));
     }
 
     @PutMapping("/plantillas/{plantillaId}")
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Actualizar/Editar una plantilla de agenda existente (DOCTOR / ADMIN)")
-    public ResponseEntity<PlantillaAgenda> actualizarPlantilla(
+    public ResponseEntity<PlantillaAgendaResponseDTO> actualizarPlantilla(
             @PathVariable Long plantillaId,
             @Valid @RequestBody CrearPlantillaDTO dto) {
-        return ResponseEntity.ok(plantillaAgendaService.actualizarPlantilla(plantillaId, dto));
+        return ResponseEntity.ok(dtoMapper.toDto(plantillaAgendaService.actualizarPlantilla(plantillaId, dto)));
     }
 
     @GetMapping("/{id}/plantillas")
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Listar todas las plantillas de agenda del doctor (DOCTOR / ADMIN)")
-    public ResponseEntity<List<PlantillaAgenda>> listarPlantillas(@PathVariable UUID id) {
-        return ResponseEntity.ok(plantillaAgendaService.listarPlantillasDoctor(id));
+    public ResponseEntity<List<PlantillaAgendaResponseDTO>> listarPlantillas(@PathVariable UUID id) {
+        List<PlantillaAgendaResponseDTO> list = plantillaAgendaService.listarPlantillasDoctor(id).stream()
+                .map(dtoMapper::toDto)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(list);
     }
 
     @DeleteMapping("/plantillas/{plantillaId}")
@@ -247,10 +262,12 @@ public class DoctorController {
     @PostMapping("/{id}/aplicar-plantilla")
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Aplicar una plantilla de agenda a una fecha puntual (DOCTOR / ADMIN)")
-    public ResponseEntity<List<HorarioAtencion>> aplicarPlantilla(
+    public ResponseEntity<List<HorarioAtencionResponseDTO>> aplicarPlantilla(
             @PathVariable UUID id,
             @Valid @RequestBody AplicarPlantillaDTO dto) {
-        List<HorarioAtencion> nuevosHorarios = plantillaAgendaService.aplicarPlantilla(id, dto);
+        List<HorarioAtencionResponseDTO> nuevosHorarios = plantillaAgendaService.aplicarPlantilla(id, dto).stream()
+                .map(dtoMapper::toDto)
+                .collect(Collectors.toList());
         return ResponseEntity.ok(nuevosHorarios);
     }
 

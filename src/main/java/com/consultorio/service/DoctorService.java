@@ -3,9 +3,11 @@ package com.consultorio.service;
 import com.consultorio.domain.*;
 import com.consultorio.dto.HorarioAtencionDTO;
 import com.consultorio.dto.RegistroDoctorDTO;
-import com.consultorio.repository.*;
+import com.consultorio.repository.DoctorRepository;
+import com.consultorio.repository.HorarioAtencionRepository;
+import com.consultorio.repository.SlotHorarioRepository;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -13,7 +15,10 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -21,61 +26,47 @@ import java.util.stream.Collectors;
 public class DoctorService {
 
     private final DoctorRepository doctorRepository;
-    private final EspecialidadRepository especialidadRepository;
-    private final UsuarioRepository usuarioRepository;
     private final HorarioAtencionRepository horarioAtencionRepository;
     private final SlotHorarioRepository slotHorarioRepository;
+    private final UsuarioService usuarioService;
+    private final EspecialidadService especialidadService;
     private final EmailService emailService;
-    private final PasswordEncoder passwordEncoder;
 
     @Autowired
     public DoctorService(DoctorRepository doctorRepository,
-                         EspecialidadRepository especialidadRepository,
-                         UsuarioRepository usuarioRepository,
                          HorarioAtencionRepository horarioAtencionRepository,
                          SlotHorarioRepository slotHorarioRepository,
-                         EmailService emailService,
-                         PasswordEncoder passwordEncoder) {
+                         UsuarioService usuarioService,
+                         EspecialidadService especialidadService,
+                         EmailService emailService) {
         this.doctorRepository = doctorRepository;
-        this.especialidadRepository = especialidadRepository;
-        this.usuarioRepository = usuarioRepository;
         this.horarioAtencionRepository = horarioAtencionRepository;
         this.slotHorarioRepository = slotHorarioRepository;
+        this.usuarioService = usuarioService;
+        this.especialidadService = especialidadService;
         this.emailService = emailService;
-        this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional
     public Doctor registrarDoctor(RegistroDoctorDTO dto) {
-        var usuarioExistenteOpt = usuarioRepository.findByEmail(dto.getEmail());
+        var usuarioExistenteOpt = usuarioService.obtenerPorEmail(dto.getEmail());
         if (usuarioExistenteOpt.isPresent()) {
             Usuario exist = usuarioExistenteOpt.get();
             // Si el usuario no activó su cuenta y expiro su token de 24hs, descartarlo para permitir nuevo alta
             if (!exist.isActivo() && !exist.isEmailVerificado() && exist.getTokenVerificacionExpiracion() != null && exist.getTokenVerificacionExpiracion().isBefore(java.time.LocalDateTime.now())) {
                 doctorRepository.findByUsuarioId(exist.getId()).ifPresent(doctorRepository::delete);
-                usuarioRepository.delete(exist);
+                usuarioService.eliminarEntidadDirecta(exist);
             } else {
                 throw new IllegalArgumentException("El email ya se encuentra registrado: " + dto.getEmail());
             }
         }
 
         String tokenActivacion = UUID.randomUUID().toString();
+        Usuario usuarioGuardado = usuarioService.crearUsuarioParaAdmin(dto.getEmail(), Rol.DOCTOR, tokenActivacion);
 
-        Usuario usuario = Usuario.builder()
-                .email(dto.getEmail())
-                .password(passwordEncoder.encode(UUID.randomUUID().toString()))
-                .rol(Rol.DOCTOR)
-                .activo(false) // Inactivo hasta que establezca su clave vía email
-                .emailVerificado(false)
-                .tokenVerificacionEmail(tokenActivacion)
-                .tokenVerificacionExpiracion(java.time.LocalDateTime.now().plusHours(24))
-                .build();
-
-        Usuario usuarioGuardado = usuarioRepository.save(usuario);
-
-        List<Especialidad> especialidades = new ArrayList<>();
+        Set<Especialidad> especialidades = new HashSet<>();
         if (dto.getEspecialidadIds() != null && !dto.getEspecialidadIds().isEmpty()) {
-            especialidades = new ArrayList<>(especialidadRepository.findAllById(dto.getEspecialidadIds()));
+            especialidades = new HashSet<>(especialidadService.obtenerTodasPorIds(dto.getEspecialidadIds()));
         }
 
         Doctor doctor = Doctor.builder()
@@ -101,15 +92,15 @@ public class DoctorService {
 
         if (dto.getEmail() != null && !dto.getEmail().isBlank()) {
             if (!doctor.getUsuario().getEmail().equalsIgnoreCase(dto.getEmail()) &&
-                    usuarioRepository.existsByEmail(dto.getEmail())) {
+                    usuarioService.existePorEmail(dto.getEmail())) {
                 throw new IllegalArgumentException("El email ya pertenece a otro usuario: " + dto.getEmail());
             }
             doctor.getUsuario().setEmail(dto.getEmail());
         }
 
         if (dto.getEspecialidadIds() != null) {
-            var especialidades = especialidadRepository.findAllById(dto.getEspecialidadIds());
-            doctor.setEspecialidades(especialidades);
+            var especialidades = especialidadService.obtenerTodasPorIds(dto.getEspecialidadIds());
+            doctor.setEspecialidades(new HashSet<>(especialidades));
         }
 
         return doctorRepository.save(doctor);
@@ -155,10 +146,6 @@ public class DoctorService {
         return doctorRepository.findAll();
     }
 
-    public List<Doctor> listarPorEspecialidad(Long especialidadId) {
-        return listarPorEspecialidad(especialidadId, false);
-    }
-
     public List<Doctor> listarPorEspecialidad(Long especialidadId, boolean soloVisibles) {
         if (soloVisibles) {
             return doctorRepository.findByEspecialidadesIdAndDisponibleParaTurnosTrue(especialidadId);
@@ -169,6 +156,46 @@ public class DoctorService {
     public Doctor obtenerPorId(UUID id) {
         return doctorRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Doctor no encontrado con ID: " + id));
+    }
+
+    public Optional<Doctor> obtenerPorUsuarioId(Long usuarioId) {
+        return doctorRepository.findByUsuarioId(usuarioId);
+    }
+
+    @org.springframework.context.event.EventListener
+    @Transactional
+    public void alEliminarUsuario(com.consultorio.event.UsuarioEliminadoEvent event) {
+        doctorRepository.findByUsuarioId(event.usuarioId())
+                .ifPresent(doctorRepository::delete);
+    }
+
+    @Transactional
+    public void eliminarDoctor(Doctor doctor) {
+        if (doctor != null) {
+            doctorRepository.delete(doctor);
+        }
+    }
+
+    @Transactional
+    public Doctor crearDoctorParaUsuario(Usuario usuario, String nombre, String apellido, String fotoUrl, List<Long> especialidadIds) {
+        Set<Especialidad> especialidades = new HashSet<>();
+        if (especialidadIds != null && !especialidadIds.isEmpty()) {
+            especialidades = new HashSet<>(especialidadService.obtenerTodasPorIds(especialidadIds));
+        }
+        Doctor doctor = Doctor.builder()
+                .usuario(usuario)
+                .nombre(nombre != null ? nombre.trim() : "")
+                .apellido(apellido != null ? apellido.trim() : "")
+                .fotoUrl(fotoUrl != null ? fotoUrl.trim() : null)
+                .especialidades(especialidades)
+                .build();
+        return doctorRepository.save(doctor);
+    }
+
+    public boolean estaDisponibleParaTurnos(UUID doctorId) {
+        return doctorRepository.findById(doctorId)
+                .map(Doctor::isDisponibleParaTurnos)
+                .orElse(false);
     }
 
     @Transactional
@@ -199,7 +226,7 @@ public class DoctorService {
 
         Especialidad especialidad = null;
         if (dto.getEspecialidadId() != null) {
-            especialidad = especialidadRepository.findById(dto.getEspecialidadId()).orElse(null);
+            especialidad = especialidadService.buscarPorId(dto.getEspecialidadId()).orElse(null);
         }
 
         HorarioAtencion horario = HorarioAtencion.builder()
@@ -251,7 +278,7 @@ public class DoctorService {
 
         Especialidad especialidad = null;
         if (dto.getEspecialidadId() != null) {
-            especialidad = especialidadRepository.findById(dto.getEspecialidadId()).orElse(null);
+            especialidad = especialidadService.buscarPorId(dto.getEspecialidadId()).orElse(null);
         }
 
         horario.setEspecialidad(especialidad);
@@ -435,6 +462,24 @@ public class DoctorService {
         slotHorarioRepository.deleteById(slotId);
     }
 
+    public List<SlotHorario> obtenerSlotsDoctorPorFecha(UUID doctorId, LocalDate fecha) {
+        return slotHorarioRepository.findByDoctorIdAndFecha(doctorId, fecha);
+    }
+
+    public boolean existeSlotActivo(UUID doctorId, LocalDate fecha, LocalTime horaInicio) {
+        return slotHorarioRepository.existsByDoctorIdAndFechaAndHoraInicio(doctorId, fecha, horaInicio);
+    }
+
+    @Transactional
+    public void limpiarHorariosPorFecha(UUID doctorId, LocalDate fecha) {
+        horarioAtencionRepository.deleteByDoctorIdAndFecha(doctorId, fecha);
+    }
+
+    @Transactional
+    public void limpiarHorariosPorDiaSemana(UUID doctorId, DiaSemana diaSemana) {
+        horarioAtencionRepository.deleteByDoctorIdAndDiaSemanaAndFechaIsNull(doctorId, diaSemana);
+    }
+
     public List<HorarioAtencion> obtenerHorariosDoctor(UUID doctorId) {
         return horarioAtencionRepository.findByDoctorId(doctorId);
     }
@@ -448,7 +493,7 @@ public class DoctorService {
         }
     }
 
-    @org.springframework.scheduling.annotation.Scheduled(cron = "0 0 3 * * ?")
+    @Scheduled(cron = "0 0 3 * * ?")
     @Transactional
     public void limpiarDoctoresExpirados() {
         List<Doctor> todos = doctorRepository.findAll();
@@ -458,7 +503,7 @@ public class DoctorService {
                     && u.getTokenVerificacionExpiracion() != null
                     && u.getTokenVerificacionExpiracion().isBefore(java.time.LocalDateTime.now())) {
                 doctorRepository.delete(doc);
-                usuarioRepository.delete(u);
+                usuarioService.eliminarEntidadDirecta(u);
             }
         }
     }
@@ -487,27 +532,13 @@ public class DoctorService {
         }
 
         if (dto.getEspecialidadIds() != null) {
-            List<Especialidad> nuevasEspecialidades = especialidadRepository.findAllById(dto.getEspecialidadIds());
-            doctor.setEspecialidades(nuevasEspecialidades);
+            List<Especialidad> nuevasEspecialidades = especialidadService.obtenerTodasPorIds(dto.getEspecialidadIds());
+            doctor.setEspecialidades(new HashSet<>(nuevasEspecialidades));
         }
 
         Usuario usuario = doctor.getUsuario();
         if (usuario != null) {
-            String nuevoEmail = dto.getEmail().trim();
-            if (!usuario.getEmail().equalsIgnoreCase(nuevoEmail)) {
-                if (usuarioRepository.existsByEmail(nuevoEmail)) {
-                    throw new IllegalArgumentException("Ya existe una cuenta registrada con el email: " + nuevoEmail);
-                }
-                usuario.setEmail(nuevoEmail);
-            }
-
-            if (dto.getPassword() != null && !dto.getPassword().trim().isEmpty()) {
-                if (dto.getPassword().trim().length() < 6) {
-                    throw new IllegalArgumentException("La nueva contraseña debe tener al menos 6 caracteres.");
-                }
-                usuario.setPassword(passwordEncoder.encode(dto.getPassword().trim()));
-            }
-            usuarioRepository.save(usuario);
+            usuarioService.actualizarCredenciales(usuario.getId(), dto.getEmail(), dto.getPassword());
         }
 
         return doctorRepository.save(doctor);
