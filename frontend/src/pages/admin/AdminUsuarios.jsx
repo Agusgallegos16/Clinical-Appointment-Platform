@@ -12,6 +12,7 @@ import {
   TableRow,
   TableCell,
   TableBody,
+  TablePagination,
   Chip,
   IconButton,
   Tooltip,
@@ -38,10 +39,15 @@ import { adminService } from '../../api/adminService';
 
 const AdminUsuarios = () => {
   const navigate = useNavigate();
-  const [queryEmail, setQueryEmail] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [usuarios, setUsuarios] = useState([]);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
+
+  // Estados de paginación
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(15);
+  const [totalElements, setTotalElements] = useState(0);
 
   const [alertInfo, setAlertInfo] = useState({ open: false, type: 'success', message: '' });
 
@@ -49,11 +55,20 @@ const AdminUsuarios = () => {
   const [selectedUser, setSelectedUser] = useState(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
-  const fetchUsuarios = async (emailParam = '') => {
+  const fetchUsuarios = async (queryParam = '', targetPage = page, targetSize = rowsPerPage) => {
     setLoading(true);
     try {
-      const data = await adminService.buscarUsuarios(emailParam);
-      setUsuarios(data);
+      const data = await adminService.buscarUsuarios(queryParam, targetPage, targetSize);
+      if (data && data.content) {
+        setUsuarios(data.content);
+        setTotalElements(data.totalElements || 0);
+      } else if (Array.isArray(data)) {
+        setUsuarios(data);
+        setTotalElements(data.length);
+      } else {
+        setUsuarios([]);
+        setTotalElements(0);
+      }
     } catch (err) {
       setAlertInfo({
         open: true,
@@ -66,17 +81,31 @@ const AdminUsuarios = () => {
   };
 
   useEffect(() => {
-    fetchUsuarios('');
+    fetchUsuarios('', 0, rowsPerPage);
   }, []);
 
   const handleSearch = (e) => {
     e.preventDefault();
-    fetchUsuarios(queryEmail);
+    setPage(0);
+    fetchUsuarios(searchQuery, 0, rowsPerPage);
   };
 
   const handleClearSearch = () => {
-    setQueryEmail('');
-    fetchUsuarios('');
+    setSearchQuery('');
+    setPage(0);
+    fetchUsuarios('', 0, rowsPerPage);
+  };
+
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+    fetchUsuarios(searchQuery, newPage, rowsPerPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    const newSize = parseInt(event.target.value, 10);
+    setRowsPerPage(newSize);
+    setPage(0);
+    fetchUsuarios(searchQuery, 0, newSize);
   };
 
   const handleToggleBloqueo = async (user) => {
@@ -89,7 +118,7 @@ const AdminUsuarios = () => {
         type: 'success',
         message: `El usuario ${user.email} fue ${nuevoEstado ? 'bloqueado' : 'desbloqueado'} con éxito.`,
       });
-      fetchUsuarios(queryEmail);
+      fetchUsuarios(searchQuery, page, rowsPerPage);
     } catch (err) {
       setAlertInfo({
         open: true,
@@ -118,7 +147,13 @@ const AdminUsuarios = () => {
       });
       setConfirmDeleteOpen(false);
       setSelectedUser(null);
-      fetchUsuarios(queryEmail);
+
+      // Si se eliminó el único elemento de una página superior a la primera, retroceder una página
+      const targetPage = usuarios.length === 1 && page > 0 ? page - 1 : page;
+      if (targetPage !== page) {
+        setPage(targetPage);
+      }
+      fetchUsuarios(searchQuery, targetPage, rowsPerPage);
     } catch (err) {
       setAlertInfo({
         open: true,
@@ -145,20 +180,22 @@ const AdminUsuarios = () => {
 
   return (
     <Box sx={{ maxWidth: 1000, mx: 'auto', py: 3, px: 2 }}>
-      {/* Botón Volver al Dashboard Admin */}
-      <Button
-        startIcon={<ArrowBackIcon />}
-        onClick={() => navigate('/admin')}
-        sx={{ mb: 2, fontWeight: 600 }}
-      >
-        Volver al Panel de Inicio
-      </Button>
+      {/* Botones Superiores */}
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+        <Button
+          startIcon={<ArrowBackIcon />}
+          onClick={() => navigate('/admin')}
+          sx={{ fontWeight: 600 }}
+        >
+          Volver al Panel de Inicio
+        </Button>
+      </Stack>
 
       <Typography variant="h4" fontWeight={700} color="primary" gutterBottom>
         Gestión de Usuarios 🛡️
       </Typography>
       <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-        Busca a cualquier usuario por correo electrónico para bloquear su acceso a la plataforma o eliminarlo de la base de datos.
+        Busca a cualquier usuario por nombre, apellido o correo electrónico.
       </Typography>
 
       {alertInfo.open && (
@@ -171,23 +208,23 @@ const AdminUsuarios = () => {
         </Alert>
       )}
 
-      {/* Bar de Búsqueda por Email */}
+      {/* Barra de Búsqueda por Nombre, Apellido o Email */}
       <Paper elevation={0} variant="outlined" sx={{ p: 2.5, mb: 4, borderRadius: 3 }}>
         <form onSubmit={handleSearch}>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
             <TextField
               fullWidth
               variant="outlined"
-              placeholder="Ingresá el correo electrónico (ej: usuario@mail.com)..."
-              value={queryEmail}
-              onChange={(e) => setQueryEmail(e.target.value)}
+              placeholder="Buscar por nombre, apellido o correo electrónico"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
                     <PersonSearchIcon color="action" />
                   </InputAdornment>
                 ),
-                endAdornment: queryEmail && (
+                endAdornment: searchQuery && (
                   <InputAdornment position="end">
                     <IconButton size="small" onClick={handleClearSearch}>
                       <ClearIcon fontSize="small" />
@@ -223,74 +260,88 @@ const AdminUsuarios = () => {
             </Typography>
           </Box>
         ) : (
-          <Table>
-            <TableHead sx={{ backgroundColor: 'action.hover' }}>
-              <TableRow>
-                <TableCell sx={{ fontWeight: 700 }}>ID</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Email</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Nombre y Apellido</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Rol</TableCell>
-                <TableCell sx={{ fontWeight: 700 }}>Estado</TableCell>
-                <TableCell align="center" sx={{ fontWeight: 700 }}>Acciones</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {usuarios.map((u) => (
-                <TableRow key={u.id} hover>
-                  <TableCell>{u.id}</TableCell>
-                  <TableCell sx={{ fontWeight: 600 }}>{u.email}</TableCell>
-                  <TableCell>
-                    {u.nombre && u.apellido ? `${u.nombre} ${u.apellido}` : '—'}
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={u.rol}
-                      color={getRolChipColor(u.rol)}
-                      size="small"
-                      sx={{ fontWeight: 700 }}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Stack direction="row" spacing={1}>
-                      {u.bloqueado ? (
-                        <Chip label="Bloqueado" color="error" size="small" sx={{ fontWeight: 700 }} />
-                      ) : (
-                        <Chip label="Activo" color="success" size="small" sx={{ fontWeight: 700 }} />
-                      )}
-                      {!u.emailVerificado && (
-                        <Chip label="Sin Verificar" color="warning" size="small" variant="outlined" />
-                      )}
-                    </Stack>
-                  </TableCell>
-                  <TableCell align="center">
-                    <Stack direction="row" spacing={1} justifyContent="center">
-                      {/* Botón Bloquear / Desbloquear */}
-                      <Tooltip title={u.bloqueado ? 'Desbloquear usuario' : 'Bloquear usuario'}>
-                        <IconButton
-                          color={u.bloqueado ? 'success' : 'warning'}
-                          onClick={() => handleToggleBloqueo(u)}
-                          disabled={actionLoading}
-                        >
-                          {u.bloqueado ? <LockOpenIcon /> : <BlockIcon />}
-                        </IconButton>
-                      </Tooltip>
-
-                      {/* Botón Eliminar */}
-                      <Tooltip title="Eliminar usuario definitivamente">
-                        <IconButton
-                          color="error"
-                          onClick={() => handleOpenDeleteModal(u)}
-                          disabled={actionLoading}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </Tooltip>
-                    </Stack>
-                  </TableCell>
+          <>
+            <Table>
+              <TableHead sx={{ backgroundColor: 'action.hover' }}>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 700 }}>ID</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Email</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Nombre y Apellido</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Rol</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Estado</TableCell>
+                  <TableCell align="center" sx={{ fontWeight: 700 }}>Acciones</TableCell>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHead>
+              <TableBody>
+                {usuarios.map((u) => (
+                  <TableRow key={u.id} hover>
+                    <TableCell>{u.id}</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>{u.email}</TableCell>
+                    <TableCell>
+                      {u.nombre && u.apellido ? `${u.nombre} ${u.apellido}` : '—'}
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={u.rol}
+                        color={getRolChipColor(u.rol)}
+                        size="small"
+                        sx={{ fontWeight: 700 }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Stack direction="row" spacing={1}>
+                        {u.bloqueado ? (
+                          <Chip label="Bloqueado" color="error" size="small" sx={{ fontWeight: 700 }} />
+                        ) : (
+                          <Chip label="Activo" color="success" size="small" sx={{ fontWeight: 700 }} />
+                        )}
+                        {!u.emailVerificado && (
+                          <Chip label="Sin Verificar" color="warning" size="small" variant="outlined" />
+                        )}
+                      </Stack>
+                    </TableCell>
+                    <TableCell align="center">
+                      <Stack direction="row" spacing={1} justifyContent="center">
+                        {/* Botón Bloquear / Desbloquear */}
+                        <Tooltip title={u.bloqueado ? 'Desbloquear usuario' : 'Bloquear usuario'}>
+                          <IconButton
+                            color={u.bloqueado ? 'success' : 'warning'}
+                            onClick={() => handleToggleBloqueo(u)}
+                            disabled={actionLoading}
+                          >
+                            {u.bloqueado ? <LockOpenIcon /> : <BlockIcon />}
+                          </IconButton>
+                        </Tooltip>
+
+                        {/* Botón Eliminar */}
+                        <Tooltip title="Eliminar usuario definitivamente">
+                          <IconButton
+                            color="error"
+                            onClick={() => handleOpenDeleteModal(u)}
+                            disabled={actionLoading}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </Tooltip>
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+            <TablePagination
+              rowsPerPageOptions={[15, 30, 50]}
+              component="div"
+              count={totalElements}
+              rowsPerPage={rowsPerPage}
+              page={page}
+              onPageChange={handleChangePage}
+              onRowsPerPageChange={handleChangeRowsPerPage}
+              labelRowsPerPage="Usuarios por página:"
+              labelDisplayedRows={({ from, to, count }) => `${from}–${to} de ${count !== -1 ? count : `más de ${to}`}`}
+              sx={{ borderTop: 1, borderColor: 'divider' }}
+            />
+          </>
         )}
       </TableContainer>
 
