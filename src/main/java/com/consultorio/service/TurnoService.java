@@ -3,6 +3,7 @@ package com.consultorio.service;
 import com.consultorio.adapter.CalendarioAdapter;
 import com.consultorio.domain.*;
 import com.consultorio.dto.TurnoReservaDTO;
+import com.consultorio.dto.TurnoReservaSecretariaDTO;
 import com.consultorio.dto.TurnoResponseDTO;
 import com.consultorio.repository.*;
 import com.consultorio.security.SecurityUtils;
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -28,28 +30,28 @@ public class TurnoService {
     private final PacienteRepository pacienteRepository;
     private final DoctorRepository doctorRepository;
     private final EspecialidadRepository especialidadRepository;
-    private final UsuarioRepository usuarioRepository;
     private final EmailService emailService;
     private final SecurityUtils securityUtils;
     private final CalendarioAdapter calendarioAdapter;
+    private final SlotHorarioRepository slotHorarioRepository;
 
     @Autowired
     public TurnoService(TurnoRepository turnoRepository,
                         PacienteRepository pacienteRepository,
                         DoctorRepository doctorRepository,
                         EspecialidadRepository especialidadRepository,
-                        UsuarioRepository usuarioRepository,
                         EmailService emailService,
                         SecurityUtils securityUtils,
-                        CalendarioAdapter calendarioAdapter) {
+                        CalendarioAdapter calendarioAdapter,
+                        SlotHorarioRepository slotHorarioRepository) {
         this.turnoRepository = turnoRepository;
         this.pacienteRepository = pacienteRepository;
         this.doctorRepository = doctorRepository;
         this.especialidadRepository = especialidadRepository;
-        this.usuarioRepository = usuarioRepository;
         this.emailService = emailService;
         this.securityUtils = securityUtils;
         this.calendarioAdapter = calendarioAdapter;
+        this.slotHorarioRepository = slotHorarioRepository;
     }
 
     @Transactional
@@ -73,48 +75,23 @@ public class TurnoService {
             throw new AccessDeniedException("Debe incluir un Token JWT válido en el encabezado Authorization para realizar esta acción.");
         }
 
-        boolean esAdmin = esUsuarioAdmin(emailAutenticado);
+        boolean esAdmin = securityUtils.esAdmin();
+        boolean esSecretaria = securityUtils.esSecretaria();
         boolean esSuPaciente = paciente.getUsuario() != null && paciente.getUsuario().getEmail().equalsIgnoreCase(emailAutenticado);
         boolean esTutor = paciente.getTutor() != null && paciente.getTutor().getUsuario() != null && paciente.getTutor().getUsuario().getEmail().equalsIgnoreCase(emailAutenticado);
 
-        if (!esAdmin && !esSuPaciente && !esTutor) {
+        if (!esAdmin && !esSecretaria && !esSuPaciente && !esTutor) {
             throw new AccessDeniedException("Acceso denegado: No tiene permisos para agendar turnos a nombre de este paciente.");
         }
 
-        // Validar que el doctor efectivamente ejerza esa especialidad
-        boolean atiendeEspecialidad = doctor.getEspecialidades().stream()
-                .anyMatch(e -> e.getId().equals(especialidad.getId()));
+        Turno turno = validarYConstruirTurno(doctor, especialidad, paciente, dto.getFechaHora(), dto.getTieneObraSocial(), dto.getObraSocial(), dto.getMotivoConsulta());
 
-        if (!atiendeEspecialidad) {
-            throw new IllegalArgumentException("El doctor " + doctor.getNombre() + " " + doctor.getApellido() +
-                    " no atiende la especialidad seleccionada (" + especialidad.getNombre() + ").");
+        Turno guardado;
+        try {
+            guardado = turnoRepository.save(turno);
+        } catch (org.springframework.dao.DataIntegrityViolationException dive) {
+            throw new IllegalStateException("El horario seleccionado acaba de ser reservado por otro usuario. Por favor elija otro turno disponible.");
         }
-
-        // Validar si la fechaHora no está ocupada
-        boolean ocupado = turnoRepository.existsByDoctorIdAndFechaHoraAndEstadoNot(
-                doctor.getId(), dto.getFechaHora(), EstadoTurno.CANCELADO);
-
-        if (ocupado) {
-            throw new IllegalStateException("El horario seleccionado ya no se encuentra disponible.");
-        }
-
-        boolean tieneOS = dto.getTieneObraSocial() != null && dto.getTieneObraSocial();
-        String osNombre = tieneOS
-                ? (dto.getObraSocial() != null && !dto.getObraSocial().trim().isEmpty() ? dto.getObraSocial().trim() : "Obra Social")
-                : "Particular / Sin Obra Social";
-
-        Turno turno = Turno.builder()
-                .paciente(paciente)
-                .doctor(doctor)
-                .especialidad(especialidad)
-                .fechaHora(dto.getFechaHora())
-                .estado(EstadoTurno.CONFIRMADO)
-                .motivoConsulta(dto.getMotivoConsulta())
-                .tieneObraSocial(tieneOS)
-                .obraSocial(osNombre)
-                .build();
-
-        Turno guardado = turnoRepository.save(turno);
 
         // Sincronizar en el Google Calendar personal del Paciente (si lo tiene vinculado)
         try {
@@ -154,6 +131,85 @@ public class TurnoService {
     }
 
     @Transactional
+    public TurnoResponseDTO reservarTurnoSecretaria(TurnoReservaSecretariaDTO dto) {
+        if (dto.getFechaHora() == null || dto.getFechaHora().isBefore(LocalDateTime.now())) {
+            throw new IllegalArgumentException("No se pueden reservar turnos para fechas o momentos del pasado.");
+        }
+
+        Doctor doctor = doctorRepository.findById(dto.getDoctorId())
+                .orElseThrow(() -> new IllegalArgumentException("Doctor no encontrado"));
+
+        Especialidad especialidad = especialidadRepository.findById(dto.getEspecialidadId())
+                .orElseThrow(() -> new IllegalArgumentException("Especialidad no encontrada"));
+
+        Paciente paciente;
+        Optional<Paciente> pacienteExistenteOpt = pacienteRepository.findByDni(dto.getDni());
+        if (pacienteExistenteOpt.isPresent()) {
+            // Si el paciente ya existe en el sistema por DNI, conservamos sus datos registrados intactos
+            paciente = pacienteExistenteOpt.get();
+        } else {
+            paciente = Paciente.builder()
+                    .nombre(dto.getNombre().trim())
+                    .apellido(dto.getApellido().trim())
+                    .dni(dto.getDni())
+                    .telefono(dto.getTelefono() != null ? dto.getTelefono().trim() : null)
+                    .email(dto.getEmail() != null && !dto.getEmail().trim().isEmpty() ? dto.getEmail().trim() : null)
+                    .fechaNacimiento(dto.getFechaNacimiento())
+                    .usuario(null)
+                    .build();
+            paciente = pacienteRepository.save(paciente);
+        }
+
+        Turno turno = validarYConstruirTurno(doctor, especialidad, paciente, dto.getFechaHora(), dto.getTieneObraSocial(), dto.getObraSocial(), dto.getMotivoConsulta());
+
+        Turno guardado;
+        try {
+            guardado = turnoRepository.save(turno);
+        } catch (org.springframework.dao.DataIntegrityViolationException dive) {
+            throw new IllegalStateException("El horario seleccionado acaba de ser reservado por otro usuario. Por favor elija otro turno disponible.");
+        }
+
+        try {
+            if (paciente.getUsuario() != null && paciente.getUsuario().isGoogleCalendarConnected()) {
+                String eventIdPaciente = calendarioAdapter.agendarEventoParaUsuario(guardado, paciente.getUsuario());
+                if (eventIdPaciente != null) {
+                    guardado.setGoogleEventId(eventIdPaciente);
+                }
+            }
+        } catch (Exception e) {
+            log.error("No se pudo agendar en el Google Calendar del paciente: {}", e.getMessage());
+        }
+
+        try {
+            if (doctor.getUsuario() != null && doctor.getUsuario().isGoogleCalendarConnected()) {
+                String eventIdDoctor = calendarioAdapter.agendarEventoParaUsuario(guardado, doctor.getUsuario());
+                if (eventIdDoctor != null) {
+                    guardado.setGoogleEventIdDoctor(eventIdDoctor);
+                }
+            }
+        } catch (Exception e) {
+            log.error("No se pudo agendar en el Google Calendar del doctor: {}", e.getMessage());
+        }
+
+        guardado = turnoRepository.save(guardado);
+        TurnoResponseDTO responseDTO = mapearResponseDTO(guardado);
+
+        String emailDestino = (dto.getEmail() != null && !dto.getEmail().trim().isEmpty())
+                ? dto.getEmail().trim()
+                : obtenerEmailNotificacionPaciente(guardado.getPaciente());
+
+        if (emailDestino != null && !emailDestino.isEmpty()) {
+            try {
+                emailService.enviarConfirmacionTurno(emailDestino, responseDTO);
+            } catch (Exception e) {
+                log.error("Error enviando email de confirmación: {}", e.getMessage());
+            }
+        }
+
+        return responseDTO;
+    }
+
+    @Transactional
     public TurnoResponseDTO cancelarTurno(UUID turnoId) {
         Turno turno = turnoRepository.findById(turnoId)
                 .orElseThrow(() -> new IllegalArgumentException("Turno no encontrado con ID: " + turnoId));
@@ -164,12 +220,13 @@ public class TurnoService {
             throw new AccessDeniedException("Debe incluir un Token JWT válido en el encabezado Authorization para realizar esta acción.");
         }
 
-        boolean esAdmin = esUsuarioAdmin(emailAutenticado);
+        boolean esAdmin = securityUtils.esAdmin();
+        boolean esSecretaria = securityUtils.esSecretaria();
         boolean esSuPaciente = turno.getPaciente().getUsuario() != null && turno.getPaciente().getUsuario().getEmail().equalsIgnoreCase(emailAutenticado);
         boolean esTutor = turno.getPaciente().getTutor() != null && turno.getPaciente().getTutor().getUsuario() != null && turno.getPaciente().getTutor().getUsuario().getEmail().equalsIgnoreCase(emailAutenticado);
         boolean esSuDoctor = turno.getDoctor().getUsuario().getEmail().equalsIgnoreCase(emailAutenticado);
 
-        if (!esAdmin && !esSuPaciente && !esTutor && !esSuDoctor) {
+        if (!esAdmin && !esSecretaria && !esSuPaciente && !esTutor && !esSuDoctor) {
             throw new AccessDeniedException("Acceso denegado: No tiene permisos para cancelar este turno.");
         }
 
@@ -215,11 +272,12 @@ public class TurnoService {
             throw new AccessDeniedException("Debe incluir un Token JWT válido en el encabezado Authorization para realizar esta acción.");
         }
 
-        boolean esAdmin = esUsuarioAdmin(emailAutenticado);
+        boolean esAdmin = securityUtils.esAdmin();
+        boolean esSecretaria = securityUtils.esSecretaria();
         boolean esSuDoctor = turno.getDoctor().getUsuario().getEmail().equalsIgnoreCase(emailAutenticado);
 
-        if (!esAdmin && !esSuDoctor) {
-            throw new AccessDeniedException("Acceso denegado: Solo el médico asignado o un Administrador pueden justificar y cancelar este turno.");
+        if (!esAdmin && !esSecretaria && !esSuDoctor) {
+            throw new AccessDeniedException("Acceso denegado: Solo el médico asignado, la secretaría o un Administrador pueden justificar y cancelar este turno.");
         }
 
         if (turno.getEstado() == EstadoTurno.COMPLETADO) {
@@ -286,11 +344,12 @@ public class TurnoService {
             throw new AccessDeniedException("Debe incluir un Token JWT válido en el encabezado Authorization para realizar esta acción.");
         }
 
-        boolean esAdmin = esUsuarioAdmin(emailAutenticado);
+        boolean esAdmin = securityUtils.esAdmin();
+        boolean esSecretaria = securityUtils.esSecretaria();
         boolean esSuPaciente = paciente.getUsuario() != null && paciente.getUsuario().getEmail().equalsIgnoreCase(emailAutenticado);
         boolean esTutor = paciente.getTutor() != null && paciente.getTutor().getUsuario() != null && paciente.getTutor().getUsuario().getEmail().equalsIgnoreCase(emailAutenticado);
 
-        if (!esAdmin && !esSuPaciente && !esTutor) {
+        if (!esAdmin && !esSecretaria && !esSuPaciente && !esTutor) {
             throw new AccessDeniedException("Acceso denegado: No tiene permiso para consultar los turnos de este paciente.");
         }
 
@@ -309,8 +368,9 @@ public class TurnoService {
             throw new AccessDeniedException("Debe incluir un Token JWT válido en el encabezado Authorization para realizar esta acción.");
         }
 
-        boolean esAdmin = esUsuarioAdmin(emailAutenticado);
-        if (!esAdmin && !doctor.getUsuario().getEmail().equalsIgnoreCase(emailAutenticado)) {
+        boolean esAdmin = securityUtils.esAdmin();
+        boolean esSecretaria = securityUtils.esSecretaria();
+        if (!esAdmin && !esSecretaria && !doctor.getUsuario().getEmail().equalsIgnoreCase(emailAutenticado)) {
             throw new AccessDeniedException("Acceso denegado: No tiene permiso para ver la agenda de otro profesional.");
         }
 
@@ -331,6 +391,17 @@ public class TurnoService {
                 .collect(Collectors.toList());
     }
 
+    public List<TurnoResponseDTO> obtenerAgendaDoctorInterno(UUID doctorId, LocalDate fecha) {
+        LocalDateTime inicio = fecha.atStartOfDay();
+        LocalDateTime fin = fecha.atTime(23, 59, 59);
+
+        return turnoRepository.findByDoctorIdAndFechaHoraBetweenAndEstadoNotOrderByFechaHoraAsc(
+                        doctorId, inicio, fin, EstadoTurno.CANCELADO)
+                .stream()
+                .map(this::mapearResponseDTO)
+                .collect(Collectors.toList());
+    }
+
     public List<TurnoResponseDTO> obtenerTurnosRangoDoctor(UUID doctorId, LocalDate desde, LocalDate hasta) {
         LocalDateTime inicio = desde.atStartOfDay();
         LocalDateTime fin = hasta.atTime(23, 59, 59);
@@ -341,10 +412,45 @@ public class TurnoService {
                 .collect(Collectors.toList());
     }
 
-    private boolean esUsuarioAdmin(String email) {
-        return usuarioRepository.findByEmail(email)
-                .map(u -> u.getRol() == Rol.ADMIN)
-                .orElse(false);
+    private Turno validarYConstruirTurno(Doctor doctor, Especialidad especialidad, Paciente paciente,
+                                         LocalDateTime fechaHora, Boolean tieneOS, String osIngresada, String motivo) {
+        boolean atiendeEspecialidad = doctor.getEspecialidades().stream()
+                .anyMatch(e -> e.getId().equals(especialidad.getId()));
+
+        if (!atiendeEspecialidad) {
+            throw new IllegalArgumentException("El doctor " + doctor.getNombre() + " " + doctor.getApellido() +
+                    " no atiende la especialidad seleccionada (" + especialidad.getNombre() + ").");
+        }
+
+        if (turnoRepository.existsByPacienteIdAndFechaHoraAndEstadoNot(paciente.getId(), fechaHora, EstadoTurno.CANCELADO)) {
+            throw new IllegalStateException("El paciente ya posee una cita médica agendada para este mismo día y horario.");
+        }
+
+        if (turnoRepository.existsByDoctorIdAndFechaHoraAndEstadoNot(doctor.getId(), fechaHora, EstadoTurno.CANCELADO)) {
+            throw new IllegalStateException("El horario seleccionado ya no se encuentra disponible.");
+        }
+
+        boolean slotConfigurado = doctor.isDisponibleParaTurnos() &&
+                slotHorarioRepository.existsByDoctorIdAndFechaAndHoraInicio(doctor.getId(), fechaHora.toLocalDate(), fechaHora.toLocalTime());
+        if (!slotConfigurado) {
+            throw new IllegalStateException("El horario seleccionado ya no se encuentra configurado o fue deshabilitado por el profesional.");
+        }
+
+        boolean poseeOS = tieneOS != null && tieneOS;
+        String osNombre = poseeOS
+                ? (osIngresada != null && !osIngresada.trim().isEmpty() ? osIngresada.trim() : "Obra Social")
+                : "Particular / Sin Obra Social";
+
+        return Turno.builder()
+                .paciente(paciente)
+                .doctor(doctor)
+                .especialidad(especialidad)
+                .fechaHora(fechaHora)
+                .estado(EstadoTurno.CONFIRMADO)
+                .motivoConsulta(motivo)
+                .tieneObraSocial(poseeOS)
+                .obraSocial(osNombre)
+                .build();
     }
 
     private String obtenerEmailNotificacionPaciente(Paciente paciente) {
@@ -376,7 +482,8 @@ public class TurnoService {
                 .pacienteNombre(turno.getPaciente().getNombre() + " " + turno.getPaciente().getApellido())
                 .doctorId(turno.getDoctor().getId())
                 .doctorNombre(turno.getDoctor().getNombre() + " " + turno.getDoctor().getApellido())
-                .especialidadNombre(turno.getEspecialidad().getNombre())
+                .especialidadId(turno.getEspecialidad() != null ? turno.getEspecialidad().getId() : null)
+                .especialidadNombre(turno.getEspecialidad() != null ? turno.getEspecialidad().getNombre() : null)
                 .fechaHora(turno.getFechaHora())
                 .estado(turno.getEstado())
                 .motivoConsulta(turno.getMotivoConsulta())

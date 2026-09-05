@@ -38,18 +38,39 @@ public class DoctorController {
     private final TurnoService turnoService;
     private final PlantillaAgendaService plantillaAgendaService;
     private final NotificacionProgramadaService notificacionProgramadaService;
+    private final com.consultorio.security.SecurityUtils securityUtils;
 
     @Autowired
     public DoctorController(DoctorService doctorService,
                             DisponibilidadService disponibilidadService,
                             TurnoService turnoService,
                             PlantillaAgendaService plantillaAgendaService,
-                            NotificacionProgramadaService notificacionProgramadaService) {
+                            NotificacionProgramadaService notificacionProgramadaService,
+                            com.consultorio.security.SecurityUtils securityUtils) {
         this.doctorService = doctorService;
         this.disponibilidadService = disponibilidadService;
         this.turnoService = turnoService;
         this.plantillaAgendaService = plantillaAgendaService;
         this.notificacionProgramadaService = notificacionProgramadaService;
+        this.securityUtils = securityUtils;
+    }
+
+    @GetMapping("/mi-perfil")
+    @PreAuthorize("hasRole('DOCTOR')")
+    @Operation(summary = "Obtener los datos del perfil del médico autenticado (DOCTOR)")
+    public ResponseEntity<Doctor> obtenerMiPerfil() {
+        String emailAutenticado = securityUtils.obtenerEmailUsuarioAutenticado();
+        return ResponseEntity.ok(doctorService.obtenerPorUsuarioEmail(emailAutenticado));
+    }
+
+    @PutMapping("/mi-perfil")
+    @PreAuthorize("hasRole('DOCTOR')")
+    @Operation(summary = "Actualizar los datos del perfil del médico autenticado (DOCTOR)")
+    public ResponseEntity<Doctor> actualizarMiPerfil(
+            @Valid @RequestBody com.consultorio.dto.ActualizarPerfilDoctorDTO dto) {
+        String emailAutenticado = securityUtils.obtenerEmailUsuarioAutenticado();
+        Doctor doctor = doctorService.obtenerPorUsuarioEmail(emailAutenticado);
+        return ResponseEntity.ok(doctorService.actualizarPerfilDoctor(doctor.getId(), dto));
     }
 
     @PostMapping
@@ -182,8 +203,8 @@ public class DoctorController {
     }
 
     @DeleteMapping("/slots/{slotId}")
-    @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
-    @Operation(summary = "Eliminar/Deshabilitar un slot individual concreto (DOCTOR / ADMIN)")
+    @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN') or hasRole('SECRETARIA')")
+    @Operation(summary = "Eliminar/Deshabilitar un slot individual concreto (DOCTOR / ADMIN / SECRETARIA)")
     public ResponseEntity<Void> eliminarSlot(@PathVariable Long slotId) {
         doctorService.eliminarSlotIndividual(slotId);
         return ResponseEntity.noContent().build();
@@ -243,8 +264,8 @@ public class DoctorController {
     }
 
     @GetMapping("/{id}/agenda")
-    @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
-    @Operation(summary = "Consultar la agenda privada de turnos confirmados del doctor para un día (DOCTOR / ADMIN)")
+    @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN') or hasRole('SECRETARIA')")
+    @Operation(summary = "Consultar la agenda privada de turnos confirmados del doctor para un día (DOCTOR / ADMIN / SECRETARIA)")
     public ResponseEntity<List<TurnoResponseDTO>> obtenerAgenda(
             @PathVariable UUID id,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {

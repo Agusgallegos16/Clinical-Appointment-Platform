@@ -31,6 +31,9 @@ public interface TurnoRepository extends JpaRepository<Turno, UUID> {
     boolean existsByDoctorIdAndFechaHoraAndEstadoNot(
             UUID doctorId, LocalDateTime fechaHora, EstadoTurno estadoNoDeseado);
 
+    boolean existsByPacienteIdAndFechaHoraAndEstadoNot(
+            UUID pacienteId, LocalDateTime fechaHora, EstadoTurno estadoNoDeseado);
+
     @EntityGraph(attributePaths = {"paciente", "doctor", "especialidad"})
     List<Turno> findByFechaHoraBetweenAndEstadoInAndRecordatorio48hsEnviadoFalse(
             LocalDateTime desde, LocalDateTime hasta, List<EstadoTurno> estados);

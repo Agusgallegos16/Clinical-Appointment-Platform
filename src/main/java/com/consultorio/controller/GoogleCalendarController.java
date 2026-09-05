@@ -28,6 +28,9 @@ public class GoogleCalendarController {
     private final SecurityUtils securityUtils;
     private final UsuarioRepository usuarioRepository;
 
+    @org.springframework.beans.factory.annotation.Value("${app.frontend.url:${APP_FRONTEND_URL:http://localhost:5173}}")
+    private String frontendUrl;
+
     @Autowired
     public GoogleCalendarController(GoogleCalendarOAuthService oauthService,
                                     SecurityUtils securityUtils,
@@ -35,6 +38,12 @@ public class GoogleCalendarController {
         this.oauthService = oauthService;
         this.securityUtils = securityUtils;
         this.usuarioRepository = usuarioRepository;
+    }
+
+    private String getCleanFrontendUrl() {
+        if (frontendUrl == null || frontendUrl.isBlank()) return "http://localhost:5173";
+        String clean = frontendUrl.trim();
+        return clean.endsWith("/") ? clean.substring(0, clean.length() - 1) : clean;
     }
 
     @GetMapping("/auth-url")
@@ -59,12 +68,13 @@ public class GoogleCalendarController {
     @GetMapping("/callback")
     @Operation(summary = "Callback público de Google OAuth2 al otorgar consentimiento")
     public RedirectView callback(@RequestParam("code") String code, @RequestParam("state") String state) {
+        String targetBaseUrl = getCleanFrontendUrl();
         try {
             oauthService.procesarCallback(code, state);
-            return new RedirectView("http://localhost:5173/google-calendar/success");
+            return new RedirectView(targetBaseUrl + "/google-calendar/success");
         } catch (Exception e) {
             log.error("Error en callback de Google OAuth: {}", e.getMessage());
-            return new RedirectView("http://localhost:5173/doctor?calendar_error=true");
+            return new RedirectView(targetBaseUrl + "/doctor?calendar_error=true");
         }
     }
 

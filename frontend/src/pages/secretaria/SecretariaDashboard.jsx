@@ -52,7 +52,7 @@ const SecretariaDashboard = () => {
       }}
     >
       <Box maxWidth="480px" width="100%" textAlign="center">
-        {}
+        {/* Banner de Saludo Unificado */}
         <Box mb={4} display="flex" flexDirection="column" alignItems="center">
           <Typography variant="h4" fontWeight={700} color="primary" gutterBottom>
             ¡Hola, {nombreMostrar}! 👩‍💼
@@ -64,6 +64,7 @@ const SecretariaDashboard = () => {
 
         {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
 
+        {/* Botón de Acción con Estética Premium */}
         <Stack spacing={2.5}>
           <Button
             variant="contained"

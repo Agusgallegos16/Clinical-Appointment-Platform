@@ -36,16 +36,19 @@ import {
   DarkMode as DarkModeIcon,
   Logout as LogoutIcon,
   ChildCare as ChildIcon,
+  Edit as EditIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../context/AuthContext';
 import { useColorMode } from '../context/ColorModeContext';
 import Footer from './Footer';
+import EditarPerfilModal from './EditarPerfilModal';
 import { CLINIC_CONFIG } from '../config/clinicConfig';
 
 const drawerWidth = 260;
 
 const MainLayout = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [openEditPerfil, setOpenEditPerfil] = useState(false);
   const { user, role, logout } = useAuth();
   const { toggleColorMode, mode } = useColorMode();
   const navigate = useNavigate();
@@ -78,13 +81,18 @@ const MainLayout = () => {
           { text: 'Mis Horarios', icon: <ScheduleIcon />, path: '/doctor/horarios' },
           { text: 'Mis Plantillas', icon: <TemplateIcon />, path: '/doctor/plantillas' },
         ];
+      case 'SECRETARIA':
+        return [
+          { text: 'Inicio', icon: <DashboardIcon />, path: '/secretaria' },
+          { text: 'Agenda Médica', icon: <CalendarIcon />, path: '/secretaria/agenda' },
+        ];
       case 'ADMIN':
         return [
           { text: 'Inicio', icon: <DashboardIcon />, path: '/admin' },
           { text: 'Gestionar Usuarios', icon: <ManageAccountsIcon />, path: '/admin/usuarios' },
           { text: 'Especialidades', icon: <MedicalIcon />, path: '/admin/especialidades' },
           { text: 'Doctores', icon: <HospitalIcon />, path: '/admin/doctores' },
-          { text: 'Registrar Doctor', icon: <PersonAddIcon />, path: '/admin/doctores/nuevo' },
+          { text: 'Registrar Usuario', icon: <PersonAddIcon />, path: '/admin/usuarios/nuevo' },
           { text: 'Reportes y Notificaciones', icon: <ReportIcon />, path: '/admin/reportes' },
         ];
       default:
@@ -141,17 +149,42 @@ const MainLayout = () => {
         })}
       </List>
       <Divider />
-      {/* Perfil inferior en el menú lateral */}
-      <Box sx={{ p: 2, display: 'flex', alignItems: 'center', gap: 1.5 }}>
-        <Avatar sx={{ bgcolor: theme.palette.primary.main, fontWeight: 600 }}>
-          {user?.email?.charAt(0).toUpperCase()}
-        </Avatar>
-        <Box sx={{ overflow: 'hidden', flexGrow: 1 }}>
-          <Typography variant="subtitle2" noWrap sx={{ fontWeight: 600 }}>
-            {user?.email}
-          </Typography>
-          <Chip label={role} size="small" color="primary" variant="outlined" sx={{ height: 20, fontSize: '0.7rem' }} />
+      {/* Perfil inferior en el menú lateral con botón Editar Perfil */}
+      <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <Box sx={{ overflow: 'hidden', flexGrow: 1 }}>
+            <Typography variant="subtitle2" noWrap sx={{ fontWeight: 600 }}>
+              {user?.email}
+            </Typography>
+            <Chip label={role} size="small" color="primary" variant="outlined" sx={{ height: 20, fontSize: '0.7rem' }} />
+          </Box>
         </Box>
+
+        {(role === 'PACIENTE' || role === 'DOCTOR' || role === 'SECRETARIA') && (
+          <Button
+            variant="outlined"
+            size="small"
+            fullWidth
+            startIcon={<EditIcon />}
+            onClick={() => {
+              setOpenEditPerfil(true);
+              if (mobileOpen) setMobileOpen(false);
+            }}
+            sx={{
+              borderRadius: 2,
+              textTransform: 'none',
+              fontWeight: 600,
+              color: theme.palette.primary.main,
+              borderColor: theme.palette.primary.light,
+              '&:hover': {
+                borderColor: theme.palette.primary.main,
+                bgcolor: theme.palette.action.hover,
+              },
+            }}
+          >
+            Editar Perfil
+          </Button>
+        )}
       </Box>
     </Box>
   );
@@ -262,6 +295,9 @@ const MainLayout = () => {
         </Box>
         <Footer />
       </Box>
+
+      {/* Modal de edición de perfil (Pacientes y Doctores) */}
+      <EditarPerfilModal open={openEditPerfil} onClose={() => setOpenEditPerfil(false)} />
     </Box>
   );
 };

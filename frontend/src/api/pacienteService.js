@@ -10,4 +10,26 @@ export const pacienteService = {
     const response = await axiosClient.get(`/pacientes/${id}/estadisticas`);
     return response.data;
   },
+
+  obtenerMiPerfil: async () => {
+    const response = await axiosClient.get('/pacientes/mi-perfil');
+    return response.data;
+  },
+
+  actualizarMiPerfil: async (data) => {
+    const response = await axiosClient.put('/pacientes/mi-perfil', data);
+    return response.data;
+  },
+
+  buscarPorDni: async (dni) => {
+    try {
+      const response = await axiosClient.get(`/pacientes/buscar-por-dni/${dni}`);
+      return response.data;
+    } catch (error) {
+      if (error.response && error.response.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  },
 };

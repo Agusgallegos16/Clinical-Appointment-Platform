@@ -24,21 +24,14 @@ public class ResendEmailSender implements EmailSender {
     @Value("${mail.resend.api-key:}")
     private String apiKey;
 
+    @Value("${mail.resend.from:${app.mail.from:onboarding@resend.dev}}")
+    private String mailFrom;
+
+    @Value("${app.clinic.name:Instituto Médico Consultorios}")
+    private String clinicName;
+
     public ResendEmailSender() {
         this.restTemplate = new RestTemplate();
-    }
-
-    @PostConstruct
-    public void init() {
-        if (apiKey != null && !apiKey.trim().isEmpty()) {
-            String cleanKey = apiKey.trim();
-            String maskedKey = cleanKey.length() > 8
-                    ? cleanKey.substring(0, 4) + "...." + cleanKey.substring(cleanKey.length() - 4)
-                    : "****";
-            log.info("🔑 Resend API Key cargada correctamente: [{}]", maskedKey);
-        } else {
-            log.warn("⚠️ Resend API Key NO configurada (propiedad 'mail.resend.api-key').");
-        }
     }
 
     @Override
@@ -58,8 +51,11 @@ public class ResendEmailSender implements EmailSender {
         headers.set(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
         headers.set("Authorization", "Bearer " + apiKey.trim());
 
-        // Dirección temporal para modo testing en Resend omitiendo validación de dominio personalizado
-        String fromFormatted = "onboarding@resend.dev";
+        // Dirección de remitente parametrizable (onboarding@resend.dev para pruebas o dominio propio verificado en producción)
+        String fromAddress = (mailFrom != null && !mailFrom.isBlank()) ? mailFrom.trim() : "onboarding@resend.dev";
+        String fromFormatted = fromAddress.contains("@resend.dev")
+                ? "onboarding@resend.dev"
+                : (clinicName != null ? clinicName + " <" + fromAddress + ">" : fromAddress);
 
         Map<String, Object> requestBody = Map.of(
                 "from", fromFormatted,

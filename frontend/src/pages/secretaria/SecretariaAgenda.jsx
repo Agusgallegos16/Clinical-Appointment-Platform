@@ -45,7 +45,7 @@ import { doctorService } from '../../api/doctorService';
 import ModalAgendarSecretaria from '../../components/secretaria/ModalAgendarSecretaria';
 
 const SecretariaAgenda = () => {
-
+  // Stepper state: 0 = Seleccionar Médico, 1 = Seleccionar Fecha, 2 = Ver Agenda
   const [activeStep, setActiveStep] = useState(0);
 
   const [doctores, setDoctores] = useState([]);
@@ -64,9 +64,11 @@ const SecretariaAgenda = () => {
   const [agendaTurnos, setAgendaTurnos] = useState([]);
   const [slotsDisponibles, setSlotsDisponibles] = useState([]);
 
+  // Estado para Modal de Agendado
   const [modalAgendarOpen, setModalAgendarOpen] = useState(false);
   const [selectedSlotParaAgendar, setSelectedSlotParaAgendar] = useState(null);
 
+  // Estado para Modal de Cancelación
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [turnoACancelar, setTurnoACancelar] = useState(null);
   const [motivoCancelacion, setMotivoCancelacion] = useState('');

@@ -54,7 +54,7 @@ public class GoogleCalendarOAuthService {
                     GsonFactory.getDefaultInstance(),
                     config.getClientId(),
                     config.getClientSecret(),
-                    Collections.singleton(CalendarScopes.CALENDAR))
+                    Collections.singleton(CalendarScopes.CALENDAR_EVENTS))
                     .setAccessType("offline")
                     .setApprovalPrompt("force")
                     .build();
@@ -80,7 +80,7 @@ public class GoogleCalendarOAuthService {
                     GsonFactory.getDefaultInstance(),
                     config.getClientId(),
                     config.getClientSecret(),
-                    Collections.singleton(CalendarScopes.CALENDAR))
+                    Collections.singleton(CalendarScopes.CALENDAR_EVENTS))
                     .setAccessType("offline")
                     .build();
 

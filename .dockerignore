@@ -1,0 +1,21 @@
+# Archivos y carpetas del Frontend (se despliega en Vercel/Netlify por separado)
+frontend/
+node_modules/
+dist/
+build/
+
+# Archivos de construcción Java y artefactos locales
+target/
+.mvn/
+*.iml
+
+# Control de versiones y configuraciones de IDEs
+.git/
+.gitignore
+.gitattributes
+.idea/
+.vscode/
+
+# Archivos de entorno locales
+.env*
+*.log

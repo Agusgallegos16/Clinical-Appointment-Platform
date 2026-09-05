@@ -69,10 +69,15 @@ public class DisponibilidadService {
         List<SlotDisponibilidadDTO> resultado = new ArrayList<>();
         for (SlotHorario s : slotsFiltrados) {
             boolean disponible = !horasOcupadas.contains(s.getHoraInicio());
-            resultado.add(SlotDisponibilidadDTO.builder()
-                    .hora(s.getHoraInicio())
-                    .disponible(disponible)
-                    .build());
+            if (disponible) {
+                resultado.add(SlotDisponibilidadDTO.builder()
+                        .id(s.getId())
+                        .hora(s.getHoraInicio())
+                        .disponible(true)
+                        .especialidadId(s.getEspecialidad() != null ? s.getEspecialidad().getId() : null)
+                        .especialidadNombre(s.getEspecialidad() != null ? s.getEspecialidad().getNombre() : null)
+                        .build());
+            }
         }
 
         resultado.sort(Comparator.comparing(SlotDisponibilidadDTO::getHora));

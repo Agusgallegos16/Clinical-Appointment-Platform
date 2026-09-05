@@ -68,17 +68,15 @@ const AdminNuevoDoctor = () => {
       let finalFotoUrl = fotoUrl; // Mantiene la URL ingresada manualmente si existe
 
       if (selectedFile) {
-        console.log('Iniciando subida a Supabase Storage...');
         const uploadedUrl = await uploadDoctorAvatar(selectedFile);
 
         if (!uploadedUrl) {
-          setError('Error al subir la imagen a Supabase Storage. Revisa la consola (F12).');
+          setError('Error al subir la imagen. Por favor vuelva a intentarlo.');
           setLoading(false);
-          return; // Detener el guardado si falló la subida
+          return;
         }
 
         finalFotoUrl = uploadedUrl;
-        console.log('URL Pública obtenida de Supabase:', finalFotoUrl);
       }
 
       await authService.registrarDoctor({

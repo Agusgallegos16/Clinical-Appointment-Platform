@@ -22,6 +22,9 @@ public interface DoctorRepository extends JpaRepository<Doctor, UUID> {
     Optional<Doctor> findByUsuarioEmail(String email);
 
     @EntityGraph(attributePaths = {"usuario", "especialidades"})
+    Optional<Doctor> findByUsuarioEmailIgnoreCase(String email);
+
+    @EntityGraph(attributePaths = {"usuario", "especialidades"})
     List<Doctor> findByEspecialidadesId(Long especialidadId);
 
     @EntityGraph(attributePaths = {"usuario", "especialidades"})

@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext } from 'react';
 import { authService } from '../api/authService';
 
 const AuthContext = createContext(null);
@@ -34,6 +34,12 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const updateUser = (newUserData) => {
+    const updated = { ...user, ...newUserData };
+    localStorage.setItem('user_data', JSON.stringify(updated));
+    setUser(updated);
+  };
+
   const logout = () => {
     localStorage.removeItem('jwt_token');
     localStorage.removeItem('user_data');
@@ -49,6 +55,7 @@ export const AuthProvider = ({ children }) => {
         isAuthenticated: !!user,
         loading,
         login,
+        updateUser,
         logout,
       }}
     >

@@ -44,8 +44,6 @@ class TurnoServiceSecretariaTest {
     private SecurityUtils securityUtils;
     @Mock
     private CalendarioAdapter calendarioAdapter;
-    @Mock
-    private SlotHorarioRepository slotHorarioRepository;
 
     @InjectMocks
     private TurnoService turnoService;
@@ -77,10 +75,7 @@ class TurnoServiceSecretariaTest {
                 .apellido("House")
                 .usuario(usuarioDoctor)
                 .especialidades(Collections.singletonList(especialidadMock))
-                .disponibleParaTurnos(true)
                 .build();
-
-        lenient().when(slotHorarioRepository.existsByDoctorIdAndFechaAndHoraInicio(any(), any(), any())).thenReturn(true);
     }
 
     @Test

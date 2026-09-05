@@ -34,23 +34,6 @@ public class BrevoEmailSender implements EmailSender {
         this.restTemplate = new RestTemplate();
     }
 
-    @PostConstruct
-    public void init() {
-        int length = (apiKey != null) ? apiKey.trim().length() : 0;
-        log.info("Brevo Key longitud: {}", length);
-        System.out.println("Brevo Key longitud: " + length);
-
-        if (apiKey != null && !apiKey.trim().isEmpty()) {
-            String cleanKey = apiKey.trim();
-            String maskedKey = cleanKey.length() > 8
-                    ? cleanKey.substring(0, 4) + "...." + cleanKey.substring(cleanKey.length() - 4)
-                    : "****";
-            log.info("🔑 Brevo API Key cargada correctamente: [{}]", maskedKey);
-        } else {
-            log.warn("⚠️ Brevo API Key NO configurada (propiedad 'mail.brevo.api-key').");
-        }
-    }
-
     @Override
     public String getProviderName() {
         return "Brevo";

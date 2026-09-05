@@ -24,6 +24,15 @@ public class EmailTemplateFactory {
     @Value("${app.clinic.phone:+54 11 1234-5678}")
     private String clinicPhone;
 
+    @Value("${app.frontend.url:${APP_FRONTEND_URL:http://localhost:5173}}")
+    private String frontendUrl;
+
+    private String getCleanFrontendUrl() {
+        if (frontendUrl == null || frontendUrl.isBlank()) return "http://localhost:5173";
+        String clean = frontendUrl.trim();
+        return clean.endsWith("/") ? clean.substring(0, clean.length() - 1) : clean;
+    }
+
     // 1. Email de Verificación de Correo Electrónico
     public String crearEmailVerificacion(String nombreUsuario, String urlVerificacion) {
         String contenido = String.format(
@@ -80,9 +89,9 @@ public class EmailTemplateFactory {
                 "  <tr><td style='padding: 12px 16px; color: #64748b; font-size: 14px;'>Teléfono:</td><td style='padding: 12px 16px; color: #0f172a; font-weight: 600; font-size: 14px;'>%s</td></tr>" +
                 "</table>" +
                 "<div style='text-align: center; margin: 28px 0;'>" +
-                "  <a href='http://localhost:5173/login' style='display: inline-block; background-color: #0284c7; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px;'>Ingresar a Mi Cuenta</a>" +
+                "  <a href='%s/login' style='display: inline-block; background-color: #0284c7; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px;'>Ingresar a Mi Cuenta</a>" +
                 "</div>",
-                nombreUsuario, clinicAddress, clinicPhone
+                nombreUsuario, clinicAddress, clinicPhone, getCleanFrontendUrl()
         );
         return construirBaseTemplate("¡Bienvenido/a a " + clinicName + "!", "Registro Completado Exitosamente", contenido);
     }
@@ -112,11 +121,11 @@ public class EmailTemplateFactory {
                 "  <p style='color: #92400e; font-size: 13px; margin: 0; line-height: 1.5;'>📌 <strong>Indicación:</strong> Por favor, concurrir 15 minutos antes con DNI y credencial médica vigente.</p>" +
                 "</div>" +
                 "<div style='text-align: center; margin: 24px 0 12px 0;'>" +
-                "  <a href='http://localhost:5173/paciente/turnos' style='display: inline-block; background-color: #0284c7; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px;'>Ver Mi Turno en el Portal</a>" +
+                "  <a href='%s/paciente/turnos' style='display: inline-block; background-color: #0284c7; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px;'>Ver Mi Turno en el Portal</a>" +
                 "</div>",
                 turno.getPacienteNombre(), fechaFormateada, turno.getDoctorNombre(), turno.getEspecialidadNombre(),
                 osInfo, turno.getMotivoConsulta() != null ? turno.getMotivoConsulta() : "Consulta General",
-                clinicAddress, clinicPhone
+                clinicAddress, clinicPhone, getCleanFrontendUrl()
         );
         return construirBaseTemplate("Confirmación de Turno", "Cita Médica Reservada", contenido);
     }
@@ -159,9 +168,9 @@ public class EmailTemplateFactory {
                 "</div>" +
                 "<p style='color: #475569; font-size: 14px; line-height: 1.6;'>Te pedimos disculpas por los inconvenientes generados. Te invitamos a ingresar al portal para agendar una nueva cita en el horario de tu preferencia.</p>" +
                 "<div style='text-align: center; margin: 24px 0;'>" +
-                "  <a href='http://localhost:5173/paciente/reservar' style='display: inline-block; background-color: #0284c7; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px;'>Reprogramar Nuevo Turno</a>" +
+                "  <a href='%s/paciente/reservar' style='display: inline-block; background-color: #0284c7; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px;'>Reprogramar Nuevo Turno</a>" +
                 "</div>",
-                turno.getPacienteNombre(), fechaFormateada, turno.getDoctorNombre(), turno.getEspecialidadNombre(), motivoCancelacion
+                turno.getPacienteNombre(), fechaFormateada, turno.getDoctorNombre(), turno.getEspecialidadNombre(), motivoCancelacion, getCleanFrontendUrl()
         );
         return construirBaseTemplate("Aviso de Cancelación", "Modificación de Agenda Médica", contenido);
     }

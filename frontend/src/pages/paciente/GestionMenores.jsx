@@ -37,6 +37,7 @@ const GestionMenores = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  // Modal para agregar menor
   const [openModal, setOpenModal] = useState(false);
   const [formData, setFormData] = useState({
     nombre: '',
@@ -328,7 +329,7 @@ const GestionMenores = () => {
         </form>
       </Dialog>
 
-      {}
+      {/* Dialog para Desvincular Menor */}
       <Dialog open={openUnlinkDialog} onClose={() => setOpenUnlinkDialog(false)} maxWidth="xs" fullWidth>
         <DialogTitle fontWeight={700} color="error.main">
           Desvincular Menor

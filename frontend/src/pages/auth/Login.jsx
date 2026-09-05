@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import {
   Box,
   Card,
@@ -19,6 +19,8 @@ import {
   Visibility,
   VisibilityOff,
   LocalHospital as HospitalIcon,
+  ArrowBack as ArrowBackIcon,
+  Home as HomeIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { CLINIC_CONFIG } from '../../config/clinicConfig';
@@ -30,8 +32,20 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
-  const { login, loading } = useAuth();
+  const { login, loading, isAuthenticated, role } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const from = location.state?.from?.pathname;
+
+  React.useEffect(() => {
+    if (isAuthenticated) {
+      if (role === 'ADMIN') navigate('/admin', { replace: true });
+      else if (role === 'DOCTOR') navigate('/doctor', { replace: true });
+      else if (role === 'SECRETARIA') navigate('/secretaria', { replace: true });
+      else if (role === 'PACIENTE') navigate('/paciente', { replace: true });
+    }
+  }, [isAuthenticated, role, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -40,9 +54,19 @@ const Login = () => {
     try {
       const userData = await login({ email, password });
 
-      // Redirigir según el rol del usuario
-      if (userData.rol === 'ADMIN') navigate('/admin');
+      // Verificar si hay una ruta previa permitida según el rol del usuario
+      const isTargetAllowed = from && (
+        (userData.rol === 'PACIENTE' && from.startsWith('/paciente')) ||
+        (userData.rol === 'DOCTOR' && from.startsWith('/doctor')) ||
+        (userData.rol === 'SECRETARIA' && from.startsWith('/secretaria')) ||
+        (userData.rol === 'ADMIN' && from.startsWith('/admin'))
+      );
+
+      if (isTargetAllowed) {
+        navigate(from, { replace: true });
+      } else if (userData.rol === 'ADMIN') navigate('/admin');
       else if (userData.rol === 'DOCTOR') navigate('/doctor');
+      else if (userData.rol === 'SECRETARIA') navigate('/secretaria');
       else if (userData.rol === 'PACIENTE') navigate('/paciente');
       else navigate('/');
     } catch (err) {
@@ -56,16 +80,46 @@ const Login = () => {
 
   return (
     <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', bgcolor: 'background.default' }}>
-      <Container maxWidth="xs" sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', py: 4 }}>
+      <Container maxWidth="xs" sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 4 }}>
+        
+        {/* Botón para volver a la página principal / Landing Page */}
+        <Box width="100%" display="flex" justifyContent="flex-start" mb={2}>
+          <Button
+            component={Link}
+            to="/"
+            startIcon={<ArrowBackIcon />}
+            sx={{
+              textTransform: 'none',
+              fontWeight: 600,
+              color: 'text.secondary',
+              fontSize: '0.88rem',
+              '&:hover': { color: 'primary.main', bgcolor: 'transparent' },
+            }}
+          >
+            Volver a la página principal
+          </Button>
+        </Box>
+
         <Card sx={{ width: '100%', p: 2, borderRadius: 3, boxShadow: '0 8px 24px rgba(0,0,0,0.08)' }}>
           <CardContent>
             <Box display="flex" flexDirection="column" alignItems="center" mb={3}>
               <HospitalIcon color="primary" sx={{ fontSize: 48, mb: 1 }} />
               <Typography variant="h5" align="center" color="primary" fontWeight={700}>
-                {CLINIC_CONFIG.name}
+                Iniciar Sesión
               </Typography>
-              <Typography variant="body2" color="text.secondary" align="center">
-                Ingrese a su cuenta para gestionar sus turnos
+              <Typography
+                variant="caption"
+                align="center"
+                sx={{
+                  mt: 0.8,
+                  px: 1,
+                  fontSize: '0.73rem',
+                  color: '#94a3b8',
+                  lineHeight: 1.3,
+                  display: 'block',
+                }}
+              >
+                Ingresa tus credenciales para ingresar al portal del {CLINIC_CONFIG.name}.
               </Typography>
             </Box>
 

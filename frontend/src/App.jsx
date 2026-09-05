@@ -25,13 +25,19 @@ import DoctorAgenda from './pages/doctor/DoctorAgenda';
 import DoctorHorarios from './pages/doctor/DoctorHorarios';
 import DoctorPlantillas from './pages/doctor/DoctorPlantillas';
 
+// Secretaria Pages
+import SecretariaDashboard from './pages/secretaria/SecretariaDashboard';
+import SecretariaAgenda from './pages/secretaria/SecretariaAgenda';
+
 // Admin Pages
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminEspecialidades from './pages/admin/AdminEspecialidades';
 import AdminDoctores from './pages/admin/AdminDoctores';
 import AdminNuevoDoctor from './pages/admin/AdminNuevoDoctor';
+import AdminNuevoUsuario from './pages/admin/AdminNuevoUsuario';
 import AdminReportes from './pages/admin/AdminReportes';
 import AdminUsuarios from './pages/admin/AdminUsuarios';
+import AdminGaleria from './pages/admin/AdminGaleria';
 
 import ConfirmarEmail from './pages/auth/ConfirmarEmail';
 import RecuperarPassword from './pages/auth/RecuperarPassword';
@@ -40,13 +46,16 @@ import EstablecerPasswordDoctor from './pages/auth/EstablecerPasswordDoctor';
 import GoogleCalendarSuccess from './pages/GoogleCalendarSuccess';
 import TerminosYCondiciones from './pages/public/TerminosYCondiciones';
 import Contacto from './pages/public/Contacto';
+import LandingPage from './pages/LandingPage';
+import { CLINIC_CONFIG } from './config/clinicConfig';
 
-// Redirección inteligente en la raíz '/' según rol
+// Redirección inteligente opcional si el usuario ya está en panel
 const RootRedirect = () => {
   const { isAuthenticated, role } = useAuth();
   if (!isAuthenticated) return <Navigate to="/login" replace />;
   if (role === 'ADMIN') return <Navigate to="/admin" replace />;
   if (role === 'DOCTOR') return <Navigate to="/doctor" replace />;
+  if (role === 'SECRETARIA') return <Navigate to="/secretaria" replace />;
   if (role === 'PACIENTE') return <Navigate to="/paciente" replace />;
   return <Navigate to="/login" replace />;
 };
@@ -55,12 +64,19 @@ const AppContent = () => {
   const { mode } = useColorMode();
   const theme = getCustomTheme(mode);
 
+  React.useEffect(() => {
+    if (CLINIC_CONFIG.name) {
+      document.title = CLINIC_CONFIG.name;
+    }
+  }, []);
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <BrowserRouter>
         <Routes>
           {/* Rutas Públicas */}
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<Login />} />
           <Route path="/registro" element={<Register />} />
           <Route path="/recuperar-password" element={<RecuperarPassword />} />
@@ -70,7 +86,6 @@ const AppContent = () => {
           <Route path="/google-calendar/success" element={<GoogleCalendarSuccess />} />
           <Route path="/terminos-y-condiciones" element={<TerminosYCondiciones />} />
           <Route path="/contacto" element={<Contacto />} />
-          <Route path="/" element={<RootRedirect />} />
 
           {/* Rutas Protegidas dentro del MainLayout */}
           <Route element={<MainLayout />}>
@@ -90,14 +105,22 @@ const AppContent = () => {
               <Route path="/doctor/plantillas" element={<DoctorPlantillas />} />
             </Route>
 
+            {/* Módulo Secretaría */}
+            <Route element={<ProtectedRoute allowedRoles={['SECRETARIA', 'ADMIN']} />}>
+              <Route path="/secretaria" element={<SecretariaDashboard />} />
+              <Route path="/secretaria/agenda" element={<SecretariaAgenda />} />
+            </Route>
+
             {/* Módulo Admin */}
             <Route element={<ProtectedRoute allowedRoles={['ADMIN']} />}>
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/admin/usuarios" element={<AdminUsuarios />} />
+              <Route path="/admin/usuarios/nuevo" element={<AdminNuevoUsuario />} />
               <Route path="/admin/especialidades" element={<AdminEspecialidades />} />
               <Route path="/admin/doctores" element={<AdminDoctores />} />
-              <Route path="/admin/doctores/nuevo" element={<AdminNuevoDoctor />} />
+              <Route path="/admin/doctores/nuevo" element={<AdminNuevoUsuario />} />
               <Route path="/admin/reportes" element={<AdminReportes />} />
+              <Route path="/admin/galeria" element={<AdminGaleria />} />
             </Route>
           </Route>
 
