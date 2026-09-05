@@ -10,11 +10,14 @@ import com.consultorio.dto.RegistroUsuarioAdminDTO;
 import com.consultorio.dto.SolicitudRestablecerPasswordDTO;
 import com.consultorio.dto.UsuarioAdminDTO;
 import com.consultorio.repository.DoctorRepository;
+import com.consultorio.repository.EspecialidadRepository;
 import com.consultorio.repository.PacienteRepository;
 import com.consultorio.repository.UsuarioRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -34,7 +37,7 @@ public class UsuarioService {
     private final UsuarioRepository usuarioRepository;
     private final DoctorRepository doctorRepository;
     private final PacienteRepository pacienteRepository;
-    private final com.consultorio.repository.EspecialidadRepository especialidadRepository;
+    private final EspecialidadRepository especialidadRepository;
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
 
@@ -42,7 +45,7 @@ public class UsuarioService {
     public UsuarioService(UsuarioRepository usuarioRepository,
                           DoctorRepository doctorRepository,
                           PacienteRepository pacienteRepository,
-                          com.consultorio.repository.EspecialidadRepository especialidadRepository,
+                          EspecialidadRepository especialidadRepository,
                           EmailService emailService,
                           PasswordEncoder passwordEncoder) {
         this.usuarioRepository = usuarioRepository;
@@ -133,40 +136,51 @@ public class UsuarioService {
     }
 
     @Transactional(readOnly = true)
+    public Page<UsuarioAdminDTO> buscarUsuariosPaginados(String query, Pageable pageable) {
+        Page<Usuario> usuariosPage = (query == null || query.trim().isEmpty())
+                ? usuarioRepository.findAll(pageable)
+                : usuarioRepository.buscarPorNombreApellidoOEmail(query.trim(), pageable);
+
+        return usuariosPage.map(this::mapToUsuarioAdminDTO);
+    }
+
+    @Transactional(readOnly = true)
     public List<UsuarioAdminDTO> buscarUsuariosPorEmail(String queryEmail) {
         List<Usuario> usuarios = (queryEmail == null || queryEmail.trim().isEmpty())
                 ? usuarioRepository.findAll()
                 : usuarioRepository.findByEmailContainingIgnoreCase(queryEmail.trim());
 
-        return usuarios.stream().map(u -> {
-            String nombre = null;
-            String apellido = null;
+        return usuarios.stream().map(this::mapToUsuarioAdminDTO).collect(Collectors.toList());
+    }
 
-            if (u.getRol() == Rol.PACIENTE || u.getRol() == Rol.SECRETARIA) {
-                Optional<Paciente> p = pacienteRepository.findByUsuarioId(u.getId());
-                if (p.isPresent()) {
-                    nombre = p.get().getNombre();
-                    apellido = p.get().getApellido();
-                }
-            } else if (u.getRol() == Rol.DOCTOR) {
-                Optional<Doctor> d = doctorRepository.findByUsuarioId(u.getId());
-                if (d.isPresent()) {
-                    nombre = d.get().getNombre();
-                    apellido = d.get().getApellido();
-                }
+    private UsuarioAdminDTO mapToUsuarioAdminDTO(Usuario u) {
+        String nombre = null;
+        String apellido = null;
+
+        if (u.getRol() == Rol.PACIENTE || u.getRol() == Rol.SECRETARIA) {
+            Optional<Paciente> p = pacienteRepository.findByUsuarioId(u.getId());
+            if (p.isPresent()) {
+                nombre = p.get().getNombre();
+                apellido = p.get().getApellido();
             }
+        } else if (u.getRol() == Rol.DOCTOR) {
+            Optional<Doctor> d = doctorRepository.findByUsuarioId(u.getId());
+            if (d.isPresent()) {
+                nombre = d.get().getNombre();
+                apellido = d.get().getApellido();
+            }
+        }
 
-            return UsuarioAdminDTO.builder()
-                    .id(u.getId())
-                    .email(u.getEmail())
-                    .rol(u.getRol())
-                    .activo(u.isActivo())
-                    .bloqueado(u.isBloqueado())
-                    .emailVerificado(u.isEmailVerificado())
-                    .nombre(nombre)
-                    .apellido(apellido)
-                    .build();
-        }).collect(Collectors.toList());
+        return UsuarioAdminDTO.builder()
+                .id(u.getId())
+                .email(u.getEmail())
+                .rol(u.getRol())
+                .activo(u.isActivo())
+                .bloqueado(u.isBloqueado())
+                .emailVerificado(u.isEmailVerificado())
+                .nombre(nombre)
+                .apellido(apellido)
+                .build();
     }
 
     @Transactional
@@ -183,7 +197,7 @@ public class UsuarioService {
 
         log.info("🛡️ Estado de bloqueo de usuario {} cambiado a: {}", usuario.getEmail(), bloquear);
 
-        return buscarUsuariosPorEmail(usuario.getEmail()).stream().findFirst().orElse(null);
+        return mapToUsuarioAdminDTO(usuario);
     }
 
     @Transactional
@@ -309,4 +323,6 @@ public class UsuarioService {
                 .apellido(dto.getApellido())
                 .build();
     }
+
+
 }

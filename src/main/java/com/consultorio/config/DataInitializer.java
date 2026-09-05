@@ -3,11 +3,14 @@ package com.consultorio.config;
 import com.consultorio.domain.Rol;
 import com.consultorio.domain.Usuario;
 import com.consultorio.repository.UsuarioRepository;
+import com.consultorio.service.UsuarioPruebaService;
+import com.consultorio.service.UsuarioService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -18,7 +21,8 @@ public class DataInitializer implements CommandLineRunner {
 
     private final UsuarioRepository usuarioRepository;
     private final PasswordEncoder passwordEncoder;
-    private final org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+    private final JdbcTemplate jdbcTemplate;
+    private final UsuarioPruebaService usuarioPruebaService;
 
     @Value("${app.admin.email:admin@adminconsultorio.com}")
     private String adminEmail;
@@ -26,13 +30,18 @@ public class DataInitializer implements CommandLineRunner {
     @Value("${app.admin.password:82HgaPoa9Aq}")
     private String adminPassword;
 
+    @Value("${app.dev.seed-test-users:true}")
+    private boolean seedTestUsers;
+
     @Autowired
     public DataInitializer(UsuarioRepository usuarioRepository,
                            PasswordEncoder passwordEncoder,
-                           org.springframework.jdbc.core.JdbcTemplate jdbcTemplate) {
+                           JdbcTemplate jdbcTemplate,
+                           UsuarioPruebaService usuarioPruebaService) {
         this.usuarioRepository = usuarioRepository;
         this.passwordEncoder = passwordEncoder;
         this.jdbcTemplate = jdbcTemplate;
+        this.usuarioPruebaService = usuarioPruebaService;
     }
 
     @Override
@@ -61,6 +70,10 @@ public class DataInitializer implements CommandLineRunner {
             log.info("✅ Usuario Administrador inicial ({}) creado correctamente en la primera ejecución.", adminEmail);
         } else {
             log.info("ℹ️ Inicialización omitida: Ya existe al menos un usuario Administrador en la base de datos.");
+        }
+
+        if (seedTestUsers) {
+            usuarioPruebaService.poblarUsuariosDePrueba();
         }
     }
 }

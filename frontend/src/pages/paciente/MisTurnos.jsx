@@ -18,10 +18,7 @@ import {
   Tab,
 } from '@mui/material';
 import {
-  Cancel as CancelIcon,
-  Event as EventIcon,
-  CheckCircle as CheckCircleIcon,
-  PersonOff as PersonOffIcon,
+  Cancel as CancelIcon
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { turnoService } from '../../api/turnoService';

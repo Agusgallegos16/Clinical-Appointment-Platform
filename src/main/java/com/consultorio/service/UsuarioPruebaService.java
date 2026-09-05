@@ -26,10 +26,10 @@ public class UsuarioPruebaService {
 
   @Autowired
   public UsuarioPruebaService(
-      UsuarioRepository usuarioRepository,
-      DoctorRepository doctorRepository,
-      PacienteRepository pacienteRepository,
-      PasswordEncoder passwordEncoder, UsuarioRepository usuarioRepository1, DoctorRepository doctorRepository1, PacienteRepository pacienteRepository1, PasswordEncoder passwordEncoder1){
+      UsuarioRepository usuarioRepository1,
+      DoctorRepository doctorRepository1,
+      PacienteRepository pacienteRepository1,
+      PasswordEncoder passwordEncoder1){
     this.usuarioRepository = usuarioRepository1;
     this.doctorRepository = doctorRepository1;
     this.pacienteRepository = pacienteRepository1;
