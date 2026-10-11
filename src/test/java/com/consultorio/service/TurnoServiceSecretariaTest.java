@@ -97,7 +97,7 @@ class TurnoServiceSecretariaTest {
                 .motivoConsulta("Consulta general")
                 .build();
 
-        when(doctorService.obtenerPorId(doctorId)).thenReturn(doctorMock);
+        when(doctorService.obtenerPorIdConBloqueo(doctorId)).thenReturn(doctorMock);
         when(especialidadService.obtenerPorId(especialidadId)).thenReturn(especialidadMock);
         when(turnoRepository.existsByDoctorIdAndFechaHoraAndEstadoNot(eq(doctorId), eq(fechaFutura), any())).thenReturn(false);
 
@@ -174,7 +174,7 @@ class TurnoServiceSecretariaTest {
                 .telefono("99887766")
                 .build();
 
-        when(doctorService.obtenerPorId(doctorId)).thenReturn(doctorMock);
+        when(doctorService.obtenerPorIdConBloqueo(doctorId)).thenReturn(doctorMock);
         when(especialidadService.obtenerPorId(especialidadId)).thenReturn(especialidadMock);
         when(pacienteService.obtenerORegistrarPacienteExpress(any(), any(), any(), any(), any(), any()))
                 .thenReturn(pacienteExistente);

@@ -60,7 +60,7 @@ public class TurnoService {
         }
 
         Paciente paciente = pacienteService.obtenerPorId(dto.getPacienteId());
-        Doctor doctor = doctorService.obtenerPorId(dto.getDoctorId());
+        Doctor doctor = doctorService.obtenerPorIdConBloqueo(dto.getDoctorId());
         Especialidad especialidad = especialidadService.obtenerPorId(dto.getEspecialidadId());
 
         // Control de Seguridad IDOR: El paciente autenticado solo puede reservar para sí mismo (salvo ADMIN)
@@ -101,7 +101,7 @@ public class TurnoService {
             throw new IllegalArgumentException("No se pueden reservar turnos para fechas o momentos del pasado.");
         }
 
-        Doctor doctor = doctorService.obtenerPorId(dto.getDoctorId());
+        Doctor doctor = doctorService.obtenerPorIdConBloqueo(dto.getDoctorId());
         Especialidad especialidad = especialidadService.obtenerPorId(dto.getEspecialidadId());
 
         Paciente paciente = pacienteService.obtenerORegistrarPacienteExpress(
@@ -130,7 +130,7 @@ public class TurnoService {
 
     @Transactional
     public TurnoResponseDTO cancelarTurno(UUID turnoId) {
-        Turno turno = turnoRepository.findById(turnoId)
+        Turno turno = turnoRepository.findByIdForUpdate(turnoId)
                 .orElseThrow(() -> new IllegalArgumentException("Turno no encontrado con ID: " + turnoId));
 
         // Control de Seguridad IDOR: Solo el paciente, su tutor, doctor dueño del turno o ADMIN pueden cancelarlo
@@ -149,11 +149,7 @@ public class TurnoService {
             throw new AccessDeniedException("Acceso denegado: No tiene permisos para cancelar este turno.");
         }
 
-        if (turno.getEstado() == EstadoTurno.COMPLETADO) {
-            throw new IllegalStateException("No se puede cancelar un turno que ya fue completado.");
-        }
-
-        turno.setEstado(EstadoTurno.CANCELADO);
+        turno.cancelar(null, false);
         Turno actualizado = turnoRepository.save(turno);
 
         eventPublisher.publishEvent(new TurnoCanceladoEvent(actualizado.getId(), null, false));
@@ -167,7 +163,7 @@ public class TurnoService {
             throw new IllegalArgumentException("Debe ingresar una justificación obligatoria para cancelar el turno del paciente.");
         }
 
-        Turno turno = turnoRepository.findById(turnoId)
+        Turno turno = turnoRepository.findByIdForUpdate(turnoId)
                 .orElseThrow(() -> new IllegalArgumentException("Turno no encontrado con ID: " + turnoId));
 
         String emailAutenticado = securityUtils.obtenerEmailUsuarioAutenticado();
@@ -183,12 +179,7 @@ public class TurnoService {
             throw new AccessDeniedException("Acceso denegado: Solo el médico asignado, la secretaría o un Administrador pueden justificar y cancelar este turno.");
         }
 
-        if (turno.getEstado() == EstadoTurno.COMPLETADO) {
-            throw new IllegalStateException("No se puede cancelar un turno que ya fue completado.");
-        }
-
-        turno.setEstado(EstadoTurno.CANCELADO);
-        turno.setMotivoCancelacion(motivoCancelacion.trim());
+        turno.cancelar(motivoCancelacion.trim(), true);
         Turno actualizado = turnoRepository.save(turno);
 
         eventPublisher.publishEvent(new TurnoCanceladoEvent(actualizado.getId(), motivoCancelacion.trim(), true));
@@ -198,10 +189,10 @@ public class TurnoService {
 
     @Transactional
     public TurnoResponseDTO cambiarEstadoTurno(UUID turnoId, EstadoTurno nuevoEstado) {
-        Turno turno = turnoRepository.findById(turnoId)
+        Turno turno = turnoRepository.findByIdForUpdate(turnoId)
                 .orElseThrow(() -> new IllegalArgumentException("Turno no encontrado con ID: " + turnoId));
 
-        turno.setEstado(nuevoEstado);
+        turno.transicionarA(nuevoEstado);
         Turno actualizado = turnoRepository.save(turno);
         return mapearResponseDTO(actualizado);
     }

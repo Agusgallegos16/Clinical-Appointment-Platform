@@ -158,6 +158,12 @@ public class DoctorService {
                 .orElseThrow(() -> new IllegalArgumentException("Doctor no encontrado con ID: " + id));
     }
 
+    @Transactional
+    public Doctor obtenerPorIdConBloqueo(UUID id) {
+        return doctorRepository.findByIdWithLock(id)
+                .orElseThrow(() -> new IllegalArgumentException("Doctor no encontrado con ID: " + id));
+    }
+
     public Optional<Doctor> obtenerPorUsuarioId(Long usuarioId) {
         return doctorRepository.findByUsuarioId(usuarioId);
     }
