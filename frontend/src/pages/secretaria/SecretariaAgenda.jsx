@@ -96,6 +96,7 @@ const SecretariaAgenda = () => {
       setEspecialidades(res.data || []);
     } catch (err) {
       console.error('Error al cargar especialidades:', err);
+      setError((prev) => prev ? `${prev} | Error al cargar especialidades.` : 'No se pudieron cargar las especialidades.');
     }
   };
 

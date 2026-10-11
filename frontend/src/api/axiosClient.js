@@ -35,6 +35,11 @@ axiosClient.interceptors.request.use(
 axiosClient.interceptors.response.use(
   (response) => response,
   (error) => {
+    // Si la solicitud fue cancelada intencionalmente por AbortController al desmontar, propagar sin efectos secundarios
+    if (axios.isCancel(error) || error.name === 'CanceledError' || error.code === 'ERR_CANCELED') {
+      return Promise.reject(error);
+    }
+
     const status = error.response?.status;
     const requestUrl = error.config?.url || '';
 
@@ -56,5 +61,7 @@ axiosClient.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+export const isCancel = (error) => axios.isCancel(error) || error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED';
 
 export default axiosClient;

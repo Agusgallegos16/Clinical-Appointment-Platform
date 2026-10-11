@@ -8,6 +8,7 @@ import { getCustomTheme } from './theme/theme';
 // Layout & Security
 import MainLayout from './components/MainLayout';
 import ProtectedRoute from './routes/ProtectedRoute';
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 // Auth Pages
 import Login from './pages/auth/Login';
@@ -133,11 +134,13 @@ const AppContent = () => {
 };
 
 const App = () => (
-  <ColorModeProvider>
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
-  </ColorModeProvider>
+  <ErrorBoundary isGlobal>
+    <ColorModeProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ColorModeProvider>
+  </ErrorBoundary>
 );
 
 export default App;

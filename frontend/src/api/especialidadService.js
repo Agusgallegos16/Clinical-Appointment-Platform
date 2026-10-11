@@ -1,13 +1,13 @@
 import axiosClient from './axiosClient';
 
 export const especialidadService = {
-  listarTodas: async () => {
-    const response = await axiosClient.get('/especialidades');
+  listarTodas: async (options = {}) => {
+    const response = await axiosClient.get('/especialidades', options);
     return response.data;
   },
 
-  obtenerTodas: async () => {
-    const response = await axiosClient.get('/especialidades');
+  obtenerTodas: async (options = {}) => {
+    const response = await axiosClient.get('/especialidades', options);
     return response.data;
   },
 

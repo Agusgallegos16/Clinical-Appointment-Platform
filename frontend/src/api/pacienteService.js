@@ -1,8 +1,8 @@
 import axiosClient from './axiosClient';
 
 export const pacienteService = {
-  obtenerPorId: async (id) => {
-    const response = await axiosClient.get(`/pacientes/${id}`);
+  obtenerPorId: async (id, options = {}) => {
+    const response = await axiosClient.get(`/pacientes/${id}`, options);
     return response.data;
   },
 

@@ -14,10 +14,12 @@ import {
   CalendarMonth as CalendarIcon,
   ArrowForward as ArrowForwardIcon,
   ChildCare as ChildCareIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { turnoService } from '../../api/turnoService';
 import { pacienteService } from '../../api/pacienteService';
+import { isCancel } from '../../api/axiosClient';
 import dayjs from 'dayjs';
 
 const PacienteDashboard = () => {
@@ -29,26 +31,33 @@ const PacienteDashboard = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (entidadId) {
-      cargarDatos();
-    } else {
+    if (!entidadId) {
       setLoading(false);
+      return;
     }
+    const controller = new AbortController();
+    cargarDatos(controller.signal);
+    return () => controller.abort();
   }, [entidadId]);
 
-  const cargarDatos = async () => {
+  const cargarDatos = async (signal) => {
     setLoading(true);
+    setError('');
     try {
       const [pacienteData, turnosData] = await Promise.all([
-        pacienteService.obtenerPorId(entidadId).catch(() => null),
-        turnoService.obtenerPorPaciente(entidadId).catch(() => []),
+        pacienteService.obtenerPorId(entidadId, { signal }),
+        turnoService.obtenerPorPaciente(entidadId, { signal }),
       ]);
       if (pacienteData) setPacienteInfo(pacienteData);
       if (turnosData) setTurnos(turnosData);
     } catch (err) {
-      setError('No se pudieron cargar tus datos.');
+      if (isCancel(err)) return;
+      console.error('Error al cargar datos del dashboard de paciente:', err);
+      setError('No se pudieron cargar tus datos de perfil y turnos. Verifique su conexión.');
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) {
+        setLoading(false);
+      }
     }
   };
 
@@ -81,7 +90,19 @@ const PacienteDashboard = () => {
           </Typography>
         </Box>
 
-        {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
+        {error && (
+          <Alert
+            severity="error"
+            sx={{ mb: 3 }}
+            action={
+              <Button color="inherit" size="small" startIcon={<RefreshIcon />} onClick={() => cargarDatos()}>
+                Reintentar
+              </Button>
+            }
+          >
+            {error}
+          </Alert>
+        )}
 
         {/* Próximo Turno Agendado (si existe) */}
         {proximoTurno && (
