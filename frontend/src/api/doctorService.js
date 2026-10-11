@@ -52,8 +52,8 @@ export const doctorService = {
     return response.data;
   },
 
-  obtenerPorId: async (id) => {
-    const response = await axiosClient.get(`/doctores/${id}`);
+  obtenerPorId: async (id, options = {}) => {
+    const response = await axiosClient.get(`/doctores/${id}`, options);
     return response.data;
   },
 
@@ -67,17 +67,17 @@ export const doctorService = {
     return response.data;
   },
 
-  obtenerDisponibilidad: async (id, fechaStr, especialidadId = null) => {
+  obtenerDisponibilidad: async (id, fechaStr, especialidadId = null, options = {}) => {
     let url = `/doctores/${id}/disponibilidad?fecha=${fechaStr}`;
     if (especialidadId) {
       url += `&especialidadId=${especialidadId}`;
     }
-    const response = await axiosClient.get(url);
+    const response = await axiosClient.get(url, options);
     return response.data;
   },
 
-  obtenerAgenda: async (id, fechaStr) => {
-    const response = await axiosClient.get(`/doctores/${id}/agenda?fecha=${fechaStr}`);
+  obtenerAgenda: async (id, fechaStr, options = {}) => {
+    const response = await axiosClient.get(`/doctores/${id}/agenda?fecha=${fechaStr}`, options);
     return response.data;
   },
 

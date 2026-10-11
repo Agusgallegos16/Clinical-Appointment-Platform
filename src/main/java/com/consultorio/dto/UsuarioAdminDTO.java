@@ -17,4 +17,15 @@ public class UsuarioAdminDTO {
     private boolean emailVerificado;
     private String nombre;
     private String apellido;
+
+    public UsuarioAdminDTO(Long id, String email, Rol rol, boolean activo, Boolean bloqueado, boolean emailVerificado, String nombre, String apellido) {
+        this.id = id;
+        this.email = email;
+        this.rol = rol;
+        this.activo = activo;
+        this.bloqueado = Boolean.TRUE.equals(bloqueado);
+        this.emailVerificado = emailVerificado;
+        this.nombre = nombre;
+        this.apellido = apellido;
+    }
 }

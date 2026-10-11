@@ -10,6 +10,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.head;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -20,11 +21,12 @@ class PingControllerTest {
     private MockMvc mockMvc;
 
     @Test
-    @DisplayName("GET /api/public/ping sin autenticación debe retornar HTTP 200 OK")
+    @DisplayName("GET /api/public/ping sin autenticación debe retornar HTTP 200 OK y status UP")
     void testPingPublicGetEndpointWithoutAuth() throws Exception {
         mockMvc.perform(get("/api/public/ping")
                 .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UP"));
     }
 
     @Test

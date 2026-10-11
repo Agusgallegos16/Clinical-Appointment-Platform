@@ -73,6 +73,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiErrorDTO> handleDataIntegrityViolation(DataIntegrityViolationException ex) {
         String errorMsg = ex.getMessage() != null ? ex.getMessage().toLowerCase() : "";
         String mensaje = "Error de integridad de datos. Verifique que los campos ingresados sean válidos y no dupliquen datos existentes.";
+        HttpStatus status = HttpStatus.BAD_REQUEST;
 
         if (errorMsg.contains("delete") || errorMsg.contains("foreign key")) {
             mensaje = "No se puede eliminar el registro porque posee elementos asociados (doctores o turnos activos).";
@@ -80,8 +81,9 @@ public class GlobalExceptionHandler {
             mensaje = "El DNI ingresado ya pertenece a otro registro en la base de datos.";
         } else if (errorMsg.contains("email") || errorMsg.contains("usuarios_email_key")) {
             mensaje = "El correo electrónico ingresado ya pertenece a otra cuenta registrada en el sistema.";
-        } else if (errorMsg.contains("uk_turnos_doctor_fecha")) {
+        } else if (errorMsg.contains("uk_turnos_doctor_fecha") || errorMsg.contains("turnos")) {
             mensaje = "El horario seleccionado acaba de ser reservado por otro usuario. Por favor elija otro turno disponible.";
+            status = HttpStatus.CONFLICT;
         } else if (errorMsg.contains("usuarios_rol_check")) {
             mensaje = "La restricción SQL de roles en la base de datos está siendo actualizada. Por favor reintente la operación.";
         }
@@ -90,12 +92,61 @@ public class GlobalExceptionHandler {
 
         ApiErrorDTO errorDTO = ApiErrorDTO.builder()
                 .timestamp(LocalDateTime.now())
-                .status(HttpStatus.BAD_REQUEST.value())
-                .error("Restricción de integridad")
+                .status(status.value())
+                .error(status == HttpStatus.CONFLICT ? "Conflicto de Integridad" : "Restricción de integridad")
                 .mensaje(mensaje)
                 .build();
 
-        return ResponseEntity.badRequest().body(errorDTO);
+        return ResponseEntity.status(status).body(errorDTO);
+    }
+
+    @ExceptionHandler(TransicionEstadoTurnoException.class)
+    public ResponseEntity<ApiErrorDTO> handleTransicionEstadoTurno(TransicionEstadoTurnoException ex) {
+        log.warn("Transición de estado inválida: {}", ex.getMessage());
+
+        ApiErrorDTO errorDTO = ApiErrorDTO.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.UNPROCESSABLE_ENTITY.value())
+                .error("Transición de estado inválida")
+                .mensaje(ex.getMessage())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorDTO);
+    }
+
+    @ExceptionHandler(ReglaNegocioTurnoException.class)
+    public ResponseEntity<ApiErrorDTO> handleReglaNegocioTurno(ReglaNegocioTurnoException ex) {
+        log.warn("Regla de negocio infringida: {}", ex.getMessage());
+
+        ApiErrorDTO errorDTO = ApiErrorDTO.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.UNPROCESSABLE_ENTITY.value())
+                .error("Regla de negocio infringida")
+                .mensaje(ex.getMessage())
+                .build();
+
+        return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorDTO);
+    }
+
+    @ExceptionHandler({
+            org.springframework.dao.PessimisticLockingFailureException.class,
+            org.springframework.dao.CannotAcquireLockException.class,
+            jakarta.persistence.PessimisticLockException.class,
+            jakarta.persistence.LockTimeoutException.class,
+            org.springframework.orm.ObjectOptimisticLockingFailureException.class,
+            jakarta.persistence.OptimisticLockException.class
+    })
+    public ResponseEntity<ApiErrorDTO> handleConcurrencyConflicts(Exception ex) {
+        log.warn("Conflicto de concurrencia: {}", ex.getMessage());
+
+        ApiErrorDTO errorDTO = ApiErrorDTO.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.CONFLICT.value())
+                .error("Conflicto de concurrencia")
+                .mensaje("El horario o turno seleccionado está siendo modificado o acaba de ser reservado por otro usuario. Por favor recargue y reintente.")
+                .build();
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(errorDTO);
     }
 
     @ExceptionHandler({LockedException.class, DisabledException.class})

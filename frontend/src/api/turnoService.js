@@ -6,8 +6,8 @@ export const turnoService = {
     return response.data;
   },
 
-  obtenerPorPaciente: async (pacienteId) => {
-    const response = await axiosClient.get(`/turnos/paciente/${pacienteId}`);
+  obtenerPorPaciente: async (pacienteId, options = {}) => {
+    const response = await axiosClient.get(`/turnos/paciente/${pacienteId}`, options);
     return response.data;
   },
 

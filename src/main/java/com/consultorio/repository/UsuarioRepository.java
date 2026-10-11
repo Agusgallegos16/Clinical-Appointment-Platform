@@ -1,7 +1,11 @@
 package com.consultorio.repository;
 
 import com.consultorio.domain.Usuario;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -11,6 +15,78 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     Optional<Usuario> findByEmail(String email);
     Optional<Usuario> findByEmailIgnoreCase(String email);
     java.util.List<Usuario> findByEmailContainingIgnoreCase(String email);
+    Page<Usuario> findByEmailContainingIgnoreCase(String email, Pageable pageable);
+
+    @Query(value = "SELECT DISTINCT u FROM Usuario u " +
+            "LEFT JOIN Paciente p ON p.usuario = u " +
+            "LEFT JOIN Doctor d ON d.usuario = u " +
+            "WHERE LOWER(u.email) LIKE LOWER(CONCAT('%', :query, '%')) " +
+            "OR LOWER(p.nombre) LIKE LOWER(CONCAT('%', :query, '%')) " +
+            "OR LOWER(p.apellido) LIKE LOWER(CONCAT('%', :query, '%')) " +
+            "OR LOWER(CONCAT(p.nombre, ' ', p.apellido)) LIKE LOWER(CONCAT('%', :query, '%')) " +
+            "OR LOWER(CONCAT(p.apellido, ' ', p.nombre)) LIKE LOWER(CONCAT('%', :query, '%')) " +
+            "OR LOWER(d.nombre) LIKE LOWER(CONCAT('%', :query, '%')) " +
+            "OR LOWER(d.apellido) LIKE LOWER(CONCAT('%', :query, '%')) " +
+            "OR LOWER(CONCAT(d.nombre, ' ', d.apellido)) LIKE LOWER(CONCAT('%', :query, '%')) " +
+            "OR LOWER(CONCAT(d.apellido, ' ', d.nombre)) LIKE LOWER(CONCAT('%', :query, '%'))",
+            countQuery = "SELECT COUNT(DISTINCT u) FROM Usuario u " +
+            "LEFT JOIN Paciente p ON p.usuario = u " +
+            "LEFT JOIN Doctor d ON d.usuario = u " +
+            "WHERE LOWER(u.email) LIKE LOWER(CONCAT('%', :query, '%')) " +
+            "OR LOWER(p.nombre) LIKE LOWER(CONCAT('%', :query, '%')) " +
+            "OR LOWER(p.apellido) LIKE LOWER(CONCAT('%', :query, '%')) " +
+            "OR LOWER(CONCAT(p.nombre, ' ', p.apellido)) LIKE LOWER(CONCAT('%', :query, '%')) " +
+            "OR LOWER(CONCAT(p.apellido, ' ', p.nombre)) LIKE LOWER(CONCAT('%', :query, '%')) " +
+            "OR LOWER(d.nombre) LIKE LOWER(CONCAT('%', :query, '%')) " +
+            "OR LOWER(d.apellido) LIKE LOWER(CONCAT('%', :query, '%')) " +
+            "OR LOWER(CONCAT(d.nombre, ' ', d.apellido)) LIKE LOWER(CONCAT('%', :query, '%')) " +
+            "OR LOWER(CONCAT(d.apellido, ' ', d.nombre)) LIKE LOWER(CONCAT('%', :query, '%'))")
+    Page<Usuario> buscarPorNombreApellidoOEmail(@Param("query") String query, Pageable pageable);
+
+    @Query(value = """
+            SELECT new com.consultorio.dto.UsuarioAdminDTO(
+                u.id,
+                u.email,
+                u.rol,
+                u.activo,
+                u.bloqueado,
+                u.emailVerificado,
+                COALESCE(p.nombre, d.nombre),
+                COALESCE(p.apellido, d.apellido)
+            )
+            FROM Usuario u
+            LEFT JOIN Paciente p ON p.usuario = u
+            LEFT JOIN Doctor d ON d.usuario = u
+            WHERE (:query IS NULL OR :query = '' OR
+                   LOWER(u.email) LIKE LOWER(CONCAT('%', :query, '%')) OR
+                   LOWER(p.nombre) LIKE LOWER(CONCAT('%', :query, '%')) OR
+                   LOWER(p.apellido) LIKE LOWER(CONCAT('%', :query, '%')) OR
+                   LOWER(CONCAT(p.nombre, ' ', p.apellido)) LIKE LOWER(CONCAT('%', :query, '%')) OR
+                   LOWER(CONCAT(p.apellido, ' ', p.nombre)) LIKE LOWER(CONCAT('%', :query, '%')) OR
+                   LOWER(d.nombre) LIKE LOWER(CONCAT('%', :query, '%')) OR
+                   LOWER(d.apellido) LIKE LOWER(CONCAT('%', :query, '%')) OR
+                   LOWER(CONCAT(d.nombre, ' ', d.apellido)) LIKE LOWER(CONCAT('%', :query, '%')) OR
+                   LOWER(CONCAT(d.apellido, ' ', d.nombre)) LIKE LOWER(CONCAT('%', :query, '%')))
+            ORDER BY u.id DESC
+            """,
+            countQuery = """
+            SELECT COUNT(u)
+            FROM Usuario u
+            LEFT JOIN Paciente p ON p.usuario = u
+            LEFT JOIN Doctor d ON d.usuario = u
+            WHERE (:query IS NULL OR :query = '' OR
+                   LOWER(u.email) LIKE LOWER(CONCAT('%', :query, '%')) OR
+                   LOWER(p.nombre) LIKE LOWER(CONCAT('%', :query, '%')) OR
+                   LOWER(p.apellido) LIKE LOWER(CONCAT('%', :query, '%')) OR
+                   LOWER(CONCAT(p.nombre, ' ', p.apellido)) LIKE LOWER(CONCAT('%', :query, '%')) OR
+                   LOWER(CONCAT(p.apellido, ' ', p.nombre)) LIKE LOWER(CONCAT('%', :query, '%')) OR
+                   LOWER(d.nombre) LIKE LOWER(CONCAT('%', :query, '%')) OR
+                   LOWER(d.apellido) LIKE LOWER(CONCAT('%', :query, '%')) OR
+                   LOWER(CONCAT(d.nombre, ' ', d.apellido)) LIKE LOWER(CONCAT('%', :query, '%')) OR
+                   LOWER(CONCAT(d.apellido, ' ', d.nombre)) LIKE LOWER(CONCAT('%', :query, '%')))
+            """)
+    Page<com.consultorio.dto.UsuarioAdminDTO> buscarUsuariosAdminPaginados(@Param("query") String query, Pageable pageable);
+
     boolean existsByEmail(String email);
     boolean existsByEmailIgnoreCase(String email);
     boolean existsByRol(com.consultorio.domain.Rol rol);

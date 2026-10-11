@@ -19,12 +19,11 @@ import {
 } from '@mui/material';
 import {
   Cancel as CancelIcon,
-  Event as EventIcon,
-  CheckCircle as CheckCircleIcon,
-  PersonOff as PersonOffIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { turnoService } from '../../api/turnoService';
+import { isCancel } from '../../api/axiosClient';
 import dayjs from 'dayjs';
 
 import { useSearchParams } from 'react-router-dom';
@@ -59,9 +58,10 @@ const MisTurnos = () => {
 
   useEffect(() => {
     const idAUsar = queryPacienteId || selectedPacienteId || entidadId;
-    if (idAUsar) {
-      cargarTurnos(idAUsar);
-    }
+    if (!idAUsar) return;
+    const controller = new AbortController();
+    cargarTurnos(idAUsar, controller.signal);
+    return () => controller.abort();
   }, [selectedPacienteId, queryPacienteId, entidadId]);
 
   const cargarMenoresTutor = async () => {
@@ -73,16 +73,21 @@ const MisTurnos = () => {
     }
   };
 
-  const cargarTurnos = async (pacienteIdTarget) => {
+  const cargarTurnos = async (pacienteIdTarget, signal) => {
     setLoading(true);
     setError('');
     try {
-      const data = await turnoService.obtenerPorPaciente(pacienteIdTarget);
+      const data = await turnoService.obtenerPorPaciente(pacienteIdTarget, { signal });
       setTurnos(data);
     } catch (err) {
-      setError('Error al consultar la lista de turnos.');
+      if (isCancel(err)) return;
+      console.error('Error al consultar lista de turnos:', err);
+      setError('Error al consultar la lista de turnos. Verifique la conexión con el servidor.');
+      setTurnos([]);
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) {
+        setLoading(false);
+      }
     }
   };
 
@@ -152,8 +157,6 @@ const MisTurnos = () => {
         <GoogleCalendarButton />
       </Box>
 
-      {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
-
       {menores.length > 0 && (
         <Box mb={3}>
           <Typography variant="subtitle2" fontWeight={700} color="text.secondary" mb={1}>
@@ -183,8 +186,34 @@ const MisTurnos = () => {
         <Tab label="Finalizados / Cancelados / Ausentes" />
       </Tabs>
 
-      {loading ? (
-        <Box display="flex" justifyContent="center" py={4}><CircularProgress /></Box>
+      {error && !loading ? (
+        <Alert
+          severity="error"
+          sx={{ mb: 3 }}
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              startIcon={<RefreshIcon />}
+              onClick={() => {
+                const target = queryPacienteId || selectedPacienteId || entidadId;
+                if (target) cargarTurnos(target);
+              }}
+              sx={{ fontWeight: 600 }}
+            >
+              Reintentar
+            </Button>
+          }
+        >
+          {error}
+        </Alert>
+      ) : loading ? (
+        <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" py={4}>
+          <CircularProgress size={36} />
+          <Typography variant="body2" color="text.secondary" mt={1.5}>
+            Consultando tus turnos médicos...
+          </Typography>
+        </Box>
       ) : turnosFiltradosYOrdenados.length === 0 ? (
         <Alert severity="info">No tenés turnos registrados en esta categoría.</Alert>
       ) : (

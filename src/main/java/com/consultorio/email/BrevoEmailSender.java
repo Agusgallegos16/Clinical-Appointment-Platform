@@ -72,13 +72,13 @@ public class BrevoEmailSender implements EmailSender {
         } catch (HttpClientErrorException e) {
             int statusCode = e.getStatusCode().value();
             boolean retryable = (statusCode == 429 || statusCode == 408 || statusCode == 422 || statusCode == 401);
-            log.warn("⚠️ Error HTTP client en Brevo [{}]: {} (Reintentable: {})", statusCode, e.getResponseBodyAsString(), retryable);
+            log.warn("Error HTTP client en Brevo [{}]: {} (Reintentable: {})", statusCode, e.getResponseBodyAsString(), retryable);
             throw new EmailProviderException("Brevo", "Error en llamada API Brevo: " + e.getMessage(), retryable, statusCode);
         } catch (HttpServerErrorException e) {
-            log.warn("⚠️ Error de servidor en Brevo [{}]: {}", e.getStatusCode().value(), e.getResponseBodyAsString());
+            log.warn("Error de servidor en Brevo [{}]: {}", e.getStatusCode().value(), e.getResponseBodyAsString());
             throw new EmailProviderException("Brevo", "Error 5xx en servidor Brevo", true, e.getStatusCode().value());
         } catch (Exception e) {
-            log.warn("⚠️ Error de conexión o timeout al enviar correo vía Brevo: {}", e.getMessage());
+            log.warn("Error de conexión o timeout al enviar correo vía Brevo: {}", e.getMessage());
             throw new EmailProviderException("Brevo", "Fallo de conexión o timeout en Brevo", e, true);
         }
     }

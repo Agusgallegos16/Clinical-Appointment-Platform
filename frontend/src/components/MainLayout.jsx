@@ -42,6 +42,7 @@ import { useAuth } from '../context/AuthContext';
 import { useColorMode } from '../context/ColorModeContext';
 import Footer from './Footer';
 import EditarPerfilModal from './EditarPerfilModal';
+import ErrorBoundary from './common/ErrorBoundary';
 import { CLINIC_CONFIG } from '../config/clinicConfig';
 
 const drawerWidth = 260;
@@ -291,7 +292,9 @@ const MainLayout = () => {
         </Box>
 
         <Box sx={{ flexGrow: 1 }}>
-          <Outlet />
+          <ErrorBoundary resetKeys={[location.pathname]} message="Se produjo un error al procesar esta sección. Podés reintentar la vista o seleccionar otra opción del menú.">
+            <Outlet />
+          </ErrorBoundary>
         </Box>
         <Footer />
       </Box>

@@ -36,12 +36,14 @@ import {
   ArrowForward as ArrowForwardIcon,
   Warning as WarningIcon,
   Info as InfoIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { especialidadService } from '../../api/especialidadService';
 import { doctorService } from '../../api/doctorService';
 import { turnoService } from '../../api/turnoService';
 import { pacienteService } from '../../api/pacienteService';
 import { pacienteMenorService } from '../../api/pacienteMenorService';
+import { isCancel } from '../../api/axiosClient';
 import { useAuth } from '../../context/AuthContext';
 import dayjs from 'dayjs';
 
@@ -87,18 +89,20 @@ const ReservarTurno = () => {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    if (entidadId) {
-      cargarDatosIniciales();
-    }
+    if (!entidadId) return;
+    const controller = new AbortController();
+    cargarDatosIniciales(controller.signal);
+    return () => controller.abort();
   }, [entidadId]);
 
-  const cargarDatosIniciales = async () => {
+  const cargarDatosIniciales = async (signal) => {
     setLoadingPacientes(true);
+    setError('');
     try {
       const [titularData, menoresData, especialidadesData] = await Promise.all([
-        pacienteService.obtenerPorId(entidadId).catch(() => null),
-        pacienteMenorService.listarMenores().catch(() => []),
-        especialidadService.listarTodas().catch(() => []),
+        pacienteService.obtenerPorId(entidadId, { signal }),
+        pacienteMenorService.listarMenores({ signal }).catch(() => []),
+        especialidadService.listarTodas({ signal }),
       ]);
 
       const titularObj = titularData
@@ -106,12 +110,12 @@ const ReservarTurno = () => {
         : { id: entidadId, nombre: 'Titular', esMenor: false };
 
       setTitular(titularObj);
-      setMenores(menoresData);
-      setEspecialidades(especialidadesData);
+      setMenores(menoresData || []);
+      setEspecialidades(especialidadesData || []);
 
       // Si viene query parameter o si no hay menores, seleccionar paciente por defecto
       if (queryPacienteId) {
-        const menorMatch = menoresData.find((m) => m.id === queryPacienteId);
+        const menorMatch = (menoresData || []).find((m) => m.id === queryPacienteId);
         if (menorMatch) {
           setSelectedPaciente({ id: menorMatch.id, nombre: `${menorMatch.nombre} ${menorMatch.apellido}`, esMenor: true });
         } else {
@@ -121,9 +125,13 @@ const ReservarTurno = () => {
         setSelectedPaciente(titularObj);
       }
     } catch (err) {
-      setError('Error al cargar la información inicial.');
+      if (isCancel(err)) return;
+      console.error('Error al cargar datos iniciales de reserva:', err);
+      setError('Error al cargar la información inicial de especialidades. Verifique la conexión con el servidor.');
     } finally {
-      setLoadingPacientes(false);
+      if (!signal?.aborted) {
+        setLoadingPacientes(false);
+      }
     }
   };
 
@@ -282,7 +290,19 @@ const ReservarTurno = () => {
         ))}
       </Stepper>
 
-      {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
+      {error && (
+        <Alert
+          severity="error"
+          sx={{ mb: 3 }}
+          action={
+            <Button color="inherit" size="small" startIcon={<RefreshIcon />} onClick={() => cargarDatosIniciales()}>
+              Reintentar
+            </Button>
+          }
+        >
+          {error}
+        </Alert>
+      )}
       {success && <Alert severity="success" sx={{ mb: 3 }}>¡Turno reservado exitosamente! Redirigiendo a tus turnos...</Alert>}
 
       {/* PASO 0 (Opcional): ¿Para quién es el turno? (Solo si posee menores a cargo) */}

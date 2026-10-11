@@ -6,8 +6,8 @@ export const pacienteMenorService = {
     return response.data;
   },
 
-  listarMenores: async () => {
-    const response = await axiosClient.get('/pacientes/menores');
+  listarMenores: async (options = {}) => {
+    const response = await axiosClient.get('/pacientes/menores', options);
     return response.data;
   },
 

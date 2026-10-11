@@ -24,11 +24,13 @@ import {
   Cancel as CancelIcon,
   PersonOff as PersonOffIcon,
   Block as BlockIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { doctorService } from '../../api/doctorService';
 import { turnoService } from '../../api/turnoService';
 import { pacienteService } from '../../api/pacienteService';
+import { isCancel } from '../../api/axiosClient';
 import dayjs from 'dayjs';
 
 import GoogleCalendarButton from '../../components/GoogleCalendarButton';
@@ -58,23 +60,37 @@ const DoctorAgenda = () => {
   const [statsError, setStatsError] = useState('');
 
   useEffect(() => {
-    if (entidadId) cargarAgenda(fecha);
+    if (!entidadId) return;
+    const controller = new AbortController();
+    cargarAgenda(fecha, controller.signal);
+    return () => {
+      controller.abort();
+    };
   }, [entidadId, fecha]);
 
-  const cargarAgenda = async (fechaSeleccionada) => {
+  const cargarAgenda = async (fechaSeleccionada, signal) => {
     setLoading(true);
     setError('');
     try {
       const [dataTurnos, dataSlots] = await Promise.all([
-        doctorService.obtenerAgenda(entidadId, fechaSeleccionada).catch(() => []),
-        doctorService.obtenerDisponibilidad(entidadId, fechaSeleccionada).catch(() => []),
+        doctorService.obtenerAgenda(entidadId, fechaSeleccionada, { signal }),
+        doctorService.obtenerDisponibilidad(entidadId, fechaSeleccionada, null, { signal }),
       ]);
       setTurnos(dataTurnos || []);
       setSlotsDisponibles(dataSlots || []);
     } catch (err) {
-      setError('Error al consultar la agenda médica.');
+      if (isCancel(err)) {
+        return; // Petición cancelada por cambio de fecha o desmontaje
+      }
+      console.error('Error al consultar agenda médica:', err);
+      const mensaje = err.response?.data?.mensaje || err.response?.data?.message || 'Error al consultar la agenda médica y disponibilidad.';
+      setError(mensaje);
+      setTurnos([]);
+      setSlotsDisponibles([]);
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) {
+        setLoading(false);
+      }
     }
   };
 
@@ -281,10 +297,31 @@ const DoctorAgenda = () => {
         </Tabs>
       </Paper>
 
-      {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
-
-      {loading ? (
-        <Box display="flex" justifyContent="center" py={4}><CircularProgress /></Box>
+      {error && !loading ? (
+        <Alert
+          severity="error"
+          sx={{ mb: 3 }}
+          action={
+            <Button
+              color="inherit"
+              size="small"
+              startIcon={<RefreshIcon />}
+              onClick={() => cargarAgenda(fecha)}
+              sx={{ fontWeight: 600 }}
+            >
+              Reintentar
+            </Button>
+          }
+        >
+          {error}
+        </Alert>
+      ) : loading ? (
+        <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" py={5}>
+          <CircularProgress size={40} />
+          <Typography variant="body2" color="text.secondary" mt={2}>
+            Cargando agenda médica y turnos asignados...
+          </Typography>
+        </Box>
       ) : listaCombinada.length === 0 ? (
         <Alert severity="info">No poseés citas médicas ni horarios libres configurados para esta fecha.</Alert>
       ) : (

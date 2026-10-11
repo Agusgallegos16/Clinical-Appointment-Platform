@@ -29,9 +29,11 @@ import {
   Warning as WarningIcon,
   Info as InfoIcon,
   Edit as EditIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { doctorService } from '../../api/doctorService';
+import { isCancel } from '../../api/axiosClient';
 import dayjs from 'dayjs';
 
 const DoctorDashboard = () => {
@@ -65,20 +67,22 @@ const DoctorDashboard = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (entidadId) {
-      cargarDatos();
-    } else {
+    if (!entidadId) {
       setLoading(false);
+      return;
     }
+    const controller = new AbortController();
+    cargarDatos(controller.signal);
+    return () => controller.abort();
   }, [entidadId]);
 
-  const cargarDatos = async () => {
+  const cargarDatos = async (signal) => {
     setLoading(true);
     try {
       const hoyStr = dayjs().format('YYYY-MM-DD');
       const [docData, turnosData] = await Promise.all([
-        doctorService.obtenerPorId(entidadId).catch(() => null),
-        doctorService.obtenerAgenda(entidadId, hoyStr).catch(() => []),
+        doctorService.obtenerPorId(entidadId, { signal }),
+        doctorService.obtenerAgenda(entidadId, hoyStr, { signal }),
       ]);
       if (docData) {
         setDoctorInfo(docData);
@@ -90,9 +94,13 @@ const DoctorDashboard = () => {
       }
       if (turnosData) setTurnosHoy(turnosData);
     } catch (err) {
-      setError('No se pudo cargar la agenda del día.');
+      if (isCancel(err)) return;
+      console.error('Error al cargar datos del dashboard de doctor:', err);
+      setError('No se pudo cargar la información y agenda del día.');
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) {
+        setLoading(false);
+      }
     }
   };
 
@@ -239,7 +247,19 @@ const DoctorDashboard = () => {
           </Typography>
         </Box>
 
-        {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
+        {error && (
+          <Alert
+            severity="error"
+            sx={{ mb: 3 }}
+            action={
+              <Button color="inherit" size="small" startIcon={<RefreshIcon />} onClick={() => cargarDatos()}>
+                Reintentar
+              </Button>
+            }
+          >
+            {error}
+          </Alert>
+        )}
         {success && <Alert severity="success" sx={{ mb: 3 }}>{success}</Alert>}
 
         {/* Resumen Diario */}

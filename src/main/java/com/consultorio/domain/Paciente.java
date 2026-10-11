@@ -1,6 +1,5 @@
 package com.consultorio.domain;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
@@ -15,7 +14,6 @@ import java.util.UUID;
     @Index(name = "idx_pacientes_usuario", columnList = "usuario_id"),
     @Index(name = "idx_pacientes_tutor", columnList = "tutor_id")
 })
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Getter
 @Setter
 @NoArgsConstructor

@@ -16,8 +16,8 @@ export const adminService = {
     return response.data;
   },
 
-  buscarUsuarios: async (email = '') => {
-    const response = await axiosClient.get('/admin/usuarios', { params: { email } });
+  buscarUsuarios: async (query = '', page = 0, size = 15) => {
+    const response = await axiosClient.get('/admin/usuarios', { params: { query, page, size } });
     return response.data;
   },
 
@@ -33,6 +33,11 @@ export const adminService = {
 
   registrarUsuario: async (usuarioData) => {
     const response = await axiosClient.post('/admin/usuarios/registro', usuarioData);
+    return response.data;
+  },
+
+  poblarUsuariosPrueba: async () => {
+    const response = await axiosClient.post('/admin/usuarios/seed-prueba');
     return response.data;
   },
 };

@@ -1,19 +1,17 @@
 package com.consultorio.domain;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import lombok.*;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.UUID;
 
 @Entity
 @Table(name = "doctores", indexes = {
     @Index(name = "idx_doctores_usuario", columnList = "usuario_id")
 })
-@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -47,7 +45,7 @@ public class Doctor {
         inverseJoinColumns = @JoinColumn(name = "especialidad_id")
     )
     @Builder.Default
-    private List<Especialidad> especialidades = new ArrayList<>();
+    private Set<Especialidad> especialidades = new HashSet<>();
 
     @Builder.Default
     @Column(name = "disponible_para_turnos", columnDefinition = "boolean default true")
