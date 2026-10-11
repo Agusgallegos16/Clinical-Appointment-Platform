@@ -91,7 +91,7 @@ class TurnoConcurrenciaIntegrationTest {
                 .duracionMinutos(30)
                 .build());
 
-        for (int i = 0; i < 5; i++) {
+        for (int i = 0; i < 20; i++) {
             Usuario u = Usuario.builder()
                     .email("paciente_concurr_" + i + "_" + UUID.randomUUID() + "@test.com")
                     .password("password123")
@@ -132,7 +132,7 @@ class TurnoConcurrenciaIntegrationTest {
     }
 
     @Test
-    @DisplayName("Doble Booking: 5 pacientes compitiendo simultáneamente por el mismo slot -> exactamente 1 gana, 4 fallan")
+    @DisplayName("Doble Booking: 20 pacientes compitiendo simultáneamente por el mismo slot -> exactamente 1 gana, 19 fallan")
     void testReservaConcurrenteMismoSlotUnicoGanador() throws InterruptedException {
         int numHilos = pacientes.size();
         ExecutorService executor = Executors.newFixedThreadPool(numHilos);

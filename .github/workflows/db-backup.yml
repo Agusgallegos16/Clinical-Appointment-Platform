@@ -1,0 +1,58 @@
+name: Supabase to Google Drive Daily Backup
+
+on:
+  schedule:
+    # Corre todos los días a las 02:00 AM hora de Argentina
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Instalar herramientas necesarias
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client rclone
+
+      - name: Generar Backup de PostgreSQL (pg_dump)
+        run: |
+          TIMESTAMP=$(date +'%Y-%m-%d_%H-%M-%S')
+          FILENAME="backup_${TIMESTAMP}.sql.gz"
+          echo "Generando volcado de base de datos en ${FILENAME}..."
+          
+          pg_dump "${{ secrets.SUPABASE_DB_URL }}" | gzip > "${FILENAME}"
+          
+          echo "BACKUP_FILE=${FILENAME}" >> $GITHUB_ENV
+
+      - name: Configurar credenciales de Google Drive en rclone
+        run: |
+          # Guardar JSON de la Service Account
+          echo '${{ secrets.GDRIVE_SA_KEY }}' > sa_credentials.json
+
+          # Configurar rclone para usar Service Account
+          mkdir -p ~/.config/rclone
+          cat <<EOF > ~/.config/rclone/rclone.conf
+          [gdrive]
+          type = drive
+          scope = drive
+          service_account_file = $(pwd)/sa_credentials.json
+          root_folder_id = ${{ secrets.GDRIVE_FOLDER_ID }}
+          EOF
+
+      - name: Subir backup a Google Drive
+        run: |
+          echo "Subiendo ${{ env.BACKUP_FILE }} a Google Drive..."
+          rclone copy "${{ env.BACKUP_FILE }}" gdrive:
+
+      - name: Limpiar archivos antiguos (Retención de 10 días)
+        run: |
+          # Borra automáticamente de Drive los backups que tengan más de 10 días para no saturar espacio
+          rclone delete --min-age 10d gdrive:
+
+      - name: Limpiar archivos temporales locales
+        if: always()
+        run: |
+          rm -f sa_credentials.json
+          rm -f backup_*.sql.gz
