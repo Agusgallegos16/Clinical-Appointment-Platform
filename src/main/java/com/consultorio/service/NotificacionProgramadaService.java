@@ -16,7 +16,11 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class NotificacionProgramadaService {
@@ -112,12 +116,24 @@ public class NotificacionProgramadaService {
             return;
         }
 
+        LocalDateTime inicioDia = fechaTarget.atStartOfDay();
+        LocalDateTime finDia = fechaTarget.atTime(23, 59, 59);
+
+        // Optimización N+1: Carga batch de todos los turnos del día agrupados en memoria
+        List<Turno> turnosDelDia = turnoRepository.findByFechaHoraBetweenAndEstadoNotOrderByFechaHoraAsc(
+                inicioDia, finDia, EstadoTurno.CANCELADO
+        );
+
+        Map<UUID, List<TurnoResponseDTO>> turnosPorDoctor = turnosDelDia.stream()
+                .map(turnoService::mapearResponseDTO)
+                .collect(Collectors.groupingBy(TurnoResponseDTO::getDoctorId));
+
         for (Doctor doctor : doctores) {
             if (doctor.getUsuario() == null || doctor.getUsuario().getEmail() == null) {
                 continue;
             }
 
-            List<TurnoResponseDTO> turnosDia = turnoService.obtenerAgendaDoctorInterno(doctor.getId(), fechaTarget);
+            List<TurnoResponseDTO> turnosDia = turnosPorDoctor.getOrDefault(doctor.getId(), Collections.emptyList());
 
             if (!turnosDia.isEmpty()) {
                 emailService.enviarResumenDiarioDoctor(

@@ -34,7 +34,6 @@ import SecretariaAgenda from './pages/secretaria/SecretariaAgenda';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminEspecialidades from './pages/admin/AdminEspecialidades';
 import AdminDoctores from './pages/admin/AdminDoctores';
-import AdminNuevoDoctor from './pages/admin/AdminNuevoDoctor';
 import AdminNuevoUsuario from './pages/admin/AdminNuevoUsuario';
 import AdminReportes from './pages/admin/AdminReportes';
 import AdminUsuarios from './pages/admin/AdminUsuarios';

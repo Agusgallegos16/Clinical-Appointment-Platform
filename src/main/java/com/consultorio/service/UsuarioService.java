@@ -195,6 +195,12 @@ public class UsuarioService {
     }
 
     @Transactional(readOnly = true)
+    public Page<com.consultorio.dto.UsuarioAdminDTO> buscarUsuariosAdminPaginados(String query, Pageable pageable) {
+        String cleanQuery = (query != null && !query.trim().isEmpty()) ? query.trim() : "";
+        return usuarioRepository.buscarUsuariosAdminPaginados(cleanQuery, pageable);
+    }
+
+    @Transactional(readOnly = true)
     public Optional<Usuario> buscarPorEmailIgnoreCase(String email) {
         if (email == null) return Optional.empty();
         return usuarioRepository.findByEmailIgnoreCase(email.trim());

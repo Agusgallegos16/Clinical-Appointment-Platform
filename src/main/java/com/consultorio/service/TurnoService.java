@@ -389,7 +389,7 @@ public class TurnoService {
         return null;
     }
 
-    private TurnoResponseDTO mapearResponseDTO(Turno turno) {
+    public TurnoResponseDTO mapearResponseDTO(Turno turno) {
         return TurnoResponseDTO.builder()
                 .id(turno.getId())
                 .pacienteId(turno.getPaciente().getId())

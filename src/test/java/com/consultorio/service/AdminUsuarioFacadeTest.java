@@ -65,18 +65,16 @@ class AdminUsuarioFacadeTest {
     }
 
     @Test
-    @DisplayName("buscarUsuariosPaginados debe enriquecer nombres y apellidos desde servicios correspondientes")
+    @DisplayName("buscarUsuariosPaginados debe retornar la página optimizada con nombres y apellidos proyectados")
     void testBuscarUsuariosPaginados() {
         Pageable pageable = PageRequest.of(0, 10);
-        Page<Usuario> page = new PageImpl<>(List.of(usuarioDoctor, usuarioPaciente));
+        UsuarioAdminDTO docDtoExpected = UsuarioAdminDTO.builder()
+                .id(1L).email("doc@test.com").rol(Rol.DOCTOR).activo(true).nombre("Gregory").apellido("House").build();
+        UsuarioAdminDTO pacDtoExpected = UsuarioAdminDTO.builder()
+                .id(2L).email("pac@test.com").rol(Rol.PACIENTE).activo(true).nombre("John").apellido("Doe").build();
 
-        when(usuarioService.buscarUsuariosPaginadosEntidad("test", pageable)).thenReturn(page);
-
-        Doctor doctor = Doctor.builder().id(UUID.randomUUID()).nombre("Gregory").apellido("House").build();
-        when(doctorService.obtenerPorUsuarioId(1L)).thenReturn(Optional.of(doctor));
-
-        Paciente paciente = Paciente.builder().id(UUID.randomUUID()).nombre("John").apellido("Doe").build();
-        when(pacienteService.obtenerPorUsuarioId(2L)).thenReturn(Optional.of(paciente));
+        Page<UsuarioAdminDTO> pageExpected = new PageImpl<>(List.of(docDtoExpected, pacDtoExpected));
+        when(usuarioService.buscarUsuariosAdminPaginados("test", pageable)).thenReturn(pageExpected);
 
         Page<UsuarioAdminDTO> result = adminUsuarioFacade.buscarUsuariosPaginados("test", pageable);
 

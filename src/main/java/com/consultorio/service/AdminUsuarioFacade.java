@@ -36,8 +36,7 @@ public class AdminUsuarioFacade {
     }
 
     public Page<UsuarioAdminDTO> buscarUsuariosPaginados(String query, Pageable pageable) {
-        Page<Usuario> paginaUsuarios = usuarioService.buscarUsuariosPaginadosEntidad(query, pageable);
-        return paginaUsuarios.map(this::mapToUsuarioAdminDTO);
+        return usuarioService.buscarUsuariosAdminPaginados(query, pageable);
     }
 
     private UsuarioAdminDTO mapToUsuarioAdminDTO(Usuario u) {

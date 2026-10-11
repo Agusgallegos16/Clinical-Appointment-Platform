@@ -4,6 +4,7 @@ import com.consultorio.domain.*;
 import com.consultorio.dto.*;
 import com.consultorio.mapper.DtoMapper;
 import com.consultorio.service.DisponibilidadService;
+import com.consultorio.service.DoctorAgendaService;
 import com.consultorio.service.DoctorService;
 import com.consultorio.service.NotificacionProgramadaService;
 import com.consultorio.service.PlantillaAgendaService;
@@ -31,6 +32,7 @@ import java.util.stream.Collectors;
 public class DoctorController {
 
     private final DoctorService doctorService;
+    private final DoctorAgendaService doctorAgendaService;
     private final DisponibilidadService disponibilidadService;
     private final TurnoService turnoService;
     private final PlantillaAgendaService plantillaAgendaService;
@@ -40,6 +42,7 @@ public class DoctorController {
 
     @Autowired
     public DoctorController(DoctorService doctorService,
+                            DoctorAgendaService doctorAgendaService,
                             DisponibilidadService disponibilidadService,
                             TurnoService turnoService,
                             PlantillaAgendaService plantillaAgendaService,
@@ -47,6 +50,7 @@ public class DoctorController {
                             com.consultorio.security.SecurityUtils securityUtils,
                             DtoMapper dtoMapper) {
         this.doctorService = doctorService;
+        this.doctorAgendaService = doctorAgendaService;
         this.disponibilidadService = disponibilidadService;
         this.turnoService = turnoService;
         this.plantillaAgendaService = plantillaAgendaService;
@@ -158,7 +162,7 @@ public class DoctorController {
     public ResponseEntity<HorarioAtencionResponseDTO> agregarHorario(
             @PathVariable UUID id,
             @Valid @RequestBody HorarioAtencionDTO dto) {
-        HorarioAtencion horario = doctorService.agregarHorarioAtencion(id, dto);
+        HorarioAtencion horario = doctorAgendaService.agregarHorarioAtencion(id, dto);
         return ResponseEntity.status(HttpStatus.CREATED).body(dtoMapper.toDto(horario));
     }
 
@@ -168,14 +172,14 @@ public class DoctorController {
     public ResponseEntity<HorarioAtencionResponseDTO> actualizarHorario(
             @PathVariable Long horarioId,
             @Valid @RequestBody HorarioAtencionDTO dto) {
-        return ResponseEntity.ok(dtoMapper.toDto(doctorService.actualizarHorarioAtencion(horarioId, dto)));
+        return ResponseEntity.ok(dtoMapper.toDto(doctorAgendaService.actualizarHorarioAtencion(horarioId, dto)));
     }
 
     @GetMapping("/{id}/horarios")
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Obtener todos los horarios de atención configurados por un doctor (DOCTOR / ADMIN)")
     public ResponseEntity<List<HorarioAtencionResponseDTO>> obtenerHorarios(@PathVariable UUID id) {
-        List<HorarioAtencionResponseDTO> horarios = doctorService.obtenerHorariosDoctor(id).stream()
+        List<HorarioAtencionResponseDTO> horarios = doctorAgendaService.obtenerHorariosDoctor(id).stream()
                 .map(dtoMapper::toDto)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(horarios);
@@ -185,7 +189,7 @@ public class DoctorController {
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN')")
     @Operation(summary = "Eliminar un horario de atención (DOCTOR / ADMIN)")
     public ResponseEntity<Void> eliminarHorario(@PathVariable Long horarioId) {
-        doctorService.eliminarHorarioAtencion(horarioId);
+        doctorAgendaService.eliminarHorarioAtencion(horarioId);
         return ResponseEntity.noContent().build();
     }
 
@@ -196,7 +200,7 @@ public class DoctorController {
             @PathVariable UUID id,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta) {
-        doctorService.limpiarHorariosSemana(id, desde, hasta);
+        doctorAgendaService.limpiarHorariosSemana(id, desde, hasta);
         return ResponseEntity.noContent().build();
     }
 
@@ -208,7 +212,7 @@ public class DoctorController {
             @PathVariable UUID id,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate hasta) {
-        List<SlotHorarioResponseDTO> slots = doctorService.obtenerSlotsDoctor(id, desde, hasta).stream()
+        List<SlotHorarioResponseDTO> slots = doctorAgendaService.obtenerSlotsDoctor(id, desde, hasta).stream()
                 .map(dtoMapper::toDto)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(slots);
@@ -218,7 +222,7 @@ public class DoctorController {
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN') or hasRole('SECRETARIA')")
     @Operation(summary = "Eliminar/Deshabilitar un slot individual concreto (DOCTOR / ADMIN / SECRETARIA)")
     public ResponseEntity<Void> eliminarSlot(@PathVariable Long slotId) {
-        doctorService.eliminarSlotIndividual(slotId);
+        doctorAgendaService.eliminarSlotIndividual(slotId);
         return ResponseEntity.noContent().build();
     }
 
