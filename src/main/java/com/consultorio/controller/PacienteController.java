@@ -56,7 +56,7 @@ public class PacienteController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('PACIENTE') or hasRole('ADMIN') or hasRole('DOCTOR') or hasRole('SECRETARIA')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SECRETARIA', 'DOCTOR') or @securityUtils.puedeAccederAPaciente(#id)")
     @Operation(summary = "Obtener el detalle de un paciente por su ID (PACIENTE / ADMIN / DOCTOR / SECRETARIA)")
     public ResponseEntity<PacienteResponseDTO> obtenerPacientePorId(@PathVariable UUID id) {
         return ResponseEntity.ok(dtoMapper.toDto(pacienteService.obtenerPorId(id)));
@@ -73,7 +73,7 @@ public class PacienteController {
     }
 
     @GetMapping("/{id}/estadisticas")
-    @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN') or hasRole('PACIENTE') or hasRole('SECRETARIA')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SECRETARIA', 'DOCTOR') or @securityUtils.puedeAccederAPaciente(#id)")
     @Operation(summary = "Obtener ficha y métricas estadísticas del paciente (DOCTOR / ADMIN / PACIENTE / SECRETARIA)")
     public ResponseEntity<com.consultorio.dto.PacienteResumenEstadisticasDTO> obtenerEstadisticasPaciente(@PathVariable UUID id) {
         return ResponseEntity.ok(turnoService.obtenerEstadisticasPaciente(id));

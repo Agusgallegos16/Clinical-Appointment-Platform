@@ -1,0 +1,37 @@
+# ===================================================================
+# PLANTILLA DE EJEMPLO - PERFIL LOCAL (application-local.properties)
+# Copiar este archivo como application-local.properties y configurar según sea necesario.
+# ===================================================================
+
+# 1. Base de datos H2 en memoria
+spring.datasource.url=jdbc:h2:mem:turnosdb;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=PostgreSQL
+spring.datasource.driver-class-name=org.h2.Driver
+spring.datasource.username=sa
+spring.datasource.password=
+
+# 2. Hibernate / JPA
+spring.jpa.database-platform=org.hibernate.dialect.H2Dialect
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=false
+
+# 3. Consola H2
+spring.h2.console.enabled=true
+spring.h2.console.path=/h2-console
+
+# 4. Google Calendar OAuth2 (Opcional en local)
+app.google.calendar.client-id=${GOOGLE_CLIENT_ID:}
+app.google.calendar.client-secret=${GOOGLE_CLIENT_SECRET:}
+app.google.calendar.redirect-uri=http://localhost:8080/api/google-calendar/callback
+
+# 5. Configuración de Emails (Modo consola para no enviar correos reales)
+mail.brevo.api-key=${BREVO_API_KEY:}
+mail.resend.api-key=${RESEND_API_KEY:}
+app.mail.from=notificaciones@consultorio.com
+app.mail.console-mode=true
+
+# 6. Clave JWT de desarrollo (HMAC-SHA256 >= 256 bits)
+app.jwt.secret=local-dev-jwt-secret-key-must-be-at-least-256-bits-long-384729
+
+# 7. Administrador inicial para testing local
+app.admin.email=admin@adminconsultorio.com
+app.admin.password=AdminLocal123!

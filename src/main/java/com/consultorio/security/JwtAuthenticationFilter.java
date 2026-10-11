@@ -46,6 +46,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String email = jwtUtils.obtenerEmailDelToken(jwt);
 
                 UserDetails userDetails = userDetailsService.loadUserByUsername(email);
+
+                if (!userDetails.isAccountNonLocked()) {
+                    log.warn("⛔ Intento de acceso con token válido pero cuenta bloqueada: {}", email);
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.getWriter().write("{\"status\":403,\"error\":\"Prohibido\",\"mensaje\":\"La cuenta de usuario se encuentra temporalmente bloqueada.\"}");
+                    return;
+                }
+
+                if (!userDetails.isEnabled()) {
+                    log.warn("⛔ Intento de acceso con token válido pero cuenta inactiva o deshabilitada: {}", email);
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType("application/json;charset=UTF-8");
+                    response.getWriter().write("{\"status\":403,\"error\":\"Prohibido\",\"mensaje\":\"La cuenta de usuario está desactivada o inhabilitada.\"}");
+                    return;
+                }
+
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
                                 userDetails,

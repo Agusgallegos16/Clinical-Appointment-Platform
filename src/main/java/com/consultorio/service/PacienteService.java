@@ -91,6 +91,25 @@ public class PacienteService {
                 .orElseThrow(() -> new IllegalArgumentException("Paciente no encontrado con id: " + id));
     }
 
+    @Transactional(readOnly = true)
+    public boolean esPacientePropietarioOTutor(UUID pacienteId, String emailUsuario) {
+        if (pacienteId == null || emailUsuario == null || emailUsuario.isBlank()) {
+            return false;
+        }
+        return pacienteRepository.findById(pacienteId)
+                .map(p -> {
+                    if (p.getUsuario() != null && emailUsuario.trim().equalsIgnoreCase(p.getUsuario().getEmail())) {
+                        return true;
+                    }
+                    if (p.getTutor() != null && p.getTutor().getUsuario() != null
+                            && emailUsuario.trim().equalsIgnoreCase(p.getTutor().getUsuario().getEmail())) {
+                        return true;
+                    }
+                    return false;
+                })
+                .orElse(false);
+    }
+
     public Paciente obtenerPorUsuarioEmail(String email) {
         return pacienteRepository.findByUsuarioEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("Paciente no encontrado con email: " + email));

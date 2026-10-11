@@ -23,25 +23,28 @@ public class DataInitializer implements CommandLineRunner {
     private final PasswordEncoder passwordEncoder;
     private final JdbcTemplate jdbcTemplate;
     private final UsuarioPruebaService usuarioPruebaService;
+    private final org.springframework.core.env.Environment environment;
 
     @Value("${app.admin.email:admin@adminconsultorio.com}")
     private String adminEmail;
 
-    @Value("${app.admin.password:82HgaPoa9Aq}")
+    @Value("${app.admin.password:}")
     private String adminPassword;
 
-    @Value("${app.dev.seed-test-users:true}")
+    @Value("${app.dev.seed-test-users:false}")
     private boolean seedTestUsers;
 
     @Autowired
     public DataInitializer(UsuarioRepository usuarioRepository,
                            PasswordEncoder passwordEncoder,
                            JdbcTemplate jdbcTemplate,
-                           UsuarioPruebaService usuarioPruebaService) {
+                           UsuarioPruebaService usuarioPruebaService,
+                           org.springframework.core.env.Environment environment) {
         this.usuarioRepository = usuarioRepository;
         this.passwordEncoder = passwordEncoder;
         this.jdbcTemplate = jdbcTemplate;
         this.usuarioPruebaService = usuarioPruebaService;
+        this.environment = environment;
     }
 
     @Override
@@ -58,22 +61,29 @@ public class DataInitializer implements CommandLineRunner {
             log.warn("ℹ️ Nota sobre DDL inicial: {}", e.getMessage());
         }
         if (!usuarioRepository.existsByEmail(adminEmail) && !usuarioRepository.existsByRol(Rol.ADMIN)) {
-            Usuario admin = Usuario.builder()
-                    .email(adminEmail.trim())
-                    .password(passwordEncoder.encode(adminPassword.trim()))
-                    .rol(Rol.ADMIN)
-                    .activo(true)
-                    .emailVerificado(true)
-                    .build();
+            if (adminPassword == null || adminPassword.isBlank()) {
+                log.warn("⚠️ No se pudo inicializar el Administrador: se requiere configurar 'app.admin.password' o 'APP_ADMIN_PASSWORD'.");
+            } else {
+                Usuario admin = Usuario.builder()
+                        .email(adminEmail.trim())
+                        .password(passwordEncoder.encode(adminPassword.trim()))
+                        .rol(Rol.ADMIN)
+                        .activo(true)
+                        .emailVerificado(true)
+                        .build();
 
-            usuarioRepository.save(admin);
-            log.info("✅ Usuario Administrador inicial ({}) creado correctamente en la primera ejecución.", adminEmail);
+                usuarioRepository.save(admin);
+                log.info("✅ Usuario Administrador inicial ({}) creado correctamente en la primera ejecución.", adminEmail);
+            }
         } else {
             log.info("ℹ️ Inicialización omitida: Ya existe al menos un usuario Administrador en la base de datos.");
         }
 
-        if (seedTestUsers) {
+        boolean esProduccion = java.util.Arrays.asList(environment.getActiveProfiles()).contains("prod");
+        if (seedTestUsers && !esProduccion) {
             usuarioPruebaService.poblarUsuariosDePrueba();
+        } else if (seedTestUsers && esProduccion) {
+            log.warn("⚠️ Seeding de usuarios de prueba omitido: perfil de producción activo.");
         }
     }
 }

@@ -46,8 +46,8 @@ public class TurnoController {
     }
 
     @GetMapping("/paciente/{pacienteId}")
-    @PreAuthorize("hasRole('PACIENTE') or hasRole('ADMIN') or hasRole('SECRETARIA')")
-    @Operation(summary = "Consultar el historial y turnos agendados de un paciente (PACIENTE / ADMIN / SECRETARIA)")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SECRETARIA', 'DOCTOR') or @securityUtils.puedeAccederAPaciente(#pacienteId)")
+    @Operation(summary = "Consultar el historial y turnos agendados de un paciente (PACIENTE / ADMIN / SECRETARIA / DOCTOR)")
     public ResponseEntity<List<TurnoResponseDTO>> obtenerTurnosPorPaciente(@PathVariable UUID pacienteId) {
         return ResponseEntity.ok(turnoService.obtenerTurnosPorPaciente(pacienteId));
     }
