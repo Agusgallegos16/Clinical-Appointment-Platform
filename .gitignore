@@ -46,4 +46,3 @@ google-credentials*.json
 .env
 .env.*
 application-local.properties
-application-prod.properties
