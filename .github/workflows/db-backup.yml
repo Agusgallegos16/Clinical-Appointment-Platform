@@ -11,20 +11,30 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Instalar herramientas necesarias
+      - name: Instalar rclone
         run: |
           sudo apt-get update
-          sudo apt-get install -y postgresql-common
-          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
-          sudo apt-get install -y postgresql-client-17 rclone
+          sudo apt-get install -y rclone
 
-      - name: Generar Backup de PostgreSQL (pg_dump)
+      - name: Generar Backup con Docker (Postgres 17)
         run: |
+          set -e
+          set -o pipefail
+
           TIMESTAMP=$(date +'%Y-%m-%d_%H-%M-%S')
           FILENAME="backup_${TIMESTAMP}.sql.gz"
           echo "Generando volcado de base de datos en ${FILENAME}..."
-          
-          pg_dump "${{ secrets.SUPABASE_DB_URL }}" | gzip > "${FILENAME}"
+
+          # Ejecuta pg_dump dentro del contenedor oficial de PostgreSQL 17
+          docker run --rm postgres:17 pg_dump "${{ secrets.SUPABASE_DB_URL }}" | gzip > "${FILENAME}"
+
+          # Valida que el archivo generado tenga contenido
+          if [ ! -s "${FILENAME}" ]; then
+            echo "ERROR: El archivo de backup se generó vacío."
+            exit 1
+          fi
+
+          ls -lh "${FILENAME}"
           echo "BACKUP_FILE=${FILENAME}" >> $GITHUB_ENV
 
       - name: Configurar rclone con token OAuth
