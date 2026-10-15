@@ -29,7 +29,7 @@ import {
   ArrowForward as ArrowForwardIcon,
   ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material';
-import { stepsManualWizard, calcularFechaHastaVigencia } from '../utils/horariosFormatters';
+import { stepsManualWizard, calcularFechaInicioVigencia, calcularFechaHastaVigencia } from '../utils/horariosFormatters';
 
 const ModalFranjaManual = ({
   open,
@@ -333,7 +333,7 @@ const ModalFranjaManual = ({
                   <Grid item xs={12}>
                     <Typography variant="body2" color="text.secondary">Vigencia:</Typography>
                     <Typography variant="subtitle2" fontWeight={700} color="primary.dark">
-                      Desde: {fechaDesde || 'Inmediata'} ➔ Hasta: {calcularFechaHastaVigencia(fechaDesde, fechaHasta)}
+                      Desde: {calcularFechaInicioVigencia(fechaDesde, diaSemana)} ➔ Hasta: {calcularFechaHastaVigencia(fechaDesde, fechaHasta, diaSemana)}
                     </Typography>
                   </Grid>
                 )}
