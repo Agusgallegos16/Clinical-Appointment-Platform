@@ -43,6 +43,7 @@ import ConfirmarEmail from './pages/auth/ConfirmarEmail';
 import RecuperarPassword from './pages/auth/RecuperarPassword';
 import ConfirmarRestablecimiento from './pages/auth/ConfirmarRestablecimiento';
 import EstablecerPasswordDoctor from './pages/auth/EstablecerPasswordDoctor';
+import OAuth2RedirectHandler from './pages/auth/OAuth2RedirectHandler';
 import GoogleCalendarSuccess from './pages/GoogleCalendarSuccess';
 import TerminosYCondiciones from './pages/public/TerminosYCondiciones';
 import Contacto from './pages/public/Contacto';
@@ -83,6 +84,7 @@ const AppContent = () => {
           <Route path="/confirmar-email" element={<ConfirmarEmail />} />
           <Route path="/confirmar-restablecimiento" element={<ConfirmarRestablecimiento />} />
           <Route path="/establecer-password-doctor" element={<EstablecerPasswordDoctor />} />
+          <Route path="/oauth2/redirect" element={<OAuth2RedirectHandler />} />
           <Route path="/google-calendar/success" element={<GoogleCalendarSuccess />} />
           <Route path="/terminos-y-condiciones" element={<TerminosYCondiciones />} />
           <Route path="/contacto" element={<Contacto />} />

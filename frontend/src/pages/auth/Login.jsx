@@ -12,6 +12,7 @@ import {
   Container,
   InputAdornment,
   IconButton,
+  Divider,
 } from '@mui/material';
 import {
   Email as EmailIcon,
@@ -26,6 +27,27 @@ import { useAuth } from '../../context/AuthContext';
 import { CLINIC_CONFIG } from '../../config/clinicConfig';
 
 import Footer from '../../components/Footer';
+
+const GoogleIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" style={{ marginRight: 8, display: 'block' }}>
+    <path
+      fill="#4285F4"
+      d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
+    />
+    <path
+      fill="#34A853"
+      d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3.05c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.25v3.15C3.26 21.36 7.34 24 12 24z"
+    />
+    <path
+      fill="#FBBC05"
+      d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15z"
+    />
+    <path
+      fill="#EA4335"
+      d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.34 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98z"
+    />
+  </svg>
+);
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -46,6 +68,35 @@ const Login = () => {
       else if (role === 'PACIENTE') navigate('/paciente', { replace: true });
     }
   }, [isAuthenticated, role, navigate]);
+
+  React.useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const oauthError = params.get('error');
+    if (oauthError) {
+      if (oauthError === 'account_blocked') {
+        setError('Tu cuenta se encuentra bloqueada por el administrador. Contacta con soporte.');
+      } else if (oauthError === 'access_denied') {
+        setError('Has cancelado el inicio de sesión con Google.');
+      } else if (oauthError === 'oauth_failed') {
+        setError('Error al autenticar con Google. Por favor, intenta nuevamente.');
+      } else if (oauthError === 'oauth_sync_error') {
+        setError('No se pudo sincronizar la sesión de Google con el servidor.');
+      } else {
+        setError('Ocurrió un error al procesar el inicio de sesión con Google.');
+      }
+    }
+  }, [location.search]);
+
+  const handleGoogleLogin = () => {
+    const envApiUrl = import.meta.env.VITE_API_URL;
+    let oauthUrl = '/oauth2/authorization/google';
+    if (envApiUrl && envApiUrl.trim()) {
+      const cleanUrl = envApiUrl.trim().endsWith('/') ? envApiUrl.trim().slice(0, -1) : envApiUrl.trim();
+      const rootUrl = cleanUrl.endsWith('/api') ? cleanUrl.slice(0, -4) : cleanUrl;
+      oauthUrl = `${rootUrl}/oauth2/authorization/google`;
+    }
+    window.location.href = oauthUrl;
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -177,9 +228,40 @@ const Login = () => {
                 variant="contained"
                 size="large"
                 disabled={loading}
-                sx={{ mt: 3, mb: 2, py: 1.2 }}
+                sx={{ mt: 3, mb: 1, py: 1.2 }}
               >
                 {loading ? <CircularProgress size={24} color="inherit" /> : 'Iniciar Sesión'}
+              </Button>
+
+              <Divider sx={{ my: 2 }}>
+                <Typography variant="caption" color="text.secondary" sx={{ px: 1, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: 500 }}>
+                  O
+                </Typography>
+              </Divider>
+
+              <Button
+                fullWidth
+                variant="outlined"
+                size="large"
+                onClick={handleGoogleLogin}
+                startIcon={<GoogleIcon />}
+                sx={{
+                  py: 1.1,
+                  borderColor: '#dadce0',
+                  color: '#3c4043',
+                  backgroundColor: '#ffffff',
+                  textTransform: 'none',
+                  fontSize: '0.92rem',
+                  fontWeight: 600,
+                  boxShadow: '0 1px 2px 0 rgba(60,64,67,0.15)',
+                  '&:hover': {
+                    borderColor: '#c6c9cc',
+                    backgroundColor: '#f8f9fa',
+                    boxShadow: '0 1px 3px 0 rgba(60,64,67,0.25)',
+                  },
+                }}
+              >
+                Continuar con Google
               </Button>
 
               <Box textAlign="left" mt={2}>

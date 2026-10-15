@@ -78,4 +78,12 @@ public class Usuario {
     @Builder.Default
     @Column(name = "google_calendar_connected", nullable = false)
     private boolean googleCalendarConnected = false;
+
+    @Column(name = "google_id")
+    private String googleId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "auth_provider")
+    @Builder.Default
+    private AuthProvider authProvider = AuthProvider.LOCAL;
 }

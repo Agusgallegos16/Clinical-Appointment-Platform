@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
@@ -41,9 +42,8 @@ public class Paciente {
     @Column(nullable = false, length = 100)
     private String apellido;
 
-    @NotNull(message = "El DNI es obligatorio")
     @Min(value = 1000000, message = "El DNI debe ser válido")
-    @Column(unique = true, nullable = false)
+    @Column(unique = true, nullable = true)
     private Long dni;
 
     @Column(length = 50)
@@ -52,7 +52,7 @@ public class Paciente {
     @Column(length = 100)
     private String email;
 
-    private java.time.LocalDate fechaNacimiento;
+    private LocalDate fechaNacimiento;
 
     public String getTelefono() {
         if (this.telefono != null && !this.telefono.trim().isEmpty()) {

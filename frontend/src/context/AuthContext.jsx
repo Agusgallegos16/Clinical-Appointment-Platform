@@ -34,6 +34,32 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const loginWithToken = async (token) => {
+    setLoading(true);
+    try {
+      localStorage.setItem('jwt_token', token);
+      const meResponse = await authService.getCurrentUser();
+      const userData = {
+        id: meResponse.id,
+        email: meResponse.email,
+        rol: meResponse.rol,
+        entidadId: meResponse.entidadId,
+        token: token,
+      };
+
+      localStorage.setItem('user_data', JSON.stringify(userData));
+      setUser(userData);
+      return userData;
+    } catch (err) {
+      localStorage.removeItem('jwt_token');
+      localStorage.removeItem('user_data');
+      setUser(null);
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const updateUser = (newUserData) => {
     const updated = { ...user, ...newUserData };
     localStorage.setItem('user_data', JSON.stringify(updated));
@@ -55,6 +81,7 @@ export const AuthProvider = ({ children }) => {
         isAuthenticated: !!user,
         loading,
         login,
+        loginWithToken,
         updateUser,
         logout,
       }}
