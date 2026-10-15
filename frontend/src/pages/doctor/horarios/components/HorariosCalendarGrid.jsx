@@ -28,6 +28,7 @@ import {
   Today as TodayIcon,
   MedicalServices as MedicalIcon,
 } from '@mui/icons-material';
+import { calcularFechaHastaVigencia } from '../utils/horariosFormatters';
 
 const HorariosCalendarGrid = ({
   currentWeekStart,
@@ -381,9 +382,9 @@ const HorariosCalendarGrid = ({
                               <Typography variant="caption" color="text.secondary" display="block">
                                 {h.horaInicio} hs a {h.horaFin} hs ({h.duracionTurnoMinutos} min/turno)
                               </Typography>
-                              {(h.fechaDesde || h.fechaHasta) && (
-                                <Typography variant="caption" color="primary.main" fontWeight={600}>
-                                  📅 Vigencia: {h.fechaDesde || 'Inicio'} ➔ {h.fechaHasta || 'Indefinido'}
+                              {(h.diaSemana || h.fechaDesde || h.fechaHasta) && (
+                                <Typography variant="caption" color="primary.main" fontWeight={600} display="block">
+                                  📅 Vigencia: {h.fechaDesde || 'Inicio'} ➔ {calcularFechaHastaVigencia(h.fechaDesde, h.fechaHasta)}
                                 </Typography>
                               )}
                             </Box>

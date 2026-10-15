@@ -7,6 +7,7 @@ import com.consultorio.dto.TurnoReservaSecretariaDTO;
 import com.consultorio.dto.TurnoResponseDTO;
 import com.consultorio.event.TurnoCanceladoEvent;
 import com.consultorio.event.TurnoReservadoEvent;
+import com.consultorio.exception.PerfilIncompletoException;
 import com.consultorio.repository.TurnoRepository;
 import com.consultorio.security.SecurityUtils;
 import org.slf4j.Logger;
@@ -76,6 +77,13 @@ public class TurnoService {
 
         if (!esAdmin && !esSecretaria && !esSuPaciente && !esTutor) {
             throw new AccessDeniedException("Acceso denegado: No tiene permisos para agendar turnos a nombre de este paciente.");
+        }
+
+        if (!paciente.isPerfilCompleto()) {
+            throw new PerfilIncompletoException(
+                    "El perfil del paciente debe estar completo (DNI, teléfono y fecha de nacimiento) para poder reservar un turno.",
+                    paciente.getCamposFaltantes()
+            );
         }
 
         Turno turno = validarYConstruirTurno(doctor, especialidad, paciente, dto.getFechaHora(), dto.getTieneObraSocial(), dto.getObraSocial(), dto.getMotivoConsulta());

@@ -79,4 +79,17 @@ public class Paciente {
         return java.time.Period.between(this.fechaNacimiento, java.time.LocalDate.now()).getYears();
     }
 
+    public boolean isPerfilCompleto() {
+        return this.dni != null
+                && this.getTelefono() != null && !this.getTelefono().trim().isEmpty()
+                && this.fechaNacimiento != null;
+    }
+
+    public java.util.List<String> getCamposFaltantes() {
+        java.util.List<String> faltantes = new java.util.ArrayList<>();
+        if (this.dni == null) faltantes.add("dni");
+        if (this.getTelefono() == null || this.getTelefono().trim().isEmpty()) faltantes.add("telefono");
+        if (this.fechaNacimiento == null) faltantes.add("fechaNacimiento");
+        return faltantes;
+    }
 }

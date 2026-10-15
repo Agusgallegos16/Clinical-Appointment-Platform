@@ -62,16 +62,23 @@ public class AuthService {
         String token = jwtUtils.generarToken(usuario.getEmail(), usuario.getRol().name());
 
         UUID entidadId = null;
+        Boolean perfilCompleto = null;
         if (usuario.getRol() == Rol.PACIENTE) {
             Optional<Paciente> paciente = pacienteService.obtenerPorUsuarioId(usuario.getId());
             if (paciente.isPresent()) {
                 entidadId = paciente.get().getId();
+                perfilCompleto = paciente.get().isPerfilCompleto();
+            } else {
+                perfilCompleto = false;
             }
         } else if (usuario.getRol() == Rol.DOCTOR) {
             Optional<Doctor> doctor = doctorService.obtenerPorUsuarioId(usuario.getId());
             if (doctor.isPresent()) {
                 entidadId = doctor.get().getId();
             }
+            perfilCompleto = true;
+        } else {
+            perfilCompleto = true;
         }
 
         return JwtResponseDTO.builder()
@@ -81,6 +88,7 @@ public class AuthService {
                 .email(usuario.getEmail())
                 .rol(usuario.getRol())
                 .entidadId(entidadId)
+                .perfilCompleto(perfilCompleto)
                 .build();
     }
 
@@ -96,16 +104,23 @@ public class AuthService {
         String token = jwtUtils.generarToken(usuario.getEmail(), usuario.getRol().name());
 
         UUID entidadId = null;
+        Boolean perfilCompleto = null;
         if (usuario.getRol() == Rol.PACIENTE) {
             Optional<Paciente> paciente = pacienteService.obtenerPorUsuarioId(usuario.getId());
             if (paciente.isPresent()) {
                 entidadId = paciente.get().getId();
+                perfilCompleto = paciente.get().isPerfilCompleto();
+            } else {
+                perfilCompleto = false;
             }
         } else if (usuario.getRol() == Rol.DOCTOR) {
             Optional<Doctor> doctor = doctorService.obtenerPorUsuarioId(usuario.getId());
             if (doctor.isPresent()) {
                 entidadId = doctor.get().getId();
             }
+            perfilCompleto = true;
+        } else {
+            perfilCompleto = true;
         }
 
         return JwtResponseDTO.builder()
@@ -115,6 +130,7 @@ public class AuthService {
                 .email(usuario.getEmail())
                 .rol(usuario.getRol())
                 .entidadId(entidadId)
+                .perfilCompleto(perfilCompleto)
                 .build();
     }
 }

@@ -41,7 +41,11 @@ public class OAuth2AuthenticationFailureHandler extends SimpleUrlAuthenticationF
             errorCode = "access_denied";
         }
 
-        String targetUrl = UriComponentsBuilder.fromUriString(defaultFrontendUrl + "/login")
+        String cleanFrontendUrl = (defaultFrontendUrl != null && defaultFrontendUrl.trim().endsWith("/"))
+                ? defaultFrontendUrl.trim().substring(0, defaultFrontendUrl.trim().length() - 1)
+                : (defaultFrontendUrl != null ? defaultFrontendUrl.trim() : "http://localhost:5173");
+
+        String targetUrl = UriComponentsBuilder.fromUriString(cleanFrontendUrl + "/login")
                 .queryParam("error", errorCode)
                 .build().toUriString();
 

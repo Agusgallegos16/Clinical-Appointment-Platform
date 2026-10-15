@@ -30,7 +30,7 @@ const OAuth2RedirectHandler = () => {
           } else if (userData?.rol === 'SECRETARIA') {
             navigate('/secretaria', { replace: true });
           } else if (userData?.rol === 'PACIENTE') {
-            navigate('/paciente/turnos', { replace: true });
+            navigate('/paciente', { replace: true });
           } else {
             navigate('/', { replace: true });
           }

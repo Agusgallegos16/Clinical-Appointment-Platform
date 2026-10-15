@@ -72,7 +72,10 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         if (redirectUri.isPresent() && isAuthorizedRedirectUri(redirectUri.get())) {
             targetUrl = redirectUri.get();
         } else {
-            targetUrl = defaultFrontendUrl + "/oauth2/redirect";
+            String cleanFrontendUrl = (defaultFrontendUrl != null && defaultFrontendUrl.trim().endsWith("/"))
+                    ? defaultFrontendUrl.trim().substring(0, defaultFrontendUrl.trim().length() - 1)
+                    : (defaultFrontendUrl != null ? defaultFrontendUrl.trim() : "http://localhost:5173");
+            targetUrl = cleanFrontendUrl + "/oauth2/redirect";
         }
 
         OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();

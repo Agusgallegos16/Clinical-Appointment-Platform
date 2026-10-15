@@ -23,6 +23,7 @@ export const AuthProvider = ({ children }) => {
         rol: response.rol,
         entidadId: response.entidadId,
         token: response.token,
+        perfilCompleto: response.perfilCompleto,
       };
 
       localStorage.setItem('jwt_token', response.token);
@@ -45,6 +46,7 @@ export const AuthProvider = ({ children }) => {
         rol: meResponse.rol,
         entidadId: meResponse.entidadId,
         token: token,
+        perfilCompleto: meResponse.perfilCompleto,
       };
 
       localStorage.setItem('user_data', JSON.stringify(userData));

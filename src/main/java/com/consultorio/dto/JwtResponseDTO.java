@@ -20,4 +20,5 @@ public class JwtResponseDTO {
     private String email;
     private Rol rol;
     private UUID entidadId; // ID (UUID) del Paciente o Doctor asociado
+    private Boolean perfilCompleto;
 }

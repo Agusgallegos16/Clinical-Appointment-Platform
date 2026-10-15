@@ -89,7 +89,10 @@ const Login = () => {
 
   const handleGoogleLogin = () => {
     const envApiUrl = import.meta.env.VITE_API_URL;
-    let oauthUrl = '/oauth2/authorization/google';
+    let oauthUrl = import.meta.env.DEV
+      ? 'http://localhost:8080/oauth2/authorization/google'
+      : '/oauth2/authorization/google';
+
     if (envApiUrl && envApiUrl.trim()) {
       const cleanUrl = envApiUrl.trim().endsWith('/') ? envApiUrl.trim().slice(0, -1) : envApiUrl.trim();
       const rootUrl = cleanUrl.endsWith('/api') ? cleanUrl.slice(0, -4) : cleanUrl;

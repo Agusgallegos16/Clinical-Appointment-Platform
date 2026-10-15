@@ -62,3 +62,12 @@ export const stepsTemplateWizard = [
   'Día & Vigencia',
   'Resumen & Confirmación',
 ];
+
+/**
+ * Calcula la fecha de fin de vigencia: si no se especifica, por defecto son 8 semanas desde la fecha de inicio.
+ */
+export const calcularFechaHastaVigencia = (fechaDesde, fechaHasta) => {
+  if (fechaHasta) return fechaHasta;
+  const inicio = fechaDesde ? dayjs(fechaDesde) : dayjs();
+  return inicio.add(8, 'week').format('YYYY-MM-DD');
+};
