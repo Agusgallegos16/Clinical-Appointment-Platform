@@ -29,7 +29,7 @@ import {
   ArrowForward as ArrowForwardIcon,
   ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material';
-import { stepsManualWizard } from '../utils/horariosFormatters';
+import { stepsManualWizard, calcularFechaInicioVigencia, calcularFechaHastaVigencia } from '../utils/horariosFormatters';
 
 const ModalFranjaManual = ({
   open,
@@ -194,7 +194,7 @@ const ModalFranjaManual = ({
                 </FormControl>
 
                 <Typography variant="caption" color="text.secondary" display="block" mt={1} mb={0.5}>
-                  Período de Vigencia (Opcional - Por defecto se configuran 9 semanas)
+                  Período de Vigencia (Opcional - Por defecto se configuran 8 semanas)
                 </Typography>
 
                 <Grid container spacing={2}>
@@ -329,11 +329,11 @@ const ModalFranjaManual = ({
                   </Typography>
                 </Grid>
 
-                {tipoHorario === 'RECURRENTE' && (fechaDesde || fechaHasta) && (
+                {tipoHorario === 'RECURRENTE' && (
                   <Grid item xs={12}>
                     <Typography variant="body2" color="text.secondary">Vigencia:</Typography>
                     <Typography variant="subtitle2" fontWeight={700} color="primary.dark">
-                      Desde: {fechaDesde || 'Inmediata'} ➔ Hasta: {fechaHasta || 'Indefinida'}
+                      Desde: {calcularFechaInicioVigencia(fechaDesde, diaSemana)} ➔ Hasta: {calcularFechaHastaVigencia(fechaDesde, fechaHasta, diaSemana)}
                     </Typography>
                   </Grid>
                 )}

@@ -87,4 +87,13 @@ public class AuthController {
     public ResponseEntity<JwtResponseDTO> login(@Valid @RequestBody LoginDTO loginDTO) {
         return ResponseEntity.ok(authService.autenticar(loginDTO));
     }
+
+    @GetMapping("/me")
+    @Operation(summary = "Obtener perfil y detalles del usuario actualmente autenticado vía JWT")
+    public ResponseEntity<JwtResponseDTO> obtenerUsuarioActual(org.springframework.security.core.Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        return ResponseEntity.ok(authService.obtenerUsuarioAutenticado(authentication.getName()));
+    }
 }

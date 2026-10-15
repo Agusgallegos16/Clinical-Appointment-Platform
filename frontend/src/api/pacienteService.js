@@ -32,4 +32,14 @@ export const pacienteService = {
       throw error;
     }
   },
+
+  obtenerEstadoCompletitud: async (options = {}) => {
+    const response = await axiosClient.get('/pacientes/mi-perfil/estado-completitud', options);
+    return response.data;
+  },
+
+  completarPerfil: async (data, options = {}) => {
+    const response = await axiosClient.patch('/pacientes/mi-perfil/completar', data, options);
+    return response.data;
+  },
 };

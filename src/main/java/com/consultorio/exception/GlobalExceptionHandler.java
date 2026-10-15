@@ -55,6 +55,20 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(errorDTO);
     }
 
+    @ExceptionHandler(PerfilIncompletoException.class)
+    public ResponseEntity<Map<String, Object>> handlePerfilIncompleto(PerfilIncompletoException ex) {
+        log.warn("Solicitud bloqueada por perfil incompleto: {}", ex.getMessage());
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("timestamp", LocalDateTime.now());
+        response.put("status", 428);
+        response.put("error", "PERFIL_INCOMPLETO");
+        response.put("mensaje", ex.getMessage());
+        response.put("camposFaltantes", ex.getCamposFaltantes());
+
+        return ResponseEntity.status(428).body(response);
+    }
+
     @ExceptionHandler(IllegalStateException.class)
     public ResponseEntity<ApiErrorDTO> handleIllegalState(IllegalStateException ex) {
         log.warn("Conflicto en solicitud: {}", ex.getMessage());

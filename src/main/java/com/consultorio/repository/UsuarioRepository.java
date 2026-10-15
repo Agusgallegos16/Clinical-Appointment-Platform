@@ -92,4 +92,5 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     boolean existsByRol(com.consultorio.domain.Rol rol);
     Optional<Usuario> findByTokenVerificacionEmail(String token);
     Optional<Usuario> findByTokenRestablecimientoPassword(String token);
+    Optional<Usuario> findByGoogleId(String googleId);
 }

@@ -6,6 +6,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
+import java.time.LocalDate;
 import java.util.UUID;
 
 @Entity
@@ -41,9 +42,8 @@ public class Paciente {
     @Column(nullable = false, length = 100)
     private String apellido;
 
-    @NotNull(message = "El DNI es obligatorio")
     @Min(value = 1000000, message = "El DNI debe ser válido")
-    @Column(unique = true, nullable = false)
+    @Column(unique = true, nullable = true)
     private Long dni;
 
     @Column(length = 50)
@@ -52,7 +52,7 @@ public class Paciente {
     @Column(length = 100)
     private String email;
 
-    private java.time.LocalDate fechaNacimiento;
+    private LocalDate fechaNacimiento;
 
     public String getTelefono() {
         if (this.telefono != null && !this.telefono.trim().isEmpty()) {
@@ -79,4 +79,17 @@ public class Paciente {
         return java.time.Period.between(this.fechaNacimiento, java.time.LocalDate.now()).getYears();
     }
 
+    public boolean isPerfilCompleto() {
+        return this.dni != null
+                && this.getTelefono() != null && !this.getTelefono().trim().isEmpty()
+                && this.fechaNacimiento != null;
+    }
+
+    public java.util.List<String> getCamposFaltantes() {
+        java.util.List<String> faltantes = new java.util.ArrayList<>();
+        if (this.dni == null) faltantes.add("dni");
+        if (this.getTelefono() == null || this.getTelefono().trim().isEmpty()) faltantes.add("telefono");
+        if (this.fechaNacimiento == null) faltantes.add("fechaNacimiento");
+        return faltantes;
+    }
 }

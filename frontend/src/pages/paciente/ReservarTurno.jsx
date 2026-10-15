@@ -45,10 +45,11 @@ import { pacienteService } from '../../api/pacienteService';
 import { pacienteMenorService } from '../../api/pacienteMenorService';
 import { isCancel } from '../../api/axiosClient';
 import { useAuth } from '../../context/AuthContext';
+import CompletarPerfilModal from '../../components/paciente/CompletarPerfilModal';
 import dayjs from 'dayjs';
 
 const ReservarTurno = () => {
-  const { entidadId } = useAuth();
+  const { entidadId, updateUser } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
@@ -59,6 +60,8 @@ const ReservarTurno = () => {
 
   // Pacientes (Titular + Menores)
   const [titular, setTitular] = useState(null);
+  const [titularPerfil, setTitularPerfil] = useState(null);
+  const [modalCompletarPerfilOpen, setModalCompletarPerfilOpen] = useState(false);
   const [menores, setMenores] = useState([]);
   const [selectedPaciente, setSelectedPaciente] = useState(null);
   const [loadingPacientes, setLoadingPacientes] = useState(true);
@@ -110,6 +113,7 @@ const ReservarTurno = () => {
         : { id: entidadId, nombre: 'Titular', esMenor: false };
 
       setTitular(titularObj);
+      setTitularPerfil(titularData || null);
       setMenores(menoresData || []);
       setEspecialidades(especialidadesData || []);
 
@@ -234,14 +238,19 @@ const ReservarTurno = () => {
     }
   };
 
-  const handleConfirmarReserva = async () => {
-    if (!selectedSlot || !selectedPaciente) return;
+  const isPerfilIncompleto = (perfil) => {
+    if (!perfil) return false;
+    return !perfil.dni || !String(perfil.telefono || '').trim() || !perfil.fechaNacimiento;
+  };
+
+  const ejecutarReserva = async (pacienteTarget = selectedPaciente) => {
+    if (!selectedSlot || !pacienteTarget) return;
     setLoading(true);
     setError('');
 
     try {
       await turnoService.reservar({
-        pacienteId: selectedPaciente.id,
+        pacienteId: pacienteTarget.id,
         doctorId: selectedDoctor.id,
         especialidadId: selectedEspecialidad.id,
         fechaHora: selectedSlot.fechaHoraIso,
@@ -252,17 +261,52 @@ const ReservarTurno = () => {
 
       setSuccess(true);
       setTimeout(() => {
-        if (selectedPaciente.esMenor) {
-          navigate(`/paciente/turnos?pacienteId=${selectedPaciente.id}&nombre=${encodeURIComponent(selectedPaciente.nombre)}`);
+        if (pacienteTarget.esMenor) {
+          navigate(`/paciente/turnos?pacienteId=${pacienteTarget.id}&nombre=${encodeURIComponent(pacienteTarget.nombre)}`);
         } else {
           navigate('/paciente/turnos');
         }
       }, 2000);
     } catch (err) {
-      setError(err.response?.data?.message || 'Error al reservar el turno seleccionado.');
+      if (err.response?.status === 428 || err.response?.data?.error === 'PERFIL_INCOMPLETO') {
+        setModalCompletarPerfilOpen(true);
+        return;
+      }
+      setError(err.response?.data?.mensaje || err.response?.data?.message || 'Error al reservar el turno seleccionado.');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleConfirmarReserva = () => {
+    if (!selectedSlot || !selectedPaciente) return;
+
+    // Validación preventiva JIT: si el turno es para el paciente titular y le faltan datos obligatorios
+    if (!selectedPaciente.esMenor && isPerfilIncompleto(titularPerfil)) {
+      setModalCompletarPerfilOpen(true);
+      return;
+    }
+
+    ejecutarReserva(selectedPaciente);
+  };
+
+  const handlePerfilCompletadoExitoso = async (pacienteActualizado) => {
+    setModalCompletarPerfilOpen(false);
+    const nuevoPerfil = { ...titularPerfil, ...pacienteActualizado };
+    setTitularPerfil(nuevoPerfil);
+    if (updateUser) {
+      updateUser({ perfilCompleto: true });
+    }
+    const nuevoTitularObj = {
+      id: pacienteActualizado.id || titularPerfil?.id || selectedPaciente.id,
+      nombre: `${pacienteActualizado.nombre || titularPerfil?.nombre || ''} ${pacienteActualizado.apellido || titularPerfil?.apellido || ''}`.trim(),
+      esMenor: false,
+    };
+    setTitular(nuevoTitularObj);
+    setSelectedPaciente(nuevoTitularObj);
+
+    // Reanudación transparente e inmediata de la reserva sin reiniciar selección
+    await ejecutarReserva(nuevoTitularObj);
   };
 
   if (loadingPacientes) {
@@ -799,6 +843,14 @@ const ReservarTurno = () => {
           )}
         </DialogActions>
       </Dialog>
+
+      {/* Modal Completar Perfil Progresivo (Google OAuth Onboarding JIT) */}
+      <CompletarPerfilModal
+        open={modalCompletarPerfilOpen}
+        onClose={() => setModalCompletarPerfilOpen(false)}
+        onSuccess={handlePerfilCompletadoExitoso}
+        initialData={titularPerfil || {}}
+      />
     </Box>
   );
 };

@@ -12,9 +12,12 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
+import com.consultorio.dto.CompletarPerfilPacienteDTO;
+import com.consultorio.dto.EstadoPerfilDTO;
 import com.consultorio.dto.PacienteResponseDTO;
 import com.consultorio.mapper.DtoMapper;
 import com.consultorio.service.TurnoService;
+import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/pacientes")
@@ -53,6 +56,25 @@ public class PacienteController {
         String emailAutenticado = securityUtils.obtenerEmailUsuarioAutenticado();
         Paciente paciente = pacienteService.obtenerPorUsuarioEmail(emailAutenticado);
         return ResponseEntity.ok(dtoMapper.toDto(pacienteService.actualizarPerfilPaciente(paciente.getId(), dto)));
+    }
+
+    @GetMapping("/mi-perfil/estado-completitud")
+    @PreAuthorize("hasRole('PACIENTE')")
+    @Operation(summary = "Verificar estado de completitud del perfil del paciente autenticado")
+    public ResponseEntity<EstadoPerfilDTO> obtenerEstadoCompletitud() {
+        String emailAutenticado = securityUtils.obtenerEmailUsuarioAutenticado();
+        Paciente paciente = pacienteService.obtenerPorUsuarioEmail(emailAutenticado);
+        return ResponseEntity.ok(pacienteService.obtenerEstadoPerfil(paciente));
+    }
+
+    @PatchMapping("/mi-perfil/completar")
+    @PreAuthorize("hasRole('PACIENTE')")
+    @Operation(summary = "Completar datos obligatorios de perfil (DNI, teléfono, fecha de nacimiento) para onboarding JIT")
+    public ResponseEntity<PacienteResponseDTO> completarPerfil(
+            @Valid @RequestBody CompletarPerfilPacienteDTO dto) {
+        String emailAutenticado = securityUtils.obtenerEmailUsuarioAutenticado();
+        Paciente pacienteActualizado = pacienteService.completarPerfilPaciente(emailAutenticado, dto);
+        return ResponseEntity.ok(dtoMapper.toDto(pacienteActualizado));
     }
 
     @GetMapping("/{id}")

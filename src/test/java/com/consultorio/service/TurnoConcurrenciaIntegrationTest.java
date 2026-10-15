@@ -105,6 +105,8 @@ class TurnoConcurrenciaIntegrationTest {
                     .nombre("Paciente" + i)
                     .apellido("Test")
                     .dni(41000000L + (long) (Math.random() * 900000))
+                    .telefono("+54 11 4000-0000")
+                    .fechaNacimiento(LocalDate.of(1990, 1, 1))
                     .build());
             pacientes.add(p);
         }

@@ -49,17 +49,17 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        // Actualizar automáticamente la restricción de base de datos PostgreSQL para permitir el rol SECRETARIA
-        try {
-            jdbcTemplate.execute("ALTER TABLE usuarios DROP CONSTRAINT IF EXISTS usuarios_rol_check");
-            jdbcTemplate.execute("ALTER TABLE usuarios ADD CONSTRAINT usuarios_rol_check CHECK (rol IN ('ADMIN', 'DOCTOR', 'PACIENTE', 'SECRETARIA'))");
-            jdbcTemplate.execute("ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS email VARCHAR(100)");
-            jdbcTemplate.execute("ALTER TABLE turnos ADD COLUMN IF NOT EXISTS google_event_id_secretaria VARCHAR(255)");
-            jdbcTemplate.execute("CREATE UNIQUE INDEX IF NOT EXISTS uk_turnos_doctor_fecha_activos ON turnos (doctor_id, fecha_hora) WHERE estado != 'CANCELADO'");
-            log.info("✅ DDL de tablas usuarios, pacientes y restricciones únicas de turnos actualizados correctamente.");
-        } catch (Exception e) {
-            log.warn("ℹ️ Nota sobre DDL inicial: {}", e.getMessage());
-        }
+        // Actualizaciones automáticas de DDL para bases de datos preexistentes (PostgreSQL / H2)
+        ejecutarDdlSeguro("ALTER TABLE usuarios DROP CONSTRAINT IF EXISTS usuarios_rol_check", "Eliminar check constraint rol anterior");
+        ejecutarDdlSeguro("ALTER TABLE usuarios ADD CONSTRAINT usuarios_rol_check CHECK (rol IN ('ADMIN', 'DOCTOR', 'PACIENTE', 'SECRETARIA'))", "Check constraint roles");
+        ejecutarDdlSeguro("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS google_id VARCHAR(255)", "Columna google_id en usuarios");
+        ejecutarDdlSeguro("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(50) DEFAULT 'LOCAL'", "Columna auth_provider en usuarios");
+        ejecutarDdlSeguro("UPDATE usuarios SET auth_provider = 'LOCAL' WHERE auth_provider IS NULL", "Poblar auth_provider por defecto en usuarios existentes");
+        ejecutarDdlSeguro("ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS email VARCHAR(100)", "Columna email en pacientes");
+        ejecutarDdlSeguro("ALTER TABLE pacientes ALTER COLUMN dni DROP NOT NULL", "Hacer DNI nullable en pacientes para Google OAuth JIT");
+        ejecutarDdlSeguro("ALTER TABLE turnos ADD COLUMN IF NOT EXISTS google_event_id_secretaria VARCHAR(255)", "Columna google_event_id_secretaria en turnos");
+        ejecutarDdlSeguro("CREATE UNIQUE INDEX IF NOT EXISTS uk_turnos_doctor_fecha_activos ON turnos (doctor_id, fecha_hora) WHERE estado != 'CANCELADO'", "Índice único de turnos activos");
+        log.info("✅ DDL y migraciones de tablas usuarios, pacientes y turnos aplicadas correctamente.");
         if (!usuarioRepository.existsByEmail(adminEmail) && !usuarioRepository.existsByRol(Rol.ADMIN)) {
             if (adminPassword == null || adminPassword.isBlank()) {
                 log.warn("⚠️ No se pudo inicializar el Administrador: se requiere configurar 'app.admin.password' o 'APP_ADMIN_PASSWORD'.");
@@ -84,6 +84,15 @@ public class DataInitializer implements CommandLineRunner {
             usuarioPruebaService.poblarUsuariosDePrueba();
         } else if (seedTestUsers && esProduccion) {
             log.warn("⚠️ Seeding de usuarios de prueba omitido: perfil de producción activo.");
+        }
+    }
+
+    private void ejecutarDdlSeguro(String sql, String descripcion) {
+        try {
+            jdbcTemplate.execute(sql);
+            log.debug("DDL aplicado: {}", descripcion);
+        } catch (Exception e) {
+            log.debug("DDL ya aplicado o omitido ({}) - Info: {}", descripcion, e.getMessage());
         }
     }
 }

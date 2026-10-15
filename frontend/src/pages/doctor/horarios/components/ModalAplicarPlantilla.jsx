@@ -28,7 +28,7 @@ import {
   ArrowForward as ArrowForwardIcon,
   ArrowBack as ArrowBackIcon,
 } from '@mui/icons-material';
-import { stepsTemplateWizard } from '../utils/horariosFormatters';
+import { stepsTemplateWizard, calcularFechaInicioVigencia, calcularFechaHastaVigencia } from '../utils/horariosFormatters';
 
 const ModalAplicarPlantilla = ({
   open,
@@ -175,7 +175,7 @@ const ModalAplicarPlantilla = ({
                   </Select>
                 </FormControl>
                 <Typography variant="caption" color="text.secondary" display="block" mt={1} mb={0.5}>
-                  Período de Vigencia (Opcional - Por defecto se configuran 9 semanas)
+                  Período de Vigencia (Opcional - Por defecto se configuran 8 semanas)
                 </Typography>
                 <Grid container spacing={2} sx={{ mt: 0.5 }}>
                   <Grid item xs={6}>
@@ -242,11 +242,11 @@ const ModalAplicarPlantilla = ({
                 {tipoAplicacion === 'RECURRENTE' ? `Todos los ${diaAplicar}` : `Fecha Puntual: ${fechaAplicar}`}
               </Typography>
 
-              {tipoAplicacion === 'RECURRENTE' && (fechaDesdeAplicar || fechaHastaAplicar) && (
+              {tipoAplicacion === 'RECURRENTE' && (
                 <>
                   <Typography variant="body2" color="text.secondary" mt={1}>Período de Vigencia:</Typography>
                   <Typography variant="subtitle2" fontWeight={700} color="secondary.dark">
-                    Desde: {fechaDesdeAplicar || 'Inmediata'} ➔ Hasta: {fechaHastaAplicar || 'Indefinida'}
+                    Desde: {calcularFechaInicioVigencia(fechaDesdeAplicar, diaAplicar)} ➔ Hasta: {calcularFechaHastaVigencia(fechaDesdeAplicar, fechaHastaAplicar, diaAplicar)}
                   </Typography>
                 </>
               )}

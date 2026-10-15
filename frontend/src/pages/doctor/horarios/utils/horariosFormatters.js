@@ -62,3 +62,49 @@ export const stepsTemplateWizard = [
   'Día & Vigencia',
   'Resumen & Confirmación',
 ];
+
+export const MAP_DIA_SEMANA = {
+  DOMINGO: 0,
+  LUNES: 1,
+  MARTES: 2,
+  MIERCOLES: 3,
+  JUEVES: 4,
+  VIERNES: 5,
+  SABADO: 6,
+};
+
+/**
+ * Calcula la fecha real de inicio de vigencia:
+ * Si fechaDesde no está configurada, calcula la primera ocurrencia del día de la semana a partir de hoy.
+ */
+export const calcularFechaInicioVigencia = (fechaDesde, diaSemana) => {
+  if (fechaDesde) return fechaDesde;
+
+  const base = dayjs();
+  if (!diaSemana) {
+    return base.format('YYYY-MM-DD');
+  }
+
+  const targetDay = MAP_DIA_SEMANA[diaSemana?.toUpperCase()];
+  if (targetDay === undefined) {
+    return base.format('YYYY-MM-DD');
+  }
+
+  let current = base;
+  for (let i = 0; i < 7; i++) {
+    if (current.day() === targetDay) {
+      return current.format('YYYY-MM-DD');
+    }
+    current = current.add(1, 'day');
+  }
+  return base.format('YYYY-MM-DD');
+};
+
+/**
+ * Calcula la fecha de fin de vigencia: si no se especifica, por defecto son 8 semanas desde la fecha real de inicio.
+ */
+export const calcularFechaHastaVigencia = (fechaDesde, fechaHasta, diaSemana) => {
+  if (fechaHasta) return fechaHasta;
+  const fechaInicioReal = calcularFechaInicioVigencia(fechaDesde, diaSemana);
+  return dayjs(fechaInicioReal).add(8, 'week').format('YYYY-MM-DD');
+};

@@ -2,6 +2,8 @@ package com.consultorio.service;
 
 import com.consultorio.domain.Paciente;
 import com.consultorio.domain.Usuario;
+import com.consultorio.dto.CompletarPerfilPacienteDTO;
+import com.consultorio.dto.EstadoPerfilDTO;
 import com.consultorio.dto.PacienteMenorResponseDTO;
 import com.consultorio.dto.RegistroMenorDTO;
 import com.consultorio.dto.RegistroPacienteDTO;
@@ -117,6 +119,50 @@ public class PacienteService {
 
     public Optional<Paciente> obtenerPorUsuarioId(Long usuarioId) {
         return pacienteRepository.findByUsuarioId(usuarioId);
+    }
+
+    @Transactional(readOnly = true)
+    public EstadoPerfilDTO obtenerEstadoPerfil(Paciente paciente) {
+        if (paciente == null) {
+            throw new IllegalArgumentException("El paciente no puede ser nulo.");
+        }
+        return EstadoPerfilDTO.builder()
+                .pacienteId(paciente.getId())
+                .nombre(paciente.getNombre())
+                .apellido(paciente.getApellido())
+                .email(paciente.getEmail())
+                .dni(paciente.getDni())
+                .telefono(paciente.getTelefono())
+                .fechaNacimiento(paciente.getFechaNacimiento())
+                .perfilCompleto(paciente.isPerfilCompleto())
+                .camposFaltantes(paciente.getCamposFaltantes())
+                .build();
+    }
+
+    @Transactional
+    public Paciente completarPerfilPaciente(String emailUsuario, CompletarPerfilPacienteDTO dto) {
+        if (emailUsuario == null || emailUsuario.isBlank()) {
+            throw new IllegalArgumentException("Email de usuario no provisto.");
+        }
+        Paciente paciente = obtenerPorUsuarioEmail(emailUsuario);
+
+        if (dto.getDni() != null) {
+            Optional<Paciente> conMismoDni = pacienteRepository.findByDni(dto.getDni());
+            if (conMismoDni.isPresent() && !conMismoDni.get().getId().equals(paciente.getId())) {
+                throw new IllegalArgumentException("El DNI ingresado (" + dto.getDni() + ") ya se encuentra registrado por otro paciente en el sistema.");
+            }
+            paciente.setDni(dto.getDni());
+        }
+
+        if (dto.getTelefono() != null && !dto.getTelefono().isBlank()) {
+            paciente.setTelefono(dto.getTelefono().trim());
+        }
+
+        if (dto.getFechaNacimiento() != null) {
+            paciente.setFechaNacimiento(dto.getFechaNacimiento());
+        }
+
+        return pacienteRepository.save(paciente);
     }
 
     @org.springframework.context.event.EventListener

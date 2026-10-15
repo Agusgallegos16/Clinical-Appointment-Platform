@@ -21,6 +21,11 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import com.consultorio.security.oauth2.CustomOAuth2UserService;
+import com.consultorio.security.oauth2.HttpCookieOAuth2AuthorizationRequestRepository;
+import com.consultorio.security.oauth2.OAuth2AuthenticationFailureHandler;
+import com.consultorio.security.oauth2.OAuth2AuthenticationSuccessHandler;
+
 import java.util.List;
 
 @Configuration
@@ -32,28 +37,38 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final RateLimitingFilter rateLimitingFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
+    private final CustomOAuth2UserService customOAuth2UserService;
+    private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
+    private final OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
+    private final HttpCookieOAuth2AuthorizationRequestRepository httpCookieOAuth2AuthorizationRequestRepository;
+    private final PasswordEncoder passwordEncoder;
 
     @Autowired
     public SecurityConfig(UserDetailsServiceImpl userDetailsService,
                           JwtAuthenticationFilter jwtAuthenticationFilter,
                           RateLimitingFilter rateLimitingFilter,
-                          JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint) {
+                          JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint,
+                          CustomOAuth2UserService customOAuth2UserService,
+                          OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler,
+                          OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler,
+                          HttpCookieOAuth2AuthorizationRequestRepository httpCookieOAuth2AuthorizationRequestRepository,
+                          PasswordEncoder passwordEncoder) {
         this.userDetailsService = userDetailsService;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.rateLimitingFilter = rateLimitingFilter;
         this.jwtAuthenticationEntryPoint = jwtAuthenticationEntryPoint;
-    }
-
-    @Bean
-    public PasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
+        this.customOAuth2UserService = customOAuth2UserService;
+        this.oAuth2AuthenticationSuccessHandler = oAuth2AuthenticationSuccessHandler;
+        this.oAuth2AuthenticationFailureHandler = oAuth2AuthenticationFailureHandler;
+        this.httpCookieOAuth2AuthorizationRequestRepository = httpCookieOAuth2AuthorizationRequestRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
         authProvider.setUserDetailsService(userDetailsService);
-        authProvider.setPasswordEncoder(passwordEncoder());
+        authProvider.setPasswordEncoder(passwordEncoder);
         return authProvider;
     }
 
@@ -91,6 +106,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/public/**").permitAll()
                 .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                 .requestMatchers("/api/auth/**").permitAll()
+                .requestMatchers("/oauth2/**", "/login/oauth2/code/**").permitAll()
+                .requestMatchers("/error").permitAll()
                 .requestMatchers("/api/google-calendar/callback").permitAll()
                 .requestMatchers("/h2-console/**").permitAll()
                 .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
@@ -99,6 +116,20 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/doctores/*").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/doctores/*/disponibilidad").permitAll()
                 .anyRequest().authenticated()
+            )
+            .oauth2Login(oauth2 -> oauth2
+                .authorizationEndpoint(authorization -> authorization
+                    .baseUri("/oauth2/authorization")
+                    .authorizationRequestRepository(httpCookieOAuth2AuthorizationRequestRepository)
+                )
+                .redirectionEndpoint(redirection -> redirection
+                    .baseUri("/login/oauth2/code/*")
+                )
+                .userInfoEndpoint(userInfo -> userInfo
+                    .userService(customOAuth2UserService)
+                )
+                .successHandler(oAuth2AuthenticationSuccessHandler)
+                .failureHandler(oAuth2AuthenticationFailureHandler)
             );
 
         http.authenticationProvider(authenticationProvider());
