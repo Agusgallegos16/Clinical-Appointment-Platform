@@ -2,7 +2,7 @@ name: Supabase to Google Drive Daily Backup
 
 on:
   schedule:
-    # Corre todos los días a las 02:00 AM hora de Argentina
+    # Corre todos los días a las 05:00 UTC (02:00 AM hora de Argentina)
     - cron: '0 5 * * *'
   workflow_dispatch:
 
@@ -11,33 +11,39 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Instalar herramientas necesarias
+      - name: Instalar rclone
         run: |
           sudo apt-get update
-          sudo apt-get install -y postgresql-client rclone
+          sudo apt-get install -y rclone
 
-      - name: Generar Backup de PostgreSQL (pg_dump)
+      - name: Generar Backup con Docker (Postgres 17)
         run: |
+          set -e
+          set -o pipefail
+
           TIMESTAMP=$(date +'%Y-%m-%d_%H-%M-%S')
           FILENAME="backup_${TIMESTAMP}.sql.gz"
           echo "Generando volcado de base de datos en ${FILENAME}..."
-          
-          pg_dump "${{ secrets.SUPABASE_DB_URL }}" | gzip > "${FILENAME}"
-          
+
+          # Ejecuta pg_dump dentro del contenedor oficial de PostgreSQL 17
+          docker run --rm postgres:17 pg_dump "${{ secrets.SUPABASE_DB_URL }}" | gzip > "${FILENAME}"
+
+          # Valida que el archivo generado tenga contenido
+          if [ ! -s "${FILENAME}" ]; then
+            echo "ERROR: El archivo de backup se generó vacío."
+            exit 1
+          fi
+
+          ls -lh "${FILENAME}"
           echo "BACKUP_FILE=${FILENAME}" >> $GITHUB_ENV
 
-      - name: Configurar credenciales de Google Drive en rclone
+      - name: Configurar rclone con token OAuth
         run: |
-          # Guardar JSON de la Service Account
-          echo '${{ secrets.GDRIVE_SA_KEY }}' > sa_credentials.json
-
-          # Configurar rclone para usar Service Account
           mkdir -p ~/.config/rclone
           cat <<EOF > ~/.config/rclone/rclone.conf
           [gdrive]
           type = drive
-          scope = drive
-          service_account_file = $(pwd)/sa_credentials.json
+          token = ${{ secrets.GDRIVE_TOKEN }}
           root_folder_id = ${{ secrets.GDRIVE_FOLDER_ID }}
           EOF
 
@@ -46,13 +52,11 @@ jobs:
           echo "Subiendo ${{ env.BACKUP_FILE }} a Google Drive..."
           rclone copy "${{ env.BACKUP_FILE }}" gdrive:
 
-      - name: Limpiar archivos antiguos (Retención de 10 días)
+      - name: Limpiar archivos antiguos (Retención de 30 días)
         run: |
-          # Borra automáticamente de Drive los backups que tengan más de 10 días para no saturar espacio
-          rclone delete --min-age 10d gdrive:
+          rclone delete --min-age 30d gdrive:
 
-      - name: Limpiar archivos temporales locales
+      - name: Limpiar temporales locales
         if: always()
         run: |
-          rm -f sa_credentials.json
           rm -f backup_*.sql.gz
