@@ -232,14 +232,14 @@ const LandingPage = () => {
           {/* Header Action Buttons */}
           <div className="lp-nav-actions">
             {isAuthenticated ? (
-              <button onClick={handleAuthRedirect} className="lp-btn lp-btn-primary">
-                <Person sx={{ fontSize: 20 }} />
-                <span>Ir a Mi Panel</span>
+              <button onClick={handleAuthRedirect} className="lp-btn lp-btn-primary lp-header-btn">
+                <Person sx={{ fontSize: { xs: 18, sm: 20 } }} />
+                <span>Mi Panel</span>
               </button>
             ) : (
               <>
-                <Link to="/login" className="lp-btn lp-btn-primary">
-                  <EventAvailable sx={{ fontSize: 20 }} />
+                <Link to="/login" className="lp-btn lp-btn-primary lp-header-btn">
+                  <EventAvailable sx={{ fontSize: { xs: 18, sm: 20 } }} />
                   <span>Sacar Turno</span>
                 </Link>
               </>

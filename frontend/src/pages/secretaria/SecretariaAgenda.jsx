@@ -632,7 +632,7 @@ const SecretariaAgenda = () => {
                       }}
                     >
                       <CardContent sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { sm: 'center' }, gap: 2 }}>
-                        <Box>
+                        <Box sx={{ minWidth: 0, wordBreak: 'break-word' }}>
                           <Box display="flex" alignItems="center" gap={1.5} mb={0.5}>
                             <Typography variant="h6" fontWeight={700} color="primary">
                               {item.hora} hs
@@ -668,7 +668,7 @@ const SecretariaAgenda = () => {
                           )}
                         </Box>
 
-                        <Box>
+                        <Box sx={{ width: { xs: '100%', sm: 'auto' } }}>
                           {esReservado ? (
                             turno?.estado !== 'COMPLETADO' && turno?.estado !== 'CANCELADO' && turno?.estado !== 'AUSENTE' && (
                               <Button
@@ -677,6 +677,7 @@ const SecretariaAgenda = () => {
                                 size="small"
                                 startIcon={<CancelIcon />}
                                 onClick={() => handleOpenCancelDialog(turno)}
+                                sx={{ width: { xs: '100%', sm: 'auto' } }}
                               >
                                 Cancelar Turno
                               </Button>

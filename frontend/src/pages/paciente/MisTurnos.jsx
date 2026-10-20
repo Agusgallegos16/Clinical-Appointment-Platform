@@ -214,7 +214,7 @@ const MisTurnos = () => {
         </Box>
       )}
 
-      <Tabs value={filterTab} onChange={(e, val) => setFilterTab(val)} sx={{ mb: 3 }}>
+      <Tabs value={filterTab} onChange={(e, val) => setFilterTab(val)} variant="scrollable" scrollButtons="auto" allowScrollButtonsMobile sx={{ mb: 3 }}>
         <Tab label="Turnos Activos" />
         <Tab label="Todos los Turnos" />
         <Tab label="Finalizados / Cancelados / Ausentes" />
@@ -271,12 +271,12 @@ const MisTurnos = () => {
                     📅 {dayjs(turno.fechaHora).format('DD/MM/YYYY')} a las {dayjs(turno.fechaHora).format('HH:mm')} hs
                   </Typography>
 
-                  <Typography variant="body2" color="text.secondary" mb={0.5}>
+                  <Typography variant="body2" color="text.secondary" mb={0.5} sx={{ wordBreak: 'break-word' }}>
                     💬 <strong>Motivo:</strong> {turno.motivoConsulta || 'Consulta General'}
                   </Typography>
 
                   {turno.estado === 'CANCELADO' && turno.motivoCancelacion && (
-                    <Alert severity="error" sx={{ mt: 1.5, py: 0.5, px: 1.5, fontSize: '0.85rem', fontWeight: 600 }}>
+                    <Alert severity="error" sx={{ mt: 1.5, py: 0.5, px: 1.5, fontSize: '0.85rem', fontWeight: 600, wordBreak: 'break-word' }}>
                       ❌ <strong>Motivo de Cancelación:</strong> {turno.motivoCancelacion}
                     </Alert>
                   )}
@@ -300,6 +300,7 @@ const MisTurnos = () => {
                       size="small"
                       startIcon={<CancelIcon />}
                       onClick={() => handleIntentarCancelar(turno)}
+                      sx={{ width: { xs: '100%', sm: 'auto' } }}
                     >
                       Cancelar Turno
                     </Button>

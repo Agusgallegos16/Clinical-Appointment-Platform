@@ -168,7 +168,7 @@ const AdminDoctores = () => {
 
   return (
     <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+      <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} gap={2} mb={3}>
         <Box>
           <Typography variant="h4" fontWeight={700} color="primary" gutterBottom>
             Nómina de Profesionales Médicos
@@ -182,6 +182,7 @@ const AdminDoctores = () => {
           variant="contained"
           startIcon={<PersonAddIcon />}
           onClick={() => navigate('/admin/usuarios/nuevo')}
+          sx={{ width: { xs: '100%', sm: 'auto' } }}
         >
           Registrar Nuevo Usuario
         </Button>
@@ -211,7 +212,7 @@ const AdminDoctores = () => {
                         <Typography variant="subtitle1" fontWeight={700}>
                           Dr/a. {doc.nombre} {doc.apellido}
                         </Typography>
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2" color="text.secondary" sx={{ wordBreak: 'break-all' }}>
                           📧 {doc.usuario?.email}
                         </Typography>
                       </Box>
@@ -293,7 +294,7 @@ const AdminDoctores = () => {
             value={editFormData.email}
             onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
           />
-          <Box display="flex" gap={1.5} alignItems="flex-start" mt={2}>
+          <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={1.5} alignItems={{ xs: 'stretch', sm: 'flex-start' }} mt={2}>
             <TextField
               fullWidth
               label="URL manual de la imagen (Opcional)"
@@ -308,7 +309,7 @@ const AdminDoctores = () => {
             <Button
               variant="outlined"
               component="label"
-              sx={{ minWidth: 150, height: 56, whiteSpace: 'nowrap', fontWeight: 600 }}
+              sx={{ minWidth: { sm: 150 }, width: { xs: '100%', sm: 'auto' }, height: 56, whiteSpace: 'nowrap', fontWeight: 600 }}
             >
               Subir Foto
               <input

@@ -1,5 +1,6 @@
 package com.consultorio.config;
 
+import com.consultorio.domain.AuthProvider;
 import com.consultorio.domain.Rol;
 import com.consultorio.domain.Usuario;
 import com.consultorio.repository.UsuarioRepository;
@@ -10,9 +11,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
+
+import java.util.Arrays;
 
 @Component
 public class DataInitializer implements CommandLineRunner {
@@ -23,7 +27,7 @@ public class DataInitializer implements CommandLineRunner {
     private final PasswordEncoder passwordEncoder;
     private final JdbcTemplate jdbcTemplate;
     private final UsuarioPruebaService usuarioPruebaService;
-    private final org.springframework.core.env.Environment environment;
+    private final Environment environment;
 
     @Value("${app.admin.email:admin@adminconsultorio.com}")
     private String adminEmail;
@@ -39,7 +43,7 @@ public class DataInitializer implements CommandLineRunner {
                            PasswordEncoder passwordEncoder,
                            JdbcTemplate jdbcTemplate,
                            UsuarioPruebaService usuarioPruebaService,
-                           org.springframework.core.env.Environment environment) {
+                           Environment environment) {
         this.usuarioRepository = usuarioRepository;
         this.passwordEncoder = passwordEncoder;
         this.jdbcTemplate = jdbcTemplate;
@@ -68,16 +72,25 @@ public class DataInitializer implements CommandLineRunner {
         ejecutarDdlSeguro("INSERT INTO configuracion_sistema (id, resumen_diario_medicos_habilitado, resumen_semanal_medicos_habilitado) " +
                 "SELECT 1, TRUE, TRUE WHERE NOT EXISTS (SELECT 1 FROM configuracion_sistema WHERE id = 1)", "Inicializar fila singleton de configuración");
         log.info("✅ DDL y migraciones de tablas usuarios, pacientes, turnos y configuración aplicadas correctamente.");
+        boolean esProduccion = Arrays.stream(environment.getActiveProfiles())
+                .anyMatch(p -> p.equalsIgnoreCase("prod") || p.equalsIgnoreCase("production"));
+
         if (!usuarioRepository.existsByEmail(adminEmail) && !usuarioRepository.existsByRol(Rol.ADMIN)) {
-            if (adminPassword == null || adminPassword.isBlank()) {
+            String passAdmin = adminPassword;
+            if ((passAdmin == null || passAdmin.isBlank()) && !esProduccion) {
+                passAdmin = "AdminLocal123!";
+            }
+
+            if (passAdmin == null || passAdmin.isBlank()) {
                 log.warn("⚠️ No se pudo inicializar el Administrador: se requiere configurar 'app.admin.password' o 'APP_ADMIN_PASSWORD'.");
             } else {
                 Usuario admin = Usuario.builder()
                         .email(adminEmail.trim())
-                        .password(passwordEncoder.encode(adminPassword.trim()))
+                        .password(passwordEncoder.encode(passAdmin.trim()))
                         .rol(Rol.ADMIN)
                         .activo(true)
                         .emailVerificado(true)
+                        .authProvider(AuthProvider.LOCAL)
                         .build();
 
                 usuarioRepository.save(admin);
@@ -87,9 +100,13 @@ public class DataInitializer implements CommandLineRunner {
             log.info("ℹ️ Inicialización omitida: Ya existe al menos un usuario Administrador en la base de datos.");
         }
 
-        boolean esProduccion = java.util.Arrays.asList(environment.getActiveProfiles()).contains("prod");
-        if (seedTestUsers && !esProduccion) {
-            usuarioPruebaService.poblarUsuariosDePrueba();
+        boolean esPerfilLocalODev = Arrays.stream(environment.getActiveProfiles())
+                .anyMatch(p -> p.equalsIgnoreCase("local") || p.equalsIgnoreCase("dev"));
+
+        if (!esProduccion && (seedTestUsers || esPerfilLocalODev)) {
+            log.info("🌱 Seeding activo para entorno de desarrollo local: sembrando usuarios y especialidades de prueba...");
+            int creados = usuarioPruebaService.poblarUsuariosDePrueba();
+            log.info("✅ Seeding finalizado con éxito: {} usuarios de prueba creados o confirmados.", creados);
         } else if (seedTestUsers && esProduccion) {
             log.warn("⚠️ Seeding de usuarios de prueba omitido: perfil de producción activo.");
         }

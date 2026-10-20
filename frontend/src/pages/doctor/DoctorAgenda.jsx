@@ -345,7 +345,7 @@ const DoctorAgenda = () => {
                 <Grid item xs={12} key={`turno-${turno.id}`}>
                   <Card sx={{ borderLeft: `6px solid ${borderColors[turno.estado] || '#0284c7'}`, opacity: isPending ? 1 : 0.88 }}>
                     <CardContent sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { sm: 'center' }, gap: 2 }}>
-                      <Box>
+                      <Box sx={{ minWidth: 0, wordBreak: 'break-word' }}>
                         <Box display="flex" alignItems="center" gap={1.5} mb={0.5}>
                           <Typography variant="h6" fontWeight={700} color="primary">
                             {item.hora} hs
@@ -404,7 +404,7 @@ const DoctorAgenda = () => {
                       </Box>
 
                       {turno.estado !== 'COMPLETADO' && turno.estado !== 'CANCELADO' && turno.estado !== 'AUSENTE' && (
-                        <Box display="flex" gap={1} flexWrap="wrap">
+                        <Box display="flex" gap={1} flexWrap="wrap" sx={{ width: { xs: '100%', sm: 'auto' } }}>
                           <Button
                             variant="contained"
                             color="success"
