@@ -163,8 +163,8 @@ const EditarPerfilModal = ({ open, onClose }) => {
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 700, pb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth aria-labelledby="editar-perfil-dialog-title">
+      <DialogTitle id="editar-perfil-dialog-title" sx={{ fontWeight: 700, pb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
         <EditIcon color="primary" /> Editar Mi Perfil
       </DialogTitle>
 
@@ -191,7 +191,7 @@ const EditarPerfilModal = ({ open, onClose }) => {
                     </Avatar>
                     <IconButton
                       color="primary"
-                      aria-label="upload picture"
+                      aria-label="Subir foto de perfil"
                       component="label"
                       disabled={uploadingFoto}
                       sx={{

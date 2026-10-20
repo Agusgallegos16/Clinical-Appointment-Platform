@@ -164,8 +164,8 @@ const ModalAgendarSecretaria = ({ open, onClose, onSuccess, doctor, especialidad
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle sx={{ fontWeight: 700, pb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth aria-labelledby="agendar-secretaria-dialog-title">
+      <DialogTitle id="agendar-secretaria-dialog-title" sx={{ fontWeight: 700, pb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
         <EventNoteIcon color="primary" /> Agendar Turno para Paciente
       </DialogTitle>
 

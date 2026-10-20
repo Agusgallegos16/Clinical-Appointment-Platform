@@ -263,9 +263,9 @@ const GestionMenores = () => {
       )}
 
       {/* Modal para Agregar Menor */}
-      <Dialog open={openModal} onClose={handleCloseModal} maxWidth="xs" fullWidth>
+      <Dialog open={openModal} onClose={handleCloseModal} maxWidth="xs" fullWidth aria-labelledby="agregar-menor-dialog-title">
         <form onSubmit={handleSubmitNuevoMenor}>
-          <DialogTitle fontWeight={700} color="primary">
+          <DialogTitle id="agregar-menor-dialog-title" fontWeight={700} color="primary">
             Agregar Menor a Cargo
           </DialogTitle>
           <DialogContent>
@@ -329,8 +329,8 @@ const GestionMenores = () => {
       </Dialog>
 
       {}
-      <Dialog open={openUnlinkDialog} onClose={() => setOpenUnlinkDialog(false)} maxWidth="xs" fullWidth>
-        <DialogTitle fontWeight={700} color="error.main">
+      <Dialog open={openUnlinkDialog} onClose={() => setOpenUnlinkDialog(false)} maxWidth="xs" fullWidth aria-labelledby="desvincular-menor-dialog-title">
+        <DialogTitle id="desvincular-menor-dialog-title" fontWeight={700} color="error.main">
           Desvincular Menor
         </DialogTitle>
         <DialogContent>

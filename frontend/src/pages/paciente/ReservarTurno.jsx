@@ -793,8 +793,8 @@ const ReservarTurno = () => {
       )}
 
       {/* Modal Advertencia (Bloqueante vs Informativa) */}
-      <Dialog open={!!warningDoctorModal} onClose={() => setWarningDoctorModal(null)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ color: warningDoctorModal?.type === 'BLOQUEANTE' ? 'warning.dark' : 'info.dark', display: 'flex', alignItems: 'center', gap: 1, fontWeight: 700 }}>
+      <Dialog open={!!warningDoctorModal} onClose={() => setWarningDoctorModal(null)} maxWidth="sm" fullWidth aria-labelledby="aviso-doctor-dialog-title">
+        <DialogTitle id="aviso-doctor-dialog-title" sx={{ color: warningDoctorModal?.type === 'BLOQUEANTE' ? 'warning.dark' : 'info.dark', display: 'flex', alignItems: 'center', gap: 1, fontWeight: 700 }}>
           {warningDoctorModal?.type === 'BLOQUEANTE' ? (
             <WarningIcon color="warning" fontSize="large" />
           ) : (

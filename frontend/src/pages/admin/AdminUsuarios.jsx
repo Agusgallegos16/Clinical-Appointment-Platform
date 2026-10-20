@@ -228,7 +228,7 @@ const AdminUsuarios = () => {
                 ),
                 endAdornment: searchQuery && (
                   <InputAdornment position="end">
-                    <IconButton size="small" onClick={handleClearSearch}>
+                    <IconButton size="small" onClick={handleClearSearch} aria-label="Limpiar término de búsqueda">
                       <ClearIcon fontSize="small" />
                     </IconButton>
                   </InputAdornment>
@@ -310,6 +310,7 @@ const AdminUsuarios = () => {
                             color={u.bloqueado ? 'success' : 'warning'}
                             onClick={() => handleToggleBloqueo(u)}
                             disabled={actionLoading}
+                            aria-label={u.bloqueado ? `Desbloquear usuario ${u.email}` : `Bloquear usuario ${u.email}`}
                           >
                             {u.bloqueado ? <LockOpenIcon /> : <BlockIcon />}
                           </IconButton>
@@ -321,6 +322,7 @@ const AdminUsuarios = () => {
                             color="error"
                             onClick={() => handleOpenDeleteModal(u)}
                             disabled={actionLoading}
+                            aria-label={`Eliminar usuario ${u.email}`}
                           >
                             <DeleteIcon />
                           </IconButton>
@@ -353,8 +355,9 @@ const AdminUsuarios = () => {
         onClose={() => setConfirmDeleteOpen(false)}
         maxWidth="xs"
         fullWidth
+        aria-labelledby="confirm-delete-usuario-title"
       >
-        <DialogTitle sx={{ fontWeight: 700, color: 'error.main' }}>
+        <DialogTitle id="confirm-delete-usuario-title" sx={{ fontWeight: 700, color: 'error.main' }}>
           ⚠️ Confirmar Eliminación de Usuario
         </DialogTitle>
         <DialogContent>

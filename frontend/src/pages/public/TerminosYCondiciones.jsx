@@ -37,7 +37,7 @@ const TerminosYCondiciones = () => {
           <Box display="flex" alignItems="center" gap={2} mb={2}>
             <GavelIcon color="primary" sx={{ fontSize: 44 }} />
             <Box>
-              <Typography variant="h4" fontWeight={800} color="primary">
+              <Typography variant="h4" component="h1" fontWeight={800} color="primary">
                 Términos y Condiciones de Uso y Política de Privacidad
               </Typography>
               <Typography variant="caption" color="text.secondary" fontWeight={600}>

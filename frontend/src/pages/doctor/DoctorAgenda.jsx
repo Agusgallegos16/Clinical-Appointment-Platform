@@ -488,8 +488,8 @@ const DoctorAgenda = () => {
       )}
 
       {/* Modal Justificación de Cancelación Obligatoria */}
-      <Dialog open={cancelDialogOpen} onClose={handleCloseCancelDialog} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ color: 'error.main', fontWeight: 700 }}>
+      <Dialog open={cancelDialogOpen} onClose={handleCloseCancelDialog} maxWidth="xs" fullWidth aria-labelledby="cancelar-doctor-dialog-title">
+        <DialogTitle id="cancelar-doctor-dialog-title" sx={{ color: 'error.main', fontWeight: 700 }}>
           Cancelar Cita Médica
         </DialogTitle>
         <DialogContent>
@@ -524,8 +524,8 @@ const DoctorAgenda = () => {
       </Dialog>
 
       {/* Modal Ficha y Estadísticas del Paciente */}
-      <Dialog open={pacienteModalOpen} onClose={handleClosePacienteModal} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700, pb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+      <Dialog open={pacienteModalOpen} onClose={handleClosePacienteModal} maxWidth="sm" fullWidth aria-labelledby="paciente-stats-dialog-title">
+        <DialogTitle id="paciente-stats-dialog-title" sx={{ fontWeight: 700, pb: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
           <Avatar sx={{ bgcolor: 'primary.main', width: 32, height: 32 }}>👤</Avatar>
           Ficha e Historial del Paciente
         </DialogTitle>

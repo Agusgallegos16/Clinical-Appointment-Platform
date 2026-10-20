@@ -347,7 +347,12 @@ const DoctorPlantillas = () => {
                       Franja #{idx + 1}
                     </Typography>
                     {detalles.length > 1 && (
-                      <IconButton size="small" color="error" onClick={() => handleRemoverFranja(idx)}>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        onClick={() => handleRemoverFranja(idx)}
+                        aria-label={`Remover franja horaria ${idx + 1}`}
+                      >
                         <RemoveIcon />
                       </IconButton>
                     )}
@@ -477,6 +482,7 @@ const DoctorPlantillas = () => {
                               size="small"
                               onClick={() => handleOpenEditModal(p)}
                               title="Editar Plantilla ✏️"
+                              aria-label={`Editar plantilla ${p.nombre}`}
                             >
                               <EditIcon />
                             </IconButton>
@@ -485,6 +491,7 @@ const DoctorPlantillas = () => {
                               size="small"
                               onClick={() => setSelectedPlantillaDelete(p)}
                               title="Eliminar Plantilla"
+                              aria-label={`Eliminar plantilla ${p.nombre}`}
                             >
                               <DeleteIcon />
                             </IconButton>
@@ -517,8 +524,8 @@ const DoctorPlantillas = () => {
       </Grid>
 
       {/* Modal Editar Plantilla ✏️ */}
-      <Dialog open={!!editingPlantilla} onClose={() => setEditingPlantilla(null)} maxWidth="sm" fullWidth>
-        <DialogTitle>Editar Plantilla de Agenda ✏️</DialogTitle>
+      <Dialog open={!!editingPlantilla} onClose={() => setEditingPlantilla(null)} maxWidth="sm" fullWidth aria-labelledby="editar-plantilla-dialog-title">
+        <DialogTitle id="editar-plantilla-dialog-title">Editar Plantilla de Agenda ✏️</DialogTitle>
         <DialogContent dividers>
           <TextField
             fullWidth
@@ -552,7 +559,12 @@ const DoctorPlantillas = () => {
                   Franja #{idx + 1}
                 </Typography>
                 {editDetalles.length > 1 && (
-                  <IconButton size="small" color="error" onClick={() => handleRemoverFranjaEdicion(idx)}>
+                  <IconButton
+                    size="small"
+                    color="error"
+                    onClick={() => handleRemoverFranjaEdicion(idx)}
+                    aria-label={`Remover franja horaria ${idx + 1}`}
+                  >
                     <RemoveIcon />
                   </IconButton>
                 )}
@@ -637,8 +649,8 @@ const DoctorPlantillas = () => {
       </Dialog>
 
       {/* Modal Aplicar Plantilla a Fecha */}
-      <Dialog open={!!selectedPlantillaApply} onClose={() => setSelectedPlantillaApply(null)}>
-        <DialogTitle>Aplicar Plantilla "{selectedPlantillaApply?.nombre}"</DialogTitle>
+      <Dialog open={!!selectedPlantillaApply} onClose={() => setSelectedPlantillaApply(null)} aria-labelledby="aplicar-plantilla-dialog-title">
+        <DialogTitle id="aplicar-plantilla-dialog-title">Aplicar Plantilla "{selectedPlantillaApply?.nombre}"</DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" mb={2}>
             Seleccioná la fecha puntual en la que querés desplegar esta estructura de horarios:
@@ -662,8 +674,8 @@ const DoctorPlantillas = () => {
       </Dialog>
 
       {/* Modal Confirmar Eliminación Plantilla */}
-      <Dialog open={!!selectedPlantillaDelete} onClose={() => setSelectedPlantillaDelete(null)}>
-        <DialogTitle>¿Eliminar la plantilla "{selectedPlantillaDelete?.nombre}"?</DialogTitle>
+      <Dialog open={!!selectedPlantillaDelete} onClose={() => setSelectedPlantillaDelete(null)} aria-labelledby="eliminar-plantilla-dialog-title">
+        <DialogTitle id="eliminar-plantilla-dialog-title">¿Eliminar la plantilla "{selectedPlantillaDelete?.nombre}"?</DialogTitle>
         <DialogContent>
           <DialogContentText>
             Vas a eliminar esta plantilla de agenda. Esta acción no se puede deshacer.

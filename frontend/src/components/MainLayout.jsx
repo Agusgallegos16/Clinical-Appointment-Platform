@@ -210,6 +210,7 @@ const MainLayout = () => {
             color="inherit"
             edge="start"
             onClick={handleDrawerToggle}
+            aria-label="Abrir menú de navegación lateral"
           >
             <MenuIcon />
           </IconButton>
@@ -273,7 +274,11 @@ const MainLayout = () => {
         >
           {/* Toggle Modo Oscuro / Claro */}
           <Tooltip title={mode === 'dark' ? 'Modo Claro' : 'Modo Oscuro'}>
-            <IconButton onClick={toggleColorMode} color="inherit">
+            <IconButton
+              onClick={toggleColorMode}
+              color="inherit"
+              aria-label={mode === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+            >
               {mode === 'dark' ? <LightModeIcon sx={{ color: '#fba919' }} /> : <DarkModeIcon />}
             </IconButton>
           </Tooltip>

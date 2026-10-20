@@ -322,8 +322,9 @@ const MisTurnos = () => {
         }}
         maxWidth="sm"
         fullWidth
+        aria-labelledby="cancelar-turno-dialog-title"
       >
-        <DialogTitle>¿Confirmar cancelación de turno?</DialogTitle>
+        <DialogTitle id="cancelar-turno-dialog-title">¿Confirmar cancelación de turno?</DialogTitle>
         <DialogContent>
           <DialogContentText>
             Estás a punto de cancelar la cita de {selectedTurnoCancel?.especialidadNombre} con el/la Dr/a. {selectedTurnoCancel?.doctorNombre} para el {dayjs(selectedTurnoCancel?.fechaHora).format('DD/MM/YYYY HH:mm')} hs. Esta acción no se puede deshacer.
@@ -363,8 +364,9 @@ const MisTurnos = () => {
         onClose={() => setBloqueoCancelacionData(null)}
         maxWidth="sm"
         fullWidth
+        aria-labelledby="bloqueo-cancelacion-dialog-title"
       >
-        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'warning.dark', fontWeight: 700 }}>
+        <DialogTitle id="bloqueo-cancelacion-dialog-title" sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'warning.dark', fontWeight: 700 }}>
           <WarningIcon color="warning" />
           Cancelación con menos de 24 hs de anticipación
         </DialogTitle>

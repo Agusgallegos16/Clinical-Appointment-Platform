@@ -29,7 +29,7 @@ import { CLINIC_CONFIG } from '../../config/clinicConfig';
 import Footer from '../../components/Footer';
 
 const GoogleIcon = () => (
-  <svg width="20" height="20" viewBox="0 0 24 24" style={{ marginRight: 8, display: 'block' }}>
+  <svg width="20" height="20" viewBox="0 0 24 24" style={{ marginRight: 8, display: 'block' }} aria-hidden="true" focusable="false">
     <path
       fill="#4285F4"
       d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.66-5.17 3.66-9.17z"
@@ -158,7 +158,7 @@ const Login = () => {
           <CardContent>
             <Box display="flex" flexDirection="column" alignItems="center" mb={3}>
               <HospitalIcon color="primary" sx={{ fontSize: 48, mb: 1 }} />
-              <Typography variant="h5" align="center" color="primary" fontWeight={700}>
+              <Typography variant="h5" component="h1" align="center" color="primary" fontWeight={700}>
                 Iniciar Sesión
               </Typography>
               <Typography
@@ -178,13 +178,14 @@ const Login = () => {
             </Box>
 
             {error && (
-              <Alert severity="error" sx={{ mb: 2 }}>
+              <Alert id="login-error-alert" role="alert" severity="error" sx={{ mb: 2 }}>
                 {error}
               </Alert>
             )}
 
             <Box component="form" onSubmit={handleSubmit}>
               <TextField
+                id="login-email"
                 fullWidth
                 label="Correo Electrónico"
                 type="email"
@@ -192,6 +193,10 @@ const Login = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 margin="normal"
+                error={Boolean(error)}
+                inputProps={{
+                  'aria-describedby': error ? 'login-error-alert' : undefined,
+                }}
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
@@ -202,6 +207,7 @@ const Login = () => {
               />
 
               <TextField
+                id="login-password"
                 fullWidth
                 label="Contraseña"
                 type={showPassword ? 'text' : 'password'}
@@ -209,6 +215,10 @@ const Login = () => {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 margin="normal"
+                error={Boolean(error)}
+                inputProps={{
+                  'aria-describedby': error ? 'login-error-alert' : undefined,
+                }}
                 InputProps={{
                   startAdornment: (
                     <InputAdornment position="start">
@@ -217,7 +227,11 @@ const Login = () => {
                   ),
                   endAdornment: (
                     <InputAdornment position="end">
-                      <IconButton onClick={() => setShowPassword(!showPassword)} edge="end">
+                      <IconButton
+                        onClick={() => setShowPassword(!showPassword)}
+                        edge="end"
+                        aria-label={showPassword ? 'Ocultar contraseña' : 'Ver contraseña'}
+                      >
                         {showPassword ? <VisibilityOff /> : <Visibility />}
                       </IconButton>
                     </InputAdornment>

@@ -396,6 +396,7 @@ const HorariosCalendarGrid = ({
                               color="primary"
                               onClick={() => handleOpenEditModal(h)}
                               title="Editar Franja ⚙️"
+                              aria-label={`Configurar franja horaria ${h.horaInicio} a ${h.horaFin}`}
                             >
                               <SettingsIcon fontSize="small" />
                             </IconButton>
@@ -404,6 +405,7 @@ const HorariosCalendarGrid = ({
                               color="error"
                               onClick={() => setSelectedHorarioDelete(h)}
                               title="Eliminar Franja"
+                              aria-label={`Eliminar franja horaria ${h.horaInicio} a ${h.horaFin}`}
                             >
                               <DeleteIcon fontSize="small" />
                             </IconButton>

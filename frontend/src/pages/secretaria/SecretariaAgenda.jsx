@@ -728,8 +728,8 @@ const SecretariaAgenda = () => {
           )}
 
           {/* Dialog de Confirmación de Cancelación */}
-          <Dialog open={cancelDialogOpen} onClose={handleCloseCancelDialog} maxWidth="sm" fullWidth>
-            <DialogTitle fontWeight={700} color="error.main">
+          <Dialog open={cancelDialogOpen} onClose={handleCloseCancelDialog} maxWidth="sm" fullWidth aria-labelledby="cancelar-secretaria-dialog-title">
+            <DialogTitle id="cancelar-secretaria-dialog-title" fontWeight={700} color="error.main">
               Confirmar Cancelación de Turno
             </DialogTitle>
             <DialogContent dividers>

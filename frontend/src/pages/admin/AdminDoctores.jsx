@@ -221,6 +221,7 @@ const AdminDoctores = () => {
                       size="small"
                       onClick={() => setSelectedDoctorDelete(doc)}
                       title="Eliminar médico"
+                      aria-label={`Eliminar médico ${doc.nombre} ${doc.apellido}`}
                     >
                       <DeleteIcon />
                     </IconButton>
@@ -254,8 +255,8 @@ const AdminDoctores = () => {
       )}
 
       {/* Modal Editar Doctor */}
-      <Dialog open={!!selectedDoctorEdit} onClose={() => setSelectedDoctorEdit(null)} maxWidth="sm" fullWidth>
-        <DialogTitle>Editar Datos del Profesional</DialogTitle>
+      <Dialog open={!!selectedDoctorEdit} onClose={() => setSelectedDoctorEdit(null)} maxWidth="sm" fullWidth aria-labelledby="edit-doctor-dialog-title">
+        <DialogTitle id="edit-doctor-dialog-title">Editar Datos del Profesional</DialogTitle>
         <DialogContent dividers>
           <Box display="flex" alignItems="center" gap={2} mb={2}>
             <Avatar
@@ -355,8 +356,8 @@ const AdminDoctores = () => {
       </Dialog>
 
       {/* Modal Confirmar Eliminación */}
-      <Dialog open={!!selectedDoctorDelete} onClose={() => setSelectedDoctorDelete(null)}>
-        <DialogTitle>¿Eliminar a este profesional?</DialogTitle>
+      <Dialog open={!!selectedDoctorDelete} onClose={() => setSelectedDoctorDelete(null)} aria-labelledby="delete-doctor-dialog-title">
+        <DialogTitle id="delete-doctor-dialog-title">¿Eliminar a este profesional?</DialogTitle>
         <DialogContent>
           <DialogContentText>
             Vas a dar de baja al Dr/a. <strong>{selectedDoctorDelete?.nombre} {selectedDoctorDelete?.apellido}</strong>. Esta acción eliminará sus horarios y turnos asociados.

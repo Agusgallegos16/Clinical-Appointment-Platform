@@ -211,7 +211,7 @@ const LandingPage = () => {
       {/* Navigation Header */}
       <header className={`lp-header ${isScrolled ? 'scrolled' : ''}`}>
         <div className="lp-header-container">
-          <Link to="/" className="lp-logo">
+          <Link to="/" className="lp-logo" aria-label={`Página de inicio de ${CLINIC_CONFIG.name}`}>
             <div className="lp-logo-icon">
               <LocalHospital sx={{ fontSize: 26 }} />
             </div>
@@ -222,7 +222,7 @@ const LandingPage = () => {
           </Link>
 
           {/* Desktop Nav Links */}
-          <nav className="lp-nav">
+          <nav className="lp-nav" aria-label="Navegación principal">
             <a href="#inicio" className="lp-nav-link">Inicio</a>
             <a href="#nosotros" className="lp-nav-link">Nosotros</a>
             <a href="#staff" className="lp-nav-link">Nómina Médica</a>
@@ -249,7 +249,9 @@ const LandingPage = () => {
             <button
               className="lp-mobile-toggle"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              aria-label="Abrir menú"
+              aria-label={mobileMenuOpen ? 'Cerrar menú de navegación' : 'Abrir menú de navegación'}
+              aria-expanded={mobileMenuOpen}
+              aria-controls="mobile-nav-dropdown"
             >
               {mobileMenuOpen ? <CloseIcon /> : <MenuIcon />}
             </button>
@@ -258,7 +260,7 @@ const LandingPage = () => {
 
         {/* Mobile Dropdown Menu */}
         {mobileMenuOpen && (
-          <div className="lp-mobile-menu">
+          <nav className="lp-mobile-menu" id="mobile-nav-dropdown" aria-label="Navegación móvil">
             <a href="#inicio" className="lp-mobile-link" onClick={() => setMobileMenuOpen(false)}>
               <span>Inicio</span>
               <ChevronRight sx={{ fontSize: 18, color: 'var(--lp-blue-600)' }} />
@@ -277,7 +279,7 @@ const LandingPage = () => {
             </a>
 
 
-          </div>
+          </nav>
         )}
       </header>
 
@@ -406,13 +408,13 @@ const LandingPage = () => {
               <div className="lp-carousel-slide">
                 <img
                   src={gallery[currentSlideIndex].url}
-                  alt={gallery[currentSlideIndex].title || 'Foto Institucional'}
+                  alt={gallery[currentSlideIndex].title ? `Instalaciones del centro médico: ${gallery[currentSlideIndex].title}` : `Instalaciones del centro médico ${CLINIC_CONFIG.name}`}
                   className="lp-carousel-img"
                 />
 
                 <div className="lp-carousel-overlay">
                   <span className="lp-carousel-tag">
-                    <Collections sx={{ fontSize: 16 }} />
+                    <Collections sx={{ fontSize: 16 }} aria-hidden="true" />
                     <span>Galería Institucional · {currentSlideIndex + 1} de {gallery.length}</span>
                   </span>
                 </div>
@@ -423,30 +425,31 @@ const LandingPage = () => {
                     <button
                       className="lp-carousel-btn lp-carousel-btn-prev"
                       onClick={handlePrevSlide}
-                      aria-label="Anterior"
+                      aria-label="Ver imagen anterior de la galería"
                     >
-                      <ChevronLeft sx={{ fontSize: 28 }} />
+                      <ChevronLeft sx={{ fontSize: 28 }} aria-hidden="true" />
                     </button>
 
                     <button
                       className="lp-carousel-btn lp-carousel-btn-next"
                       onClick={handleNextSlide}
-                      aria-label="Siguiente"
+                      aria-label="Ver imagen siguiente de la galería"
                     >
-                      <ChevronRight sx={{ fontSize: 28 }} />
+                      <ChevronRight sx={{ fontSize: 28 }} aria-hidden="true" />
                     </button>
                   </>
                 )}
 
                 {/* Circular Dot Indicators */}
                 {gallery.length > 1 && (
-                  <div className="lp-carousel-dots">
+                  <div className="lp-carousel-dots" role="tablist" aria-label="Indicadores de diapositivas">
                     {gallery.map((_, idx) => (
                       <button
                         key={idx}
                         className={`lp-carousel-dot ${idx === currentSlideIndex ? 'active' : ''}`}
                         onClick={() => setCurrentSlideIndex(idx)}
-                        aria-label={`Ir a foto ${idx + 1}`}
+                        aria-label={`Ir a foto ${idx + 1} de ${gallery.length}`}
+                        aria-current={idx === currentSlideIndex ? 'true' : undefined}
                       />
                     ))}
                   </div>
@@ -500,7 +503,7 @@ const LandingPage = () => {
                 return (
                   <div key={doc.id} className="lp-doctor-card">
                     {doc.fotoUrl ? (
-                      <img src={doc.fotoUrl} alt={nombreCompleto} className="lp-doctor-avatar" />
+                      <img src={doc.fotoUrl} alt={`Fotografía del Dr/a. ${doc.nombre} ${doc.apellido}`} className="lp-doctor-avatar" />
                     ) : (
                       <div className="lp-doctor-avatar-placeholder">
                         {doc.nombre?.[0]}
@@ -559,11 +562,15 @@ const LandingPage = () => {
                 className={`lp-faq-item ${activeFaq === idx ? 'active' : ''}`}
               >
                 <button
+                  id={`faq-question-${idx}`}
                   className="lp-faq-question"
                   onClick={() => setActiveFaq(activeFaq === idx ? -1 : idx)}
+                  aria-expanded={activeFaq === idx}
+                  aria-controls={`faq-answer-${idx}`}
                 >
                   <span>{faq.q}</span>
                   <ChevronRight
+                    aria-hidden="true"
                     sx={{
                       transform: activeFaq === idx ? 'rotate(90deg)' : 'rotate(0deg)',
                       transition: 'transform 0.2s ease',
@@ -572,7 +579,12 @@ const LandingPage = () => {
                   />
                 </button>
                 {activeFaq === idx && (
-                  <div className="lp-faq-answer">
+                  <div
+                    id={`faq-answer-${idx}`}
+                    role="region"
+                    aria-labelledby={`faq-question-${idx}`}
+                    className="lp-faq-answer"
+                  >
                     <p style={{ margin: 0 }}>{faq.a}</p>
                   </div>
                 )}
