@@ -16,6 +16,7 @@ import {
   DialogActions,
   Tabs,
   Tab,
+  TextField,
 } from '@mui/material';
 import {
   Cancel as CancelIcon,
@@ -48,6 +49,7 @@ const MisTurnos = () => {
 
   // Estado para modal de cancelación
   const [selectedTurnoCancel, setSelectedTurnoCancel] = useState(null);
+  const [motivoCancelacion, setMotivoCancelacion] = useState('');
   const [cancelling, setCancelling] = useState(false);
 
   useEffect(() => {
@@ -96,8 +98,9 @@ const MisTurnos = () => {
     setCancelling(true);
     const targetId = queryPacienteId || selectedPacienteId || entidadId;
     try {
-      await turnoService.cancelar(selectedTurnoCancel.id);
+      await turnoService.cancelar(selectedTurnoCancel.id, motivoCancelacion.trim() || null);
       setSelectedTurnoCancel(null);
+      setMotivoCancelacion('');
       await cargarTurnos(targetId);
     } catch (err) {
       setError(err.response?.data?.mensaje || err.response?.data?.message || 'No se pudo cancelar el turno.');
@@ -243,7 +246,7 @@ const MisTurnos = () => {
 
                   {turno.estado === 'CANCELADO' && turno.motivoCancelacion && (
                     <Alert severity="error" sx={{ mt: 1.5, py: 0.5, px: 1.5, fontSize: '0.85rem', fontWeight: 600 }}>
-                      ❌ <strong>Motivo de Cancelación del Médico:</strong> {turno.motivoCancelacion}
+                      ❌ <strong>Motivo de Cancelación:</strong> {turno.motivoCancelacion}
                     </Alert>
                   )}
 
@@ -265,7 +268,10 @@ const MisTurnos = () => {
                       color="error"
                       size="small"
                       startIcon={<CancelIcon />}
-                      onClick={() => setSelectedTurnoCancel(turno)}
+                      onClick={() => {
+                        setSelectedTurnoCancel(turno);
+                        setMotivoCancelacion('');
+                      }}
                     >
                       Cancelar Turno
                     </Button>
@@ -278,15 +284,45 @@ const MisTurnos = () => {
       )}
 
       {/* Modal Confirmación Cancelación */}
-      <Dialog open={!!selectedTurnoCancel} onClose={() => setSelectedTurnoCancel(null)}>
+      <Dialog
+        open={!!selectedTurnoCancel}
+        onClose={() => {
+          if (!cancelling) {
+            setSelectedTurnoCancel(null);
+            setMotivoCancelacion('');
+          }
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>¿Confirmar cancelación de turno?</DialogTitle>
         <DialogContent>
           <DialogContentText>
             Estás a punto de cancelar la cita de {selectedTurnoCancel?.especialidadNombre} con el/la Dr/a. {selectedTurnoCancel?.doctorNombre} para el {dayjs(selectedTurnoCancel?.fechaHora).format('DD/MM/YYYY HH:mm')} hs. Esta acción no se puede deshacer.
           </DialogContentText>
+          <TextField
+            label="Motivo de la cancelación (opcional)"
+            placeholder="Ej: Compromiso laboral imprevisto, viaje, etc."
+            fullWidth
+            multiline
+            rows={3}
+            value={motivoCancelacion}
+            onChange={(e) => setMotivoCancelacion(e.target.value)}
+            disabled={cancelling}
+            sx={{ mt: 2 }}
+            helperText="Indicar el motivo ayuda al profesional y al consultorio a reorganizar la atención."
+          />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setSelectedTurnoCancel(null)}>Volver</Button>
+          <Button
+            onClick={() => {
+              setSelectedTurnoCancel(null);
+              setMotivoCancelacion('');
+            }}
+            disabled={cancelling}
+          >
+            Volver
+          </Button>
           <Button onClick={handleConfirmCancelar} color="error" variant="contained" disabled={cancelling}>
             {cancelling ? <CircularProgress size={20} color="inherit" /> : 'Sí, Cancelar'}
           </Button>

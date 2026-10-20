@@ -42,6 +42,7 @@ import {
 import dayjs from 'dayjs';
 import axiosClient from '../../api/axiosClient';
 import { doctorService } from '../../api/doctorService';
+import { turnoService } from '../../api/turnoService';
 import ModalAgendarSecretaria from '../../components/secretaria/ModalAgendarSecretaria';
 
 const SecretariaAgenda = () => {
@@ -190,14 +191,12 @@ const SecretariaAgenda = () => {
     }
     setSubmittingCancel(true);
     try {
-      await axiosClient.put(
-        `/turnos/${turnoACancelar.id}/cancelar-doctor?motivo=${encodeURIComponent(motivoCancelacion.trim())}`
-      );
+      await turnoService.cancelarPorDoctor(turnoACancelar.id, motivoCancelacion.trim());
       handleCloseCancelDialog();
       cargarAgendaYDisponibilidad(selectedDoctor.id, fecha, selectedEspecialidadFiltroAgenda);
     } catch (err) {
       console.error('Error al cancelar turno:', err);
-      setError(err.response?.data?.message || 'No se pudo cancelar el turno.');
+      setError(err.response?.data?.mensaje || err.response?.data?.message || 'No se pudo cancelar el turno.');
     } finally {
       setSubmittingCancel(false);
     }

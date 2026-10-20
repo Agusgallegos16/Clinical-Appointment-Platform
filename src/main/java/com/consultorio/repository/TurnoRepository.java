@@ -25,6 +25,10 @@ public interface TurnoRepository extends JpaRepository<Turno, UUID> {
     @Query("SELECT t FROM Turno t WHERE t.id = :id")
     Optional<Turno> findByIdForUpdate(@Param("id") UUID id);
 
+    @EntityGraph(attributePaths = {"paciente.usuario", "paciente.tutor.usuario", "doctor.usuario", "especialidad"})
+    @Query("SELECT t FROM Turno t WHERE t.id = :id")
+    Optional<Turno> findByIdWithRelaciones(@Param("id") UUID id);
+
     @EntityGraph(attributePaths = {"paciente", "doctor", "especialidad"})
     List<Turno> findByPacienteIdOrderByFechaHoraDesc(UUID pacienteId);
 

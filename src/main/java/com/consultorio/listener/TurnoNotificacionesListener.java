@@ -106,65 +106,81 @@ public class TurnoNotificacionesListener {
 
     @Async
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    @Transactional(propagation = Propagation.REQUIRES_NEW, readOnly = true)
     public void alCancelarTurno(TurnoCanceladoEvent event) {
-        Turno turno = turnoRepository.findById(event.turnoId()).orElse(null);
-        if (turno == null) {
-            return;
-        }
+        // 1. Cancelar eventos en Google Calendar si existen IDs asociados
+        try {
+            Turno turno = turnoRepository.findByIdWithRelaciones(event.turnoId()).orElse(null);
+            if (turno != null) {
+                // Cancelar en Google Calendar del Paciente
+                if (turno.getGoogleEventId() != null && turno.getPaciente() != null && turno.getPaciente().getUsuario() != null) {
+                    try {
+                        calendarioAdapter.cancelarEventoParaUsuario(turno.getGoogleEventId(), turno.getPaciente().getUsuario());
+                    } catch (Exception e) {
+                        log.error("No se pudo cancelar el evento en el calendario del paciente: {}", e.getMessage());
+                    }
+                }
 
-        // Cancelar evento en el Google Calendar del Paciente
-        if (turno.getGoogleEventId() != null && turno.getPaciente() != null && turno.getPaciente().getUsuario() != null) {
-            try {
-                calendarioAdapter.cancelarEventoParaUsuario(turno.getGoogleEventId(), turno.getPaciente().getUsuario());
-            } catch (Exception e) {
-                log.error("No se pudo cancelar el evento en el calendario del paciente: {}", e.getMessage());
+                // Cancelar en Google Calendar del Doctor
+                if (turno.getGoogleEventIdDoctor() != null && turno.getDoctor() != null && turno.getDoctor().getUsuario() != null) {
+                    try {
+                        calendarioAdapter.cancelarEventoParaUsuario(turno.getGoogleEventIdDoctor(), turno.getDoctor().getUsuario());
+                    } catch (Exception e) {
+                        log.error("No se pudo cancelar el evento en el calendario del doctor: {}", e.getMessage());
+                    }
+                }
             }
+        } catch (Exception e) {
+            log.warn("Advertencia al sincronizar cancelación con Google Calendar: {}", e.getMessage());
         }
 
-        // Cancelar evento en el Google Calendar del Doctor
-        if (turno.getGoogleEventIdDoctor() != null && turno.getDoctor() != null && turno.getDoctor().getUsuario() != null) {
-            try {
-                calendarioAdapter.cancelarEventoParaUsuario(turno.getGoogleEventIdDoctor(), turno.getDoctor().getUsuario());
-            } catch (Exception e) {
-                log.error("No se pudo cancelar el evento en el calendario del doctor: {}", e.getMessage());
-            }
-        }
+        // 2. Despacho bidireccional de emails usando los datos desacoplados del snapshot (Event-Carried State)
+        boolean canceladoPorStaff = event.canceladoPorDoctor();
 
-        // Si fue cancelado por el doctor, enviar email de disculpas / justificación
-        if (event.canceladoPorDoctor() && event.motivo() != null) {
-            Paciente paciente = turno.getPaciente();
-            String emailDestino = null;
-            if (paciente != null) {
-                if (paciente.getUsuario() != null && paciente.getUsuario().getEmail() != null) {
-                    emailDestino = paciente.getUsuario().getEmail();
-                } else if (paciente.getTutor() != null && paciente.getTutor().getUsuario() != null) {
-                    emailDestino = paciente.getTutor().getUsuario().getEmail();
-                } else if (paciente.getEmail() != null) {
-                    emailDestino = paciente.getEmail();
+        if (canceladoPorStaff) {
+            // A) Cancelación médica/administrativa (Doctor, Secretaría o Admin)
+            // 1. Notificación prioritaria al Paciente con el motivo de la cancelación destacado
+            if (event.pacienteEmail() != null && !event.pacienteEmail().isBlank()) {
+                try {
+                    TurnoResponseDTO dto = TurnoResponseDTO.builder()
+                            .id(event.turnoId())
+                            .pacienteNombre(event.pacienteNombre())
+                            .doctorNombre(event.doctorNombre())
+                            .especialidadNombre(event.especialidadNombre())
+                            .fechaHora(event.fechaHora())
+                            .motivoCancelacion(event.motivo())
+                            .build();
+                    emailService.enviarEmailCancelacionDoctor(event.pacienteEmail(), dto, event.motivo());
+                } catch (Exception e) {
+                    log.error("Error al enviar email de cancelación por médico al paciente {}: {}", event.pacienteEmail(), e.getMessage());
                 }
             }
 
-            if (emailDestino != null && !emailDestino.isBlank()) {
+            // 2. Constancia de cancelación enviada al Doctor
+            if (event.doctorEmail() != null && !event.doctorEmail().isBlank()) {
                 try {
-                    TurnoResponseDTO dto = TurnoResponseDTO.builder()
-                            .id(turno.getId())
-                            .pacienteId(turno.getPaciente().getId())
-                            .pacienteNombre(turno.getPaciente().getNombre() + " " + turno.getPaciente().getApellido())
-                            .doctorId(turno.getDoctor().getId())
-                            .doctorNombre(turno.getDoctor().getNombre() + " " + turno.getDoctor().getApellido())
-                            .especialidadId(turno.getEspecialidad() != null ? turno.getEspecialidad().getId() : null)
-                            .especialidadNombre(turno.getEspecialidad() != null ? turno.getEspecialidad().getNombre() : null)
-                            .fechaHora(turno.getFechaHora())
-                            .estado(turno.getEstado())
-                            .motivoConsulta(turno.getMotivoConsulta())
-                            .motivoCancelacion(turno.getMotivoCancelacion())
-                            .tieneObraSocial(turno.isTieneObraSocial())
-                            .obraSocial(turno.getObraSocial())
-                            .googleEventId(turno.getGoogleEventId())
-                            .build();
-                    emailService.enviarEmailCancelacionDoctor(emailDestino, dto, event.motivo().trim());
+                    emailService.enviarConfirmacionCancelacionDoctor(event.doctorEmail(), event);
                 } catch (Exception e) {
-                    log.error("Error al enviar email de cancelación por médico: {}", e.getMessage());
+                    log.error("Error al enviar constancia de cancelación al doctor {}: {}", event.doctorEmail(), e.getMessage());
+                }
+            }
+        } else {
+            // B) Cancelación iniciada por el Paciente o Tutor legal
+            // 1. Aviso al Doctor de turno cancelado y horario liberado (con motivo si fue informado)
+            if (event.doctorEmail() != null && !event.doctorEmail().isBlank()) {
+                try {
+                    emailService.enviarEmailCancelacionPorPaciente(event.doctorEmail(), event);
+                } catch (Exception e) {
+                    log.error("Error al notificar al médico {} sobre cancelación del paciente: {}", event.doctorEmail(), e.getMessage());
+                }
+            }
+
+            // 2. Confirmación formal enviada al Paciente
+            if (event.pacienteEmail() != null && !event.pacienteEmail().isBlank()) {
+                try {
+                    emailService.enviarConfirmacionCancelacionPaciente(event.pacienteEmail(), event);
+                } catch (Exception e) {
+                    log.error("Error al enviar confirmación de cancelación al paciente {}: {}", event.pacienteEmail(), e.getMessage());
                 }
             }
         }

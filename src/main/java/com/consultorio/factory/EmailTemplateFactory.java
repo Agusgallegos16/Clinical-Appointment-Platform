@@ -2,6 +2,7 @@ package com.consultorio.factory;
 
 import com.consultorio.domain.EstadoTurno;
 import com.consultorio.dto.TurnoResponseDTO;
+import com.consultorio.event.TurnoCanceladoEvent;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -173,6 +174,79 @@ public class EmailTemplateFactory {
                 turno.getPacienteNombre(), fechaFormateada, turno.getDoctorNombre(), turno.getEspecialidadNombre(), motivoCancelacion, getCleanFrontendUrl()
         );
         return construirBaseTemplate("Aviso de Cancelación", "Modificación de Agenda Médica", contenido);
+    }
+
+    // 7b. Email al Doctor cuando el Paciente cancela el turno
+    public String crearEmailCancelacionPacienteParaDoctor(TurnoCanceladoEvent event) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy 'a las' HH:mm");
+        String fechaFormateada = event.fechaHora() != null ? event.fechaHora().format(formatter) : "Fecha a confirmar";
+
+        String motivoHtml;
+        if (event.motivo() != null && !event.motivo().isBlank()) {
+            motivoHtml = String.format(
+                    "<div style='background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 24px;'>" +
+                    "  <span style='display: block; color: #475569; font-size: 13px; font-weight: 700; margin-bottom: 4px;'>📝 Motivo manifestado por el paciente:</span>" +
+                    "  <span style='display: block; color: #0f172a; font-size: 14px; font-style: italic;'>\"%s\"</span>" +
+                    "</div>", event.motivo().trim());
+        } else {
+            motivoHtml = "<div style='background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 24px;'>" +
+                    "  <span style='display: block; color: #64748b; font-size: 13px;'>El paciente no especificó un motivo para la cancelación. El sobreturno ha quedado liberado en tu agenda.</span>" +
+                    "</div>";
+        }
+
+        String contenido = String.format(
+                "<p style='color: #334155; font-size: 16px; margin: 0 0 16px 0; line-height: 1.5;'>Estimado/a <strong style='color: #0f172a;'>Dr/a. %s</strong>,</p>" +
+                "<p style='color: #475569; font-size: 15px; margin: 0 0 20px 0; line-height: 1.6;'>Te informamos que el/la paciente <strong>%s</strong> ha cancelado su cita programada para el día <strong>%s hs</strong> (%s).</p>" +
+                "%s" +
+                "<p style='color: #475569; font-size: 14px; line-height: 1.6;'>El horario ha quedado disponible para ser reservado por nuevos pacientes.</p>",
+                event.doctorNombre(), event.pacienteNombre(), fechaFormateada, event.especialidadNombre(), motivoHtml
+        );
+        return construirBaseTemplate("Cancelación de Cita", "Turno Liberado en Agenda", contenido);
+    }
+
+    // 7c. Email de confirmación al Paciente cuando él mismo cancela el turno
+    public String crearEmailConfirmacionCancelacionPaciente(TurnoCanceladoEvent event) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy 'a las' HH:mm");
+        String fechaFormateada = event.fechaHora() != null ? event.fechaHora().format(formatter) : "Fecha a confirmar";
+
+        String motivoHtml = "";
+        if (event.motivo() != null && !event.motivo().isBlank()) {
+            motivoHtml = String.format(
+                    "<div style='background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 24px;'>" +
+                    "  <span style='display: block; color: #475569; font-size: 13px; font-weight: 700; margin-bottom: 4px;'>📝 Motivo registrado:</span>" +
+                    "  <span style='display: block; color: #0f172a; font-size: 14px; font-style: italic;'>\"%s\"</span>" +
+                    "</div>", event.motivo().trim());
+        }
+
+        String contenido = String.format(
+                "<p style='color: #334155; font-size: 16px; margin: 0 0 16px 0; line-height: 1.5;'>Hola <strong style='color: #0f172a;'>%s</strong>,</p>" +
+                "<p style='color: #475569; font-size: 15px; margin: 0 0 20px 0; line-height: 1.6;'>Tu turno médico con el/la Dr/a. <strong>%s</strong> (%s) previsto para el día <strong>%s hs</strong> ha sido cancelado con éxito.</p>" +
+                "%s" +
+                "<p style='color: #475569; font-size: 14px; line-height: 1.6;'>El turno ha quedado liberado. Cuando desees volver a atenderte, puedes agendar una nueva cita desde nuestro portal:</p>" +
+                "<div style='text-align: center; margin: 24px 0;'>" +
+                "  <a href='%s/paciente/reservar' style='display: inline-block; background-color: #0284c7; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px;'>Reservar Nuevo Turno</a>" +
+                "</div>",
+                event.pacienteNombre(), event.doctorNombre(), event.especialidadNombre(), fechaFormateada, motivoHtml, getCleanFrontendUrl()
+        );
+        return construirBaseTemplate("Cancelación Confirmada", "Turno Cancelado con Éxito", contenido);
+    }
+
+    // 7d. Email de constancia al Doctor cuando él mismo (o Staff) cancela el turno
+    public String crearEmailConfirmacionCancelacionDoctor(TurnoCanceladoEvent event) {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy 'a las' HH:mm");
+        String fechaFormateada = event.fechaHora() != null ? event.fechaHora().format(formatter) : "Fecha a confirmar";
+
+        String contenido = String.format(
+                "<p style='color: #334155; font-size: 16px; margin: 0 0 16px 0; line-height: 1.5;'>Estimado/a <strong style='color: #0f172a;'>Dr/a. %s</strong>,</p>" +
+                "<p style='color: #475569; font-size: 15px; margin: 0 0 20px 0; line-height: 1.6;'>Confirmamos que has cancelado la cita con el/la paciente <strong>%s</strong> (%s) programada para el día <strong>%s hs</strong>.</p>" +
+                "<div style='background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px; margin-bottom: 24px;'>" +
+                "  <span style='display: block; color: #991b1b; font-size: 13px; font-weight: 700; margin-bottom: 4px;'>📝 Justificación registrada:</span>" +
+                "  <span style='display: block; color: #7f1d1d; font-size: 14px; font-style: italic;'>\"%s\"</span>" +
+                "</div>" +
+                "<p style='color: #475569; font-size: 14px; line-height: 1.6;'>El paciente ha sido debidamente notificado por correo electrónico con esta justificación.</p>",
+                event.doctorNombre(), event.pacienteNombre(), event.especialidadNombre(), fechaFormateada, event.motivo() != null ? event.motivo().trim() : "Sin justificación"
+        );
+        return construirBaseTemplate("Cancelación Registrada", "Notificación Enviada al Paciente", contenido);
     }
 
     // 8. Email de Resumen Diario para el Doctor
