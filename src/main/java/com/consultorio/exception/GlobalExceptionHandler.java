@@ -3,6 +3,7 @@ package com.consultorio.exception;
 import com.consultorio.dto.ApiErrorDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,6 +23,9 @@ import java.util.Map;
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    @Value("${app.clinic.phone:+54 11 1234-5678}")
+    private String clinicPhone = "+54 11 1234-5678";
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiErrorDTO> handleValidationErrors(MethodArgumentNotValidException ex) {
@@ -67,6 +71,23 @@ public class GlobalExceptionHandler {
         response.put("camposFaltantes", ex.getCamposFaltantes());
 
         return ResponseEntity.status(428).body(response);
+    }
+
+    @ExceptionHandler(CancelacionTardiaException.class)
+    public ResponseEntity<Map<String, Object>> handleCancelacionTardia(CancelacionTardiaException ex) {
+        log.warn("Cancelación fuera de término rechazada: {}", ex.getMessage());
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("type", "about:blank");
+        response.put("title", "Cancelación fuera de término");
+        response.put("status", HttpStatus.CONFLICT.value());
+        response.put("detail", ex.getMessage());
+        response.put("mensaje", ex.getMessage());
+        response.put("code", ex.getCodigo());
+        response.put("telefonoContacto", clinicPhone);
+        response.put("timestamp", LocalDateTime.now());
+
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
     }
 
     @ExceptionHandler(IllegalStateException.class)

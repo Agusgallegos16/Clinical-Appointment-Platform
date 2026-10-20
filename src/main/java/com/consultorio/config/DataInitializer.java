@@ -59,7 +59,15 @@ public class DataInitializer implements CommandLineRunner {
         ejecutarDdlSeguro("ALTER TABLE pacientes ALTER COLUMN dni DROP NOT NULL", "Hacer DNI nullable en pacientes para Google OAuth JIT");
         ejecutarDdlSeguro("ALTER TABLE turnos ADD COLUMN IF NOT EXISTS google_event_id_secretaria VARCHAR(255)", "Columna google_event_id_secretaria en turnos");
         ejecutarDdlSeguro("CREATE UNIQUE INDEX IF NOT EXISTS uk_turnos_doctor_fecha_activos ON turnos (doctor_id, fecha_hora) WHERE estado != 'CANCELADO'", "Índice único de turnos activos");
-        log.info("✅ DDL y migraciones de tablas usuarios, pacientes y turnos aplicadas correctamente.");
+        ejecutarDdlSeguro("CREATE TABLE IF NOT EXISTS configuracion_sistema (" +
+                "id BIGINT PRIMARY KEY, " +
+                "resumen_diario_medicos_habilitado BOOLEAN NOT NULL DEFAULT TRUE, " +
+                "resumen_semanal_medicos_habilitado BOOLEAN NOT NULL DEFAULT TRUE, " +
+                "fecha_modificacion TIMESTAMP, " +
+                "modificado_por VARCHAR(100))", "Tabla de configuración global del sistema");
+        ejecutarDdlSeguro("INSERT INTO configuracion_sistema (id, resumen_diario_medicos_habilitado, resumen_semanal_medicos_habilitado) " +
+                "SELECT 1, TRUE, TRUE WHERE NOT EXISTS (SELECT 1 FROM configuracion_sistema WHERE id = 1)", "Inicializar fila singleton de configuración");
+        log.info("✅ DDL y migraciones de tablas usuarios, pacientes, turnos y configuración aplicadas correctamente.");
         if (!usuarioRepository.existsByEmail(adminEmail) && !usuarioRepository.existsByRol(Rol.ADMIN)) {
             if (adminPassword == null || adminPassword.isBlank()) {
                 log.warn("⚠️ No se pudo inicializar el Administrador: se requiere configurar 'app.admin.password' o 'APP_ADMIN_PASSWORD'.");

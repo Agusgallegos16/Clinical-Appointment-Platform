@@ -31,16 +31,19 @@ public class NotificacionProgramadaService {
     private final TurnoRepository turnoRepository;
     private final TurnoService turnoService;
     private final EmailService emailService;
+    private final ConfiguracionSistemaService configuracionSistemaService;
 
     @Autowired
     public NotificacionProgramadaService(DoctorRepository doctorRepository,
                                          TurnoRepository turnoRepository,
                                          TurnoService turnoService,
-                                         EmailService emailService) {
+                                         EmailService emailService,
+                                         ConfiguracionSistemaService configuracionSistemaService) {
         this.doctorRepository = doctorRepository;
         this.turnoRepository = turnoRepository;
         this.turnoService = turnoService;
         this.emailService = emailService;
+        this.configuracionSistemaService = configuracionSistemaService;
     }
 
     // Tarea programada diaria: Todos los días a las 09:00 hs (cron = "0 0 9 * * ?")
@@ -105,6 +108,11 @@ public class NotificacionProgramadaService {
 
     // Procesa el envío de resúmenes diarios para una fecha determinada
     public void enviarResumenDiarioADoctoresParaFecha(LocalDate fechaTarget) {
+        if (!configuracionSistemaService.isResumenDiarioMedicosHabilitado()) {
+            log.info("ℹ️ Envío de resumen diario a médicos omitido: Deshabilitado globalmente por administración.");
+            return;
+        }
+
         log.info("⏰ Procesando resúmenes diarios de agenda para la fecha: {}", fechaTarget);
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         String fechaFormateada = fechaTarget.format(formatter);
@@ -153,6 +161,11 @@ public class NotificacionProgramadaService {
 
     // Procesa el envío de reportes semanales de actividad para un rango de fechas
     public void enviarResumenSemanalADoctoresParaRango(LocalDate desde, LocalDate hasta) {
+        if (!configuracionSistemaService.isResumenSemanalMedicosHabilitado()) {
+            log.info("ℹ️ Envío de resumen semanal a médicos omitido: Deshabilitado globalmente por administración.");
+            return;
+        }
+
         log.info("⏰ Procesando reportes semanales de actividad desde {} hasta {}", desde, hasta);
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         String periodoFormateado = String.format("%s al %s", desde.format(formatter), hasta.format(formatter));

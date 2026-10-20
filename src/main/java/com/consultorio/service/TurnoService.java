@@ -8,12 +8,14 @@ import com.consultorio.dto.TurnoReservaSecretariaDTO;
 import com.consultorio.dto.TurnoResponseDTO;
 import com.consultorio.event.TurnoCanceladoEvent;
 import com.consultorio.event.TurnoReservadoEvent;
+import com.consultorio.exception.CancelacionTardiaException;
 import com.consultorio.exception.PerfilIncompletoException;
 import com.consultorio.repository.TurnoRepository;
 import com.consultorio.security.SecurityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -32,6 +34,9 @@ import java.util.stream.Collectors;
 public class TurnoService {
 
     private static final Logger log = LoggerFactory.getLogger(TurnoService.class);
+
+    @Value("${app.clinic.phone:+54 11 1234-5678}")
+    private String clinicPhone = "+54 11 1234-5678";
 
     private final TurnoRepository turnoRepository;
     private final PacienteService pacienteService;
@@ -164,6 +169,20 @@ public class TurnoService {
         }
 
         boolean esStaff = esAdmin || esSecretaria || esSuDoctor;
+
+        // Regla de Negocio: Anticipación Mínima (24 horas) para cancelaciones de Pacientes
+        if (!esStaff) {
+            LocalDateTime ahora = LocalDateTime.now();
+            LocalDateTime fechaHoraTurno = turno.getFechaHora();
+            if (fechaHoraTurno == null || fechaHoraTurno.isBefore(ahora.plusHours(24))) {
+                String mensaje = String.format(
+                        "No es posible cancelar el turno con menos de 24 horas de anticipación. Por favor, comuníquese telefónicamente con el instituto al %s para gestionar su solicitud.",
+                        clinicPhone
+                );
+                throw new CancelacionTardiaException(mensaje);
+            }
+        }
+
         String motivo = (dto != null && dto.getMotivo() != null) ? dto.getMotivo().trim() : null;
 
         if (esStaff && (motivo == null || motivo.isBlank())) {

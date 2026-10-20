@@ -40,4 +40,14 @@ export const adminService = {
     const response = await axiosClient.post('/admin/usuarios/seed-prueba');
     return response.data;
   },
+
+  obtenerConfiguracionNotificaciones: async () => {
+    const response = await axiosClient.get('/admin/configuracion/notificaciones');
+    return response.data;
+  },
+
+  actualizarConfiguracionNotificaciones: async (configData) => {
+    const response = await axiosClient.patch('/admin/configuracion/notificaciones', configData);
+    return response.data;
+  },
 };

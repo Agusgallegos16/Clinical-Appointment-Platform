@@ -21,10 +21,13 @@ import {
 import {
   Cancel as CancelIcon,
   Refresh as RefreshIcon,
+  Phone as PhoneIcon,
+  WarningAmber as WarningIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../context/AuthContext';
 import { turnoService } from '../../api/turnoService';
 import { isCancel } from '../../api/axiosClient';
+import { CLINIC_CONFIG } from '../../config/clinicConfig';
 import dayjs from 'dayjs';
 
 import { useSearchParams } from 'react-router-dom';
@@ -51,6 +54,9 @@ const MisTurnos = () => {
   const [selectedTurnoCancel, setSelectedTurnoCancel] = useState(null);
   const [motivoCancelacion, setMotivoCancelacion] = useState('');
   const [cancelling, setCancelling] = useState(false);
+
+  // Estado para modal bloqueante de cancelación tardía (< 24hs)
+  const [bloqueoCancelacionData, setBloqueoCancelacionData] = useState(null);
 
   useEffect(() => {
     if (entidadId) {
@@ -93,6 +99,20 @@ const MisTurnos = () => {
     }
   };
 
+  const handleIntentarCancelar = (turno) => {
+    const horasRestantes = dayjs(turno.fechaHora).diff(dayjs(), 'hour', true);
+    if (horasRestantes < 24) {
+      setBloqueoCancelacionData({
+        turno,
+        telefono: CLINIC_CONFIG.phone,
+        mensaje: 'Por políticas de la institución médica, los turnos con menos de 24 horas de anticipación no pueden cancelarse de forma autónoma desde el portal web.',
+      });
+      return;
+    }
+    setSelectedTurnoCancel(turno);
+    setMotivoCancelacion('');
+  };
+
   const handleConfirmCancelar = async () => {
     if (!selectedTurnoCancel) return;
     setCancelling(true);
@@ -103,7 +123,18 @@ const MisTurnos = () => {
       setMotivoCancelacion('');
       await cargarTurnos(targetId);
     } catch (err) {
-      setError(err.response?.data?.mensaje || err.response?.data?.message || 'No se pudo cancelar el turno.');
+      if (err.response?.status === 409 || err.response?.data?.code === 'TURNO_CANCELACION_ANTICIPACION_INSUFICIENTE') {
+        const errorData = err.response.data;
+        setSelectedTurnoCancel(null);
+        setMotivoCancelacion('');
+        setBloqueoCancelacionData({
+          turno: selectedTurnoCancel,
+          telefono: errorData?.telefonoContacto || CLINIC_CONFIG.phone,
+          mensaje: errorData?.detail || errorData?.mensaje || 'No es posible cancelar el turno debido a que restan menos de 24 horas para la cita médica.',
+        });
+      } else {
+        setError(err.response?.data?.mensaje || err.response?.data?.message || 'No se pudo cancelar el turno.');
+      }
     } finally {
       setCancelling(false);
     }
@@ -268,10 +299,7 @@ const MisTurnos = () => {
                       color="error"
                       size="small"
                       startIcon={<CancelIcon />}
-                      onClick={() => {
-                        setSelectedTurnoCancel(turno);
-                        setMotivoCancelacion('');
-                      }}
+                      onClick={() => handleIntentarCancelar(turno)}
                     >
                       Cancelar Turno
                     </Button>
@@ -283,7 +311,7 @@ const MisTurnos = () => {
         </Grid>
       )}
 
-      {/* Modal Confirmación Cancelación */}
+      {/* Modal Confirmación Cancelación Normal */}
       <Dialog
         open={!!selectedTurnoCancel}
         onClose={() => {
@@ -325,6 +353,58 @@ const MisTurnos = () => {
           </Button>
           <Button onClick={handleConfirmCancelar} color="error" variant="contained" disabled={cancelling}>
             {cancelling ? <CircularProgress size={20} color="inherit" /> : 'Sí, Cancelar'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Modal Informativo Bloqueante: Cancelación Tardía (< 24 horas) */}
+      <Dialog
+        open={Boolean(bloqueoCancelacionData)}
+        onClose={() => setBloqueoCancelacionData(null)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, color: 'warning.dark', fontWeight: 700 }}>
+          <WarningIcon color="warning" />
+          Cancelación con menos de 24 hs de anticipación
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2, color: 'text.primary' }}>
+            {bloqueoCancelacionData?.mensaje ||
+              'Por políticas de la institución médica, los turnos programados con menos de 24 horas de anticipación no pueden cancelarse directamente desde el portal web.'}
+          </DialogContentText>
+
+          <Alert severity="warning" sx={{ mb: 3 }}>
+            Para solicitar la cancelación o reprogramación de este turno, por favor comunicate telefónicamente con la secretaría del instituto médico.
+          </Alert>
+
+          <Box
+            display="flex"
+            flexDirection="column"
+            alignItems="center"
+            gap={1.5}
+            p={2.5}
+            sx={{ bgcolor: 'action.hover', borderRadius: 2, border: '1px solid', borderColor: 'divider' }}
+          >
+            <Typography variant="body2" color="text.secondary" fontWeight={500}>
+              Línea oficial de atención y recepción:
+            </Typography>
+            <Button
+              variant="contained"
+              color="primary"
+              size="large"
+              startIcon={<PhoneIcon />}
+              href={`tel:${(bloqueoCancelacionData?.telefono || CLINIC_CONFIG.phone).replace(/[\s-]/g, '')}`}
+              component="a"
+              sx={{ fontWeight: 700, px: 3, py: 1 }}
+            >
+              Llamar al {bloqueoCancelacionData?.telefono || CLINIC_CONFIG.phone}
+            </Button>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setBloqueoCancelacionData(null)} variant="outlined">
+            Entendido
           </Button>
         </DialogActions>
       </Dialog>
