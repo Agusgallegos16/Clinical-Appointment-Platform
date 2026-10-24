@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 
 @Service
@@ -200,12 +201,12 @@ public class GoogleCalendarOAuthService {
             event.setSummary(titulo);
             event.setDescription(descripcion);
 
-            ZoneId zoneId = ZoneId.systemDefault();
+            ZoneId zoneId = ZoneId.of("America/Argentina/Buenos_Aires");
             ZonedDateTime inicioZoned = turno.getFechaHora().atZone(zoneId);
             ZonedDateTime finZoned = inicioZoned.plusMinutes(30);
 
-            DateTime startDateTime = new DateTime(inicioZoned.toInstant().toEpochMilli());
-            DateTime endDateTime = new DateTime(finZoned.toInstant().toEpochMilli());
+            DateTime startDateTime = new DateTime(inicioZoned.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
+            DateTime endDateTime = new DateTime(finZoned.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
 
             event.setStart(new EventDateTime().setDateTime(startDateTime).setTimeZone(zoneId.getId()));
             event.setEnd(new EventDateTime().setDateTime(endDateTime).setTimeZone(zoneId.getId()));
