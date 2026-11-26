@@ -1,4 +1,5 @@
 import axiosClient from './axiosClient';
+import { normalizarProximoTurno } from '../utils/turnoSlotUtils';
 
 export const doctorService = {
   listarDoctores: async (especialidadId = null, soloVisibles = false) => {
@@ -74,6 +75,23 @@ export const doctorService = {
     }
     const response = await axiosClient.get(url, options);
     return response.data;
+  },
+
+  obtenerProximoTurnoDisponible: async (id, { especialidadId = null, desdeFecha = null, signal } = {}) => {
+    const params = {};
+    if (especialidadId) params.especialidadId = especialidadId;
+    if (desdeFecha) params.desdeFecha = desdeFecha;
+
+    const response = await axiosClient.get(`/doctores/${id}/disponibilidad/proximo`, {
+      params,
+      signal,
+    });
+
+    if (response.status === 204 || !response.data) {
+      return null;
+    }
+
+    return normalizarProximoTurno(response.data);
   },
 
   obtenerAgenda: async (id, fechaStr, options = {}) => {

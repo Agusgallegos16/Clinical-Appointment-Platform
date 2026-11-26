@@ -46,6 +46,9 @@ import { pacienteMenorService } from '../../api/pacienteMenorService';
 import { isCancel } from '../../api/axiosClient';
 import { useAuth } from '../../context/AuthContext';
 import CompletarPerfilModal from '../../components/paciente/CompletarPerfilModal';
+import BotonProximoTurnoDisponible from '../../components/turnos/BotonProximoTurnoDisponible';
+import { useProximoTurnoDisponible } from '../../hooks/useProximoTurnoDisponible';
+import { formatFechaHoraResumen, normalizarSlotDisponibilidad } from '../../utils/turnoSlotUtils';
 import dayjs from 'dayjs';
 
 const ReservarTurno = () => {
@@ -90,6 +93,7 @@ const ReservarTurno = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  const [mensajeProximoTurno, setMensajeProximoTurno] = useState(null);
 
   useEffect(() => {
     if (!entidadId) return;
@@ -183,6 +187,8 @@ const ReservarTurno = () => {
 
   const procederASeleccionHorario = (doctor) => {
     setSelectedDoctor(doctor);
+    setMensajeProximoTurno(null);
+    limpiarEstadoProximoTurno();
     setActiveStep(pasoHorarioIndex);
     cargarDisponibilidad(doctor.id, selectedFecha, selectedEspecialidad?.id);
   };
@@ -202,37 +208,65 @@ const ReservarTurno = () => {
       const targetEspId = especialidadId || selectedEspecialidad?.id;
       const data = await doctorService.obtenerDisponibilidad(doctorId, fechaStr, targetEspId);
 
-      const isToday = fechaStr === todayStr;
-
-      const slotsConFechaHora = data
+      const now = dayjs();
+      const slotsConFechaHora = (data || [])
         .filter((s) => s.disponible)
         .map((s) => {
-          const horaFormateada = typeof s.hora === 'string'
-            ? (s.hora.length === 5 ? `${s.hora}:00` : s.hora)
-            : `${String(s.hora[0]).padStart(2, '0')}:${String(s.hora[1]).padStart(2, '0')}:00`;
-
-          const slotDateTime = dayjs(`${fechaStr}T${horaFormateada}`);
-
+          const normalizado = normalizarSlotDisponibilidad(s, fechaStr, now);
           return {
             ...s,
-            horaTexto: typeof s.hora === 'string' ? s.hora.substring(0, 5) : `${String(s.hora[0]).padStart(2, '0')}:${String(s.hora[1]).padStart(2, '0')}`,
-            fechaHoraIso: `${fechaStr}T${horaFormateada}`,
-            pasado: isToday && slotDateTime.isBefore(dayjs()),
+            horaTexto: normalizado.hora,
+            fechaHoraIso: normalizado.fechaHoraISO,
+            pasado: normalizado.pasado,
           };
         })
         .filter((s) => !s.pasado);
 
       setSlotsDisponibles(slotsConFechaHora);
+      return slotsConFechaHora;
     } catch (err) {
       setError('Error al consultar horarios disponibles para la fecha elegida.');
+      return [];
     } finally {
       setLoading(false);
     }
   };
 
+  const {
+    buscarProximoTurno,
+    loading: loadingProximoTurno,
+    sinDisponibilidad: sinProximoTurno,
+    error: errorProximoTurno,
+    limpiarEstado: limpiarEstadoProximoTurno,
+  } = useProximoTurnoDisponible({
+    doctorId: selectedDoctor?.id,
+    especialidadId: selectedEspecialidad?.id,
+    onFound: async (proximo) => {
+      if (!selectedDoctor) return;
+      setSelectedFecha(proximo.fecha);
+      const slotsDelDia = await cargarDisponibilidad(
+        selectedDoctor.id,
+        proximo.fecha,
+        selectedEspecialidad?.id
+      );
+      const slotCoincidente =
+        slotsDelDia.find((s) => s.id === proximo.slotId) ||
+        slotsDelDia.find((s) => s.horaTexto === proximo.hora) ||
+        null;
+      if (slotCoincidente) {
+        setSelectedSlot(slotCoincidente);
+      }
+      setMensajeProximoTurno(
+        `Próximo turno disponible seleccionado: ${formatFechaHoraResumen(proximo.fecha, proximo.hora)}`
+      );
+    },
+  });
+
   const handleFechaChange = (e) => {
     const nuevaFecha = e.target.value;
     setSelectedFecha(nuevaFecha);
+    setMensajeProximoTurno(null);
+    limpiarEstadoProximoTurno();
     if (selectedDoctor) {
       cargarDisponibilidad(selectedDoctor.id, nuevaFecha, selectedEspecialidad?.id);
     }
@@ -567,7 +601,7 @@ const ReservarTurno = () => {
             </Button>
           </Box>
 
-          <Grid container spacing={2} mb={3}>
+          <Grid container spacing={2} alignItems="flex-start" mb={3}>
             <Grid item xs={12} sm={6} md={4}>
               <TextField
                 fullWidth
@@ -577,6 +611,20 @@ const ReservarTurno = () => {
                 onChange={handleFechaChange}
                 InputLabelProps={{ shrink: true }}
                 inputProps={{ min: todayStr }}
+              />
+            </Grid>
+            <Grid item xs={12} sm={6} md={8}>
+              <BotonProximoTurnoDisponible
+                onClick={() => {
+                  setMensajeProximoTurno(null);
+                  buscarProximoTurno();
+                }}
+                loading={loadingProximoTurno}
+                disabled={!selectedDoctor || loading}
+                sinDisponibilidad={sinProximoTurno}
+                error={errorProximoTurno}
+                mensajeExito={mensajeProximoTurno}
+                sx={{ mt: { xs: 0, sm: 0.5 } }}
               />
             </Grid>
           </Grid>
