@@ -16,7 +16,9 @@ import {
   MenuItem,
   Select,
   FormControl,
+  FormControlLabel,
   InputLabel,
+  Switch,
   Avatar,
   Stepper,
   Step,
@@ -53,6 +55,7 @@ const SecretariaAgenda = () => {
   const [especialidades, setEspecialidades] = useState([]);
   const [searchDoctorQuery, setSearchDoctorQuery] = useState('');
   const [filterEspecialidadId, setFilterEspecialidadId] = useState('');
+  const [mostrarOcultos, setMostrarOcultos] = useState(false);
 
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [fecha, setFecha] = useState(dayjs().format('YYYY-MM-DD'));
@@ -228,9 +231,10 @@ const SecretariaAgenda = () => {
       const nombreCompleto = `${doc.nombre} ${doc.apellido}`.toLowerCase();
       const coincideNombre = nombreCompleto.includes(searchDoctorQuery.toLowerCase());
       const coincideEspecialidad = !filterEspecialidadId || doc.especialidades?.some((e) => e.id === Number(filterEspecialidadId));
-      return coincideNombre && coincideEspecialidad;
+      const coincideVisibilidad = mostrarOcultos || doc.disponibleParaTurnos !== false;
+      return coincideNombre && coincideEspecialidad && coincideVisibilidad;
     });
-  }, [doctores, searchDoctorQuery, filterEspecialidadId]);
+  }, [doctores, searchDoctorQuery, filterEspecialidadId, mostrarOcultos]);
 
   const turnosReservadosActivos = useMemo(() => {
     return Array.isArray(agendaTurnos) ? agendaTurnos.filter((t) => t && t.estado !== 'CANCELADO') : [];
@@ -351,7 +355,7 @@ const SecretariaAgenda = () => {
         <Box>
           <Paper sx={{ p: 2.5, mb: 3, borderRadius: 3 }}>
             <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12} sm={6} md={5}>
                 <TextField
                   fullWidth
                   placeholder="Buscar médico por nombre o apellido..."
@@ -366,7 +370,7 @@ const SecretariaAgenda = () => {
                   }}
                 />
               </Grid>
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12} sm={6} md={4}>
                 <FormControl fullWidth>
                   <InputLabel id="filter-esp-label">Filtrar por Especialidad</InputLabel>
                   <Select
@@ -383,6 +387,18 @@ const SecretariaAgenda = () => {
                     ))}
                   </Select>
                 </FormControl>
+              </Grid>
+              <Grid item xs={12} md={3} display="flex" justifyContent={{ xs: 'flex-start', md: 'center' }}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={mostrarOcultos}
+                      onChange={(e) => setMostrarOcultos(e.target.checked)}
+                      color="primary"
+                    />
+                  }
+                  label="Mostrar ocultos"
+                />
               </Grid>
             </Grid>
           </Paper>
@@ -419,9 +435,14 @@ const SecretariaAgenda = () => {
                           {doc.nombre?.charAt(0).toUpperCase()}
                         </Avatar>
                         <Box>
-                          <Typography variant="h6" fontWeight={700}>
-                            Dr. {doc.nombre} {doc.apellido}
-                          </Typography>
+                          <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
+                            <Typography variant="h6" fontWeight={700}>
+                              Dr. {doc.nombre} {doc.apellido}
+                            </Typography>
+                            {doc.disponibleParaTurnos === false && (
+                              <Chip label="Oculto" size="small" color="warning" />
+                            )}
+                          </Box>
                           <Typography variant="caption" color="text.secondary">
                             📧 {doc.usuario?.email || 'Medicina General'}
                           </Typography>
