@@ -346,6 +346,12 @@ public class TurnoService {
     }
 
     @Transactional(readOnly = true)
+    public Set<LocalDateTime> obtenerFechasHorasOcupadasDoctorDesde(UUID doctorId, LocalDateTime desde) {
+        return turnoRepository.findFechasHorasByDoctorIdAndFechaHoraGreaterThanEqualAndEstadoNot(
+                doctorId, desde, EstadoTurno.CANCELADO);
+    }
+
+    @Transactional(readOnly = true)
     public PacienteResumenEstadisticasDTO obtenerEstadisticasPaciente(UUID pacienteId) {
         Paciente paciente = pacienteService.obtenerPorId(pacienteId);
 

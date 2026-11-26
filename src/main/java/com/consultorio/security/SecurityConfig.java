@@ -115,6 +115,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/doctores").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/doctores/*").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/doctores/*/disponibilidad").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/doctores/*/disponibilidad/proximo").permitAll()
                 .anyRequest().authenticated()
             )
             .oauth2Login(oauth2 -> oauth2

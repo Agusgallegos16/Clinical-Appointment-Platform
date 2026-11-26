@@ -284,6 +284,17 @@ public class DoctorController {
         return ResponseEntity.ok(disponibilidadService.obtenerHorariosDisponibles(id, fecha, especialidadId));
     }
 
+    @GetMapping("/{id}/disponibilidad/proximo")
+    @Operation(summary = "Obtener el próximo turno disponible del médico a partir de la fecha actual o una fecha base opcional (Público)")
+    public ResponseEntity<ProximoTurnoDisponibleDTO> obtenerProximoTurnoDisponible(
+            @PathVariable UUID id,
+            @RequestParam(required = false) Long especialidadId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desdeFecha) {
+        return disponibilidadService.obtenerProximoHorarioDisponible(id, especialidadId, desdeFecha)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
+    }
+
     @GetMapping("/{id}/agenda")
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN') or hasRole('SECRETARIA')")
     @Operation(summary = "Consultar la agenda privada de turnos confirmados del doctor para un día (DOCTOR / ADMIN / SECRETARIA)")

@@ -15,6 +15,7 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Repository
@@ -57,4 +58,11 @@ public interface TurnoRepository extends JpaRepository<Turno, UUID> {
     @EntityGraph(attributePaths = {"paciente", "doctor.usuario", "especialidad"})
     List<Turno> findByFechaHoraBetweenAndEstadoNotOrderByFechaHoraAsc(
             LocalDateTime desde, LocalDateTime hasta, EstadoTurno estadoNoDeseado);
+
+    @Query("SELECT t.fechaHora FROM Turno t " +
+           "WHERE t.doctor.id = :doctorId AND t.fechaHora >= :desde AND t.estado <> :estadoExcluido")
+    Set<LocalDateTime> findFechasHorasByDoctorIdAndFechaHoraGreaterThanEqualAndEstadoNot(
+            @Param("doctorId") UUID doctorId,
+            @Param("desde") LocalDateTime desde,
+            @Param("estadoExcluido") EstadoTurno estadoExcluido);
 }
