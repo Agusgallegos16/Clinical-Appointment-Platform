@@ -41,38 +41,22 @@ public class PacienteService {
             throw new IllegalArgumentException("Ya existe un usuario registrado con el email: " + dto.getEmail());
         }
 
-        java.util.Optional<Paciente> pacienteExistenteOpt = pacienteRepository.findByDni(dto.getDni());
-        if (pacienteExistenteOpt.isPresent()) {
-            Paciente existente = pacienteExistenteOpt.get();
-            if (existente.getUsuario() != null) {
-                throw new IllegalArgumentException("Ya existe un paciente registrado con el DNI: " + dto.getDni());
-            }
+        if (pacienteRepository.findByDni(dto.getDni()).isPresent()) {
+            throw new IllegalArgumentException(
+                    "Ya existe un registro asociado al DNI ingresado. Si ya se atendió en el consultorio, solicite la vinculación de su cuenta en recepción.");
         }
 
         String tokenVerificacion = UUID.randomUUID().toString();
         Usuario usuario = usuarioService.crearUsuarioParaPaciente(dto.getEmail(), dto.getPassword(), tokenVerificacion);
 
-        Paciente paciente;
-        if (pacienteExistenteOpt.isPresent()) {
-            paciente = pacienteExistenteOpt.get();
-            paciente.setUsuario(usuario);
-            paciente.setNombre(dto.getNombre());
-            paciente.setApellido(dto.getApellido());
-            paciente.setTelefono(dto.getTelefono());
-            if (dto.getFechaNacimiento() != null) {
-                paciente.setFechaNacimiento(dto.getFechaNacimiento());
-            }
-            paciente.setTutor(null);
-        } else {
-            paciente = Paciente.builder()
-                    .usuario(usuario)
-                    .nombre(dto.getNombre())
-                    .apellido(dto.getApellido())
-                    .dni(dto.getDni())
-                    .telefono(dto.getTelefono())
-                    .fechaNacimiento(dto.getFechaNacimiento())
-                    .build();
-        }
+        Paciente paciente = Paciente.builder()
+                .usuario(usuario)
+                .nombre(dto.getNombre())
+                .apellido(dto.getApellido())
+                .dni(dto.getDni())
+                .telefono(dto.getTelefono())
+                .fechaNacimiento(dto.getFechaNacimiento())
+                .build();
 
         Paciente guardado = pacienteRepository.save(paciente);
         emailService.enviarEmailVerificacion(guardado.getUsuario().getEmail(), guardado.getNombre(), tokenVerificacion);

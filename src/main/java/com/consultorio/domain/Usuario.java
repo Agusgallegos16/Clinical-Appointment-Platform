@@ -1,5 +1,6 @@
 package com.consultorio.domain;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
@@ -26,6 +27,7 @@ public class Usuario {
     @Column(unique = true, nullable = false)
     private String email;
 
+    @JsonIgnore
     @NotBlank(message = "La contraseña es obligatoria")
     @Column(nullable = false)
     private String password;
@@ -51,27 +53,35 @@ public class Usuario {
     @Column(name = "email_verificado", nullable = false)
     private boolean emailVerificado = false;
 
+    @JsonIgnore
     @Column(name = "token_verificacion_email")
     private String tokenVerificacionEmail;
 
+    @JsonIgnore
     @Column(name = "token_verificacion_expiracion")
     private LocalDateTime tokenVerificacionExpiracion;
 
+    @JsonIgnore
     @Column(name = "token_restablecimiento_password")
     private String tokenRestablecimientoPassword;
 
+    @JsonIgnore
     @Column(name = "token_restablecimiento_expiracion")
     private LocalDateTime tokenRestablecimientoExpiracion;
 
+    @JsonIgnore
     @Column(name = "nueva_password_pendiente")
     private String nuevaPasswordPendiente;
 
+    @JsonIgnore
     @Column(name = "google_access_token", length = 2048)
     private String googleAccessToken;
 
+    @JsonIgnore
     @Column(name = "google_refresh_token", length = 2048)
     private String googleRefreshToken;
 
+    @JsonIgnore
     @Column(name = "google_token_expiry")
     private Long googleTokenExpiry;
 
@@ -79,6 +89,7 @@ public class Usuario {
     @Column(name = "google_calendar_connected", nullable = false)
     private boolean googleCalendarConnected = false;
 
+    @JsonIgnore
     @Column(name = "google_id")
     private String googleId;
 

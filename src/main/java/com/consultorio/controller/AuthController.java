@@ -3,6 +3,7 @@ package com.consultorio.controller;
 import com.consultorio.domain.Doctor;
 import com.consultorio.domain.Paciente;
 import com.consultorio.dto.*;
+import com.consultorio.mapper.DtoMapper;
 import com.consultorio.service.AuthService;
 import com.consultorio.service.DoctorService;
 import com.consultorio.service.PacienteService;
@@ -27,31 +28,34 @@ public class AuthController {
     private final DoctorService doctorService;
     private final UsuarioService usuarioService;
     private final AuthService authService;
+    private final DtoMapper dtoMapper;
 
     @Autowired
     public AuthController(PacienteService pacienteService,
                           DoctorService doctorService,
                           UsuarioService usuarioService,
-                          AuthService authService) {
+                          AuthService authService,
+                          DtoMapper dtoMapper) {
         this.pacienteService = pacienteService;
         this.doctorService = doctorService;
         this.usuarioService = usuarioService;
         this.authService = authService;
+        this.dtoMapper = dtoMapper;
     }
 
     @PostMapping("/registro-paciente")
     @Operation(summary = "Registro de un nuevo Paciente (Público)")
-    public ResponseEntity<Paciente> registrarPaciente(@Valid @RequestBody RegistroPacienteDTO dto) {
+    public ResponseEntity<PacienteResponseDTO> registrarPaciente(@Valid @RequestBody RegistroPacienteDTO dto) {
         Paciente paciente = pacienteService.registrarPaciente(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(paciente);
+        return ResponseEntity.status(HttpStatus.CREATED).body(dtoMapper.toDto(paciente));
     }
 
     @PostMapping("/registro-doctor")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Registro de un nuevo Doctor (Exclusivo ADMIN)")
-    public ResponseEntity<Doctor> registrarDoctor(@Valid @RequestBody RegistroDoctorDTO dto) {
+    public ResponseEntity<DoctorResponseDTO> registrarDoctor(@Valid @RequestBody RegistroDoctorDTO dto) {
         Doctor doctor = doctorService.registrarDoctor(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(doctor);
+        return ResponseEntity.status(HttpStatus.CREATED).body(dtoMapper.toDto(doctor));
     }
 
     @GetMapping("/confirmar-email")

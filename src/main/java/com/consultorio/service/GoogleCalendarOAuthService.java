@@ -4,6 +4,7 @@ import com.consultorio.config.GoogleCalendarConfig;
 import com.consultorio.domain.Turno;
 import com.consultorio.domain.Usuario;
 import com.consultorio.repository.UsuarioRepository;
+import com.consultorio.security.JwtUtils;
 import com.google.api.client.auth.oauth2.BearerToken;
 import com.google.api.client.auth.oauth2.Credential;
 import com.google.api.client.auth.oauth2.TokenResponse;
@@ -34,11 +35,13 @@ public class GoogleCalendarOAuthService {
 
     private final GoogleCalendarConfig config;
     private final UsuarioRepository usuarioRepository;
+    private final JwtUtils jwtUtils;
 
     @Autowired
-    public GoogleCalendarOAuthService(GoogleCalendarConfig config, UsuarioRepository usuarioRepository) {
+    public GoogleCalendarOAuthService(GoogleCalendarConfig config, UsuarioRepository usuarioRepository, JwtUtils jwtUtils) {
         this.config = config;
         this.usuarioRepository = usuarioRepository;
+        this.jwtUtils = jwtUtils;
     }
 
     public String generarUrlAutorizacion(Long usuarioId) {
@@ -62,7 +65,7 @@ public class GoogleCalendarOAuthService {
 
             return flow.newAuthorizationUrl()
                     .setRedirectUri(config.getRedirectUri())
-                    .setState(String.valueOf(usuarioId))
+                    .setState(jwtUtils.generarTokenEstadoGoogleCalendar(usuarioId))
                     .build();
         } catch (Exception e) {
             log.error("Error al generar URL de autorización OAuth2: {}", e.getMessage(), e);
@@ -72,7 +75,7 @@ public class GoogleCalendarOAuthService {
 
     public void procesarCallback(String code, String state) {
         try {
-            Long usuarioId = Long.parseLong(state);
+            Long usuarioId = jwtUtils.validarYObtenerUsuarioIdEstadoGoogleCalendar(state);
             Usuario usuario = usuarioRepository.findById(usuarioId)
                     .orElseThrow(() -> new IllegalArgumentException("Usuario no encontrado con ID: " + usuarioId));
 
