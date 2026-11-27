@@ -1,5 +1,6 @@
 package com.consultorio.email;
 
+import com.consultorio.util.LogSanitizer;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,7 +70,7 @@ public class ResendEmailSender implements EmailSender {
         try {
             ResponseEntity<String> response = restTemplate.postForEntity(RESEND_API_URL, entity, String.class);
             if (response.getStatusCode().is2xxSuccessful()) {
-                log.info("✅ Correo HTML enviado exitosamente vía API REST de Resend a: {}", to);
+                log.info("Correo HTML enviado exitosamente vía API REST de Resend a: {}", LogSanitizer.maskEmail(to));
             } else {
                 throw new EmailProviderException("Resend", "Respuesta no exitosa de Resend", false, response.getStatusCode().value());
             }

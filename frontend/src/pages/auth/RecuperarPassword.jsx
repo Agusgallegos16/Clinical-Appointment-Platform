@@ -15,40 +15,21 @@ import { LockReset as LockResetIcon } from '@mui/icons-material';
 import { authService } from '../../api/authService';
 
 const RecuperarPassword = () => {
-  const [formData, setFormData] = useState({
-    email: '',
-    nuevaPassword: '',
-    confirmarNuevaPassword: '',
-  });
-
+  const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-
-    if (formData.nuevaPassword !== formData.confirmarNuevaPassword) {
-      setError('Las contraseñas no coinciden. Por favor verifíquelas.');
-      return;
-    }
-
     setLoading(true);
 
     try {
-      await authService.solicitarRestablecimientoPassword(formData);
+      const response = await authService.solicitarRestablecimientoPassword({ email: email.trim() });
       setSuccessMessage(
-        '¡Solicitud procesada! Te enviamos un correo electrónico a ' +
-        formData.email +
-        ' con un enlace para confirmar el cambio de contraseña. Por favor revisá tu bandeja de entrada.'
+        response?.message ||
+          'Si existe una cuenta asociada al correo ingresado, te enviamos un enlace para restablecer tu contraseña. Por favor revisá tu bandeja de entrada.'
       );
     } catch (err) {
       const msg =
@@ -73,7 +54,7 @@ const RecuperarPassword = () => {
               Recuperar Contraseña
             </Typography>
             <Typography variant="body2" color="text.secondary" align="center">
-              Ingresá tu correo y tu nueva clave deseada
+              Ingresá tu correo electrónico y te enviaremos un enlace seguro para definir tu nueva clave
             </Typography>
           </Box>
 
@@ -91,39 +72,10 @@ const RecuperarPassword = () => {
                 label="Correo Electrónico"
                 name="email"
                 type="email"
-                value={formData.email}
-                onChange={handleChange}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 required
                 margin="normal"
-              />
-
-              <TextField
-                fullWidth
-                label="Nueva Contraseña"
-                name="nuevaPassword"
-                type="password"
-                value={formData.nuevaPassword}
-                onChange={handleChange}
-                required
-                margin="normal"
-                helperText="Mínimo 6 caracteres"
-              />
-
-              <TextField
-                fullWidth
-                label="Confirmar Nueva Contraseña"
-                name="confirmarNuevaPassword"
-                type="password"
-                value={formData.confirmarNuevaPassword}
-                onChange={handleChange}
-                required
-                margin="normal"
-                error={formData.confirmarNuevaPassword !== '' && formData.nuevaPassword !== formData.confirmarNuevaPassword}
-                helperText={
-                  formData.confirmarNuevaPassword !== '' && formData.nuevaPassword !== formData.confirmarNuevaPassword
-                    ? 'Las contraseñas no coinciden'
-                    : ''
-                }
               />
 
               <Button
@@ -134,7 +86,7 @@ const RecuperarPassword = () => {
                 disabled={loading}
                 sx={{ mt: 3, mb: 2, py: 1.2 }}
               >
-                {loading ? <CircularProgress size={24} color="inherit" /> : 'Solicitar Cambio de Contraseña'}
+                {loading ? <CircularProgress size={24} color="inherit" /> : 'Enviar Enlace de Recuperación'}
               </Button>
             </Box>
           )}

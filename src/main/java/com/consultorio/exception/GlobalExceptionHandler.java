@@ -14,6 +14,7 @@ import org.springframework.security.authentication.LockedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -241,5 +242,19 @@ public class GlobalExceptionHandler {
                 .build();
 
         return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body(errorDTO);
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiErrorDTO> handleMaxUploadSizeExceeded(MaxUploadSizeExceededException ex) {
+        log.warn("Archivo rechazado por superar el tamaño máximo permitido.");
+
+        ApiErrorDTO errorDTO = ApiErrorDTO.builder()
+                .timestamp(LocalDateTime.now())
+                .status(HttpStatus.PAYLOAD_TOO_LARGE.value())
+                .error("Archivo demasiado grande")
+                .mensaje("La imagen supera el tamaño máximo permitido de 5 MB.")
+                .build();
+
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(errorDTO);
     }
 }

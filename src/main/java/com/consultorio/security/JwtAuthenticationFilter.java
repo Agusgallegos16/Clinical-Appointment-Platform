@@ -48,7 +48,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 UserDetails userDetails = userDetailsService.loadUserByUsername(email);
 
                 if (!userDetails.isAccountNonLocked()) {
-                    log.warn("⛔ Intento de acceso con token válido pero cuenta bloqueada: {}", email);
+                    log.warn("Intento de acceso con token válido pero cuenta bloqueada.");
                     response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                     response.setContentType("application/json;charset=UTF-8");
                     response.getWriter().write("{\"status\":403,\"error\":\"Prohibido\",\"mensaje\":\"La cuenta de usuario se encuentra temporalmente bloqueada.\"}");
@@ -56,11 +56,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 }
 
                 if (!userDetails.isEnabled()) {
-                    log.warn("⛔ Intento de acceso con token válido pero cuenta inactiva o deshabilitada: {}", email);
+                    log.warn("Intento de acceso con token válido pero cuenta inactiva o deshabilitada.");
                     response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                     response.setContentType("application/json;charset=UTF-8");
                     response.getWriter().write("{\"status\":403,\"error\":\"Prohibido\",\"mensaje\":\"La cuenta de usuario está desactivada o inhabilitada.\"}");
                     return;
+                }
+
+                if (userDetails instanceof UserDetailsImpl details) {
+                    Integer tokenVersion = jwtUtils.obtenerTokenVersionDelToken(jwt);
+                    if (tokenVersion == null || tokenVersion != details.getTokenVersion()) {
+                        log.warn("Token JWT revocado por cambio de versión de sesión (usuario ID {}).", details.getId());
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        response.setContentType("application/json;charset=UTF-8");
+                        response.getWriter().write("{\"status\":401,\"error\":\"No autorizado\",\"mensaje\":\"La sesión fue revocada. Por favor inicie sesión nuevamente.\"}");
+                        return;
+                    }
                 }
 
                 UsernamePasswordAuthenticationToken authentication =
@@ -71,7 +82,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
-                log.info("🔓 Usuario autenticado correctamente con JWT: {} ({})", email, request.getRequestURI());
+                log.debug("Request autenticado con JWT hacia {}", request.getRequestURI());
             }
         } catch (org.springframework.security.core.userdetails.UsernameNotFoundException e) {
             log.warn("El token JWT presente en la petición pertenece a un usuario inexistente: {}", e.getMessage());

@@ -27,11 +27,11 @@ import {
 import { pacienteService } from '../api/pacienteService';
 import { doctorService } from '../api/doctorService';
 import { especialidadService } from '../api/especialidadService';
-import { uploadDoctorAvatar } from '../api/storageService';
+import { uploadDoctorAvatar, isAllowedRasterImage } from '../api/storageService';
 import { useAuth } from '../context/AuthContext';
 
 const EditarPerfilModal = ({ open, onClose }) => {
-  const { role, updateUser, user: authUser } = useAuth();
+  const { role, updateUser, logout, user: authUser } = useAuth();
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -43,6 +43,8 @@ const EditarPerfilModal = ({ open, onClose }) => {
   const [nombre, setNombre] = useState('');
   const [apellido, setApellido] = useState('');
   const [email, setEmail] = useState('');
+  const [originalEmail, setOriginalEmail] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
   const [telefono, setTelefono] = useState('');
 
   // Doctor Specific Fields
@@ -62,28 +64,34 @@ const EditarPerfilModal = ({ open, onClose }) => {
   const resetForm = () => {
     setError('');
     setSuccessMsg('');
+    setCurrentPassword('');
   };
 
   const cargarPerfil = async () => {
     setLoading(true);
     setError('');
+    setCurrentPassword('');
     try {
       if (role === 'PACIENTE' || role === 'SECRETARIA') {
         const data = await pacienteService.obtenerMiPerfil();
+        const loadedEmail = data.usuario?.email || authUser?.email || '';
         setNombre(data.nombre || '');
         setApellido(data.apellido || '');
         setTelefono(data.telefono || '');
-        setEmail(data.usuario?.email || authUser?.email || '');
+        setEmail(loadedEmail);
+        setOriginalEmail(loadedEmail);
       } else if (role === 'DOCTOR') {
         const [data, espList] = await Promise.all([
           doctorService.obtenerMiPerfil(),
           especialidadService.listarTodas(),
         ]);
+        const loadedEmail = data.usuario?.email || authUser?.email || '';
         setDoctorId(data.id);
         setNombre(data.nombre || '');
         setApellido(data.apellido || '');
         setFotoUrl(data.fotoUrl || '');
-        setEmail(data.usuario?.email || authUser?.email || '');
+        setEmail(loadedEmail);
+        setOriginalEmail(loadedEmail);
         setTodasEspecialidades(espList || []);
 
         const espIds = data.especialidades ? data.especialidades.map((e) => e.id) : [];
@@ -101,10 +109,27 @@ const EditarPerfilModal = ({ open, onClose }) => {
     const file = e.target.files[0];
     if (!file) return;
 
+    if (!isAllowedRasterImage(file)) {
+      setError('Formato no permitido. Solo se aceptan imágenes JPG, PNG o WEBP.');
+      e.target.value = '';
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError('La imagen seleccionada supera el tamaño máximo permitido de 5 MB.');
+      e.target.value = '';
+      return;
+    }
+
     setUploadingFoto(true);
     setError('');
+    setSuccessMsg('');
     try {
       const publicUrl = await uploadDoctorAvatar(file, doctorId || 'profile-edit');
+      if (!publicUrl) {
+        setError('No se pudo subir la foto de perfil. Verificá que sea una imagen JPG, PNG o WEBP válida.');
+        return;
+      }
       setFotoUrl(publicUrl);
       setSuccessMsg('Foto de perfil subida correctamente.');
     } catch (err) {
@@ -112,13 +137,21 @@ const EditarPerfilModal = ({ open, onClose }) => {
       setError('No se pudo subir la foto de perfil.');
     } finally {
       setUploadingFoto(false);
+      e.target.value = '';
     }
   };
+
+  const emailChanged = email.trim().toLowerCase() !== originalEmail.trim().toLowerCase();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
     setSuccessMsg('');
+
+    if (emailChanged && !currentPassword) {
+      setError('Ingresá tu contraseña actual para confirmar el cambio de correo electrónico.');
+      return;
+    }
 
     setSaving(true);
     try {
@@ -128,10 +161,18 @@ const EditarPerfilModal = ({ open, onClose }) => {
           apellido,
           telefono,
           email,
+          ...(emailChanged ? { currentPassword } : {}),
         };
         const updated = await pacienteService.actualizarMiPerfil(payload);
+        if (emailChanged) {
+          setSuccessMsg('¡Correo actualizado con éxito! Por seguridad, iniciá sesión nuevamente.');
+          setTimeout(() => {
+            logout();
+            onClose();
+          }, 1500);
+          return;
+        }
         setSuccessMsg('¡Perfil actualizado con éxito!');
-        
         if (updated.usuario?.email) {
           updateUser({ email: updated.usuario.email });
         }
@@ -142,10 +183,18 @@ const EditarPerfilModal = ({ open, onClose }) => {
           email,
           fotoUrl,
           especialidadIds: especialidadesSeleccionadas,
+          ...(emailChanged ? { currentPassword } : {}),
         };
         const updated = await doctorService.actualizarMiPerfil(payload);
+        if (emailChanged) {
+          setSuccessMsg('¡Correo actualizado con éxito! Por seguridad, iniciá sesión nuevamente.');
+          setTimeout(() => {
+            logout();
+            onClose();
+          }, 1500);
+          return;
+        }
         setSuccessMsg('¡Perfil médico actualizado con éxito!');
-
         if (updated.usuario?.email) {
           updateUser({ email: updated.usuario.email });
         }
@@ -156,7 +205,7 @@ const EditarPerfilModal = ({ open, onClose }) => {
       }, 1400);
     } catch (err) {
       console.error('Error al actualizar perfil:', err);
-      setError(err.response?.data?.message || 'Error al guardar los cambios del perfil.');
+      setError(err.response?.data?.mensaje || err.response?.data?.message || 'Error al guardar los cambios del perfil.');
     } finally {
       setSaving(false);
     }
@@ -203,7 +252,7 @@ const EditarPerfilModal = ({ open, onClose }) => {
                         '&:hover': { bgcolor: '#f0f9ff' },
                       }}
                     >
-                      <input hidden accept="image/*" type="file" onChange={handleSubirFoto} />
+                      <input hidden accept="image/jpeg,image/png,image/webp" type="file" onChange={handleSubirFoto} />
                       {uploadingFoto ? <CircularProgress size={20} /> : <PhotoCameraIcon fontSize="small" />}
                     </IconButton>
                   </Box>
@@ -241,8 +290,20 @@ const EditarPerfilModal = ({ open, onClose }) => {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                helperText="Si cambias tu correo, este será tu nuevo usuario de acceso"
+                helperText="Si cambias tu correo, deberás confirmar tu contraseña actual e iniciar sesión nuevamente"
               />
+
+              {emailChanged && (
+                <TextField
+                  fullWidth
+                  label="Contraseña Actual"
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  required
+                  helperText="Requerida para autorizar el cambio de correo electrónico"
+                />
+              )}
 
               {/* Teléfono (Para Pacientes y Secretaría) */}
               {(role === 'PACIENTE' || role === 'SECRETARIA') && (

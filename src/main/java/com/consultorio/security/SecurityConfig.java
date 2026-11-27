@@ -3,9 +3,11 @@ package com.consultorio.security;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
+import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -13,10 +15,11 @@ import org.springframework.security.config.annotation.web.configuration.EnableWe
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
+import org.springframework.security.web.header.writers.StaticHeadersWriter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -26,6 +29,7 @@ import com.consultorio.security.oauth2.HttpCookieOAuth2AuthorizationRequestRepos
 import com.consultorio.security.oauth2.OAuth2AuthenticationFailureHandler;
 import com.consultorio.security.oauth2.OAuth2AuthenticationSuccessHandler;
 
+import java.util.Arrays;
 import java.util.List;
 
 @Configuration
@@ -42,6 +46,7 @@ public class SecurityConfig {
     private final OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler;
     private final HttpCookieOAuth2AuthorizationRequestRepository httpCookieOAuth2AuthorizationRequestRepository;
     private final PasswordEncoder passwordEncoder;
+    private final Environment environment;
 
     @Autowired
     public SecurityConfig(UserDetailsServiceImpl userDetailsService,
@@ -52,7 +57,8 @@ public class SecurityConfig {
                           OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler,
                           OAuth2AuthenticationFailureHandler oAuth2AuthenticationFailureHandler,
                           HttpCookieOAuth2AuthorizationRequestRepository httpCookieOAuth2AuthorizationRequestRepository,
-                          PasswordEncoder passwordEncoder) {
+                          PasswordEncoder passwordEncoder,
+                          Environment environment) {
         this.userDetailsService = userDetailsService;
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
         this.rateLimitingFilter = rateLimitingFilter;
@@ -62,6 +68,7 @@ public class SecurityConfig {
         this.oAuth2AuthenticationFailureHandler = oAuth2AuthenticationFailureHandler;
         this.httpCookieOAuth2AuthorizationRequestRepository = httpCookieOAuth2AuthorizationRequestRepository;
         this.passwordEncoder = passwordEncoder;
+        this.environment = environment;
     }
 
     @Bean
@@ -96,28 +103,49 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        boolean isProd = Arrays.stream(environment.getActiveProfiles())
+                .anyMatch(p -> "prod".equalsIgnoreCase(p) || "production".equalsIgnoreCase(p));
+
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .csrf(AbstractHttpConfigurer::disable)
-            .headers(headers -> headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin))
+            .headers(headers -> {
+                if (isProd) {
+                    headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::deny);
+                    headers.contentSecurityPolicy(csp -> csp.policyDirectives("default-src 'none'; frame-ancestors 'none'"));
+                } else {
+                    headers.frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin);
+                    headers.contentSecurityPolicy(csp -> csp.policyDirectives("default-src 'self'; frame-ancestors 'self'"));
+                }
+                headers.contentTypeOptions(Customizer.withDefaults());
+                headers.httpStrictTransportSecurity(hsts -> hsts.includeSubDomains(true).maxAgeInSeconds(31536000));
+                headers.referrerPolicy(referrer -> referrer.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN));
+                headers.addHeaderWriter(new StaticHeadersWriter("Permissions-Policy", "camera=(), microphone=(), geolocation=()"));
+            })
             .exceptionHandling(exception -> exception.authenticationEntryPoint(jwtAuthenticationEntryPoint))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-            .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/api/public/**").permitAll()
-                .requestMatchers("/actuator/health", "/actuator/info").permitAll()
-                .requestMatchers("/api/auth/**").permitAll()
-                .requestMatchers("/oauth2/**", "/login/oauth2/code/**").permitAll()
-                .requestMatchers("/error").permitAll()
-                .requestMatchers("/api/google-calendar/callback").permitAll()
-                .requestMatchers("/h2-console/**").permitAll()
-                .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/especialidades/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/doctores").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/doctores/*").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/doctores/*/disponibilidad").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/doctores/*/disponibilidad/proximo").permitAll()
-                .anyRequest().authenticated()
-            )
+            .authorizeHttpRequests(auth -> {
+                auth.requestMatchers("/api/public/**").permitAll()
+                    .requestMatchers("/actuator/health", "/actuator/info").permitAll()
+                    .requestMatchers("/api/auth/**").permitAll()
+                    .requestMatchers("/oauth2/**", "/login/oauth2/code/**").permitAll()
+                    .requestMatchers("/error").permitAll()
+                    .requestMatchers("/api/google-calendar/callback").permitAll();
+
+                if (isProd) {
+                    auth.requestMatchers("/h2-console/**", "/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").denyAll();
+                } else {
+                    auth.requestMatchers("/h2-console/**").permitAll()
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll();
+                }
+
+                auth.requestMatchers(HttpMethod.GET, "/api/especialidades/**").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/doctores").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/doctores/*").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/doctores/*/disponibilidad").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/doctores/*/disponibilidad/proximo").permitAll()
+                    .anyRequest().authenticated();
+            })
             .oauth2Login(oauth2 -> oauth2
                 .authorizationEndpoint(authorization -> authorization
                     .baseUri("/oauth2/authorization")

@@ -6,7 +6,9 @@ import com.consultorio.dto.CrearPlantillaDTO;
 import com.consultorio.dto.DetallePlantillaDTO;
 import com.consultorio.dto.HorarioAtencionDTO;
 import com.consultorio.repository.PlantillaAgendaRepository;
+import com.consultorio.security.SecurityUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,19 +22,23 @@ public class PlantillaAgendaService {
     private final PlantillaAgendaRepository plantillaAgendaRepository;
     private final DoctorService doctorService;
     private final EspecialidadService especialidadService;
+    private final SecurityUtils securityUtils;
 
     @Autowired
     public PlantillaAgendaService(PlantillaAgendaRepository plantillaAgendaRepository,
                                   DoctorService doctorService,
-                                  EspecialidadService especialidadService) {
+                                  EspecialidadService especialidadService,
+                                  SecurityUtils securityUtils) {
         this.plantillaAgendaRepository = plantillaAgendaRepository;
         this.doctorService = doctorService;
         this.especialidadService = especialidadService;
+        this.securityUtils = securityUtils;
     }
 
     @Transactional
     public PlantillaAgenda crearPlantilla(UUID doctorId, CrearPlantillaDTO dto) {
         Doctor doctor = doctorService.obtenerPorId(doctorId);
+        securityUtils.verificarAccesoDoctor(doctor, false);
 
         PlantillaAgenda plantilla = PlantillaAgenda.builder()
                 .doctor(doctor)
@@ -64,6 +70,7 @@ public class PlantillaAgendaService {
     public PlantillaAgenda actualizarPlantilla(Long plantillaId, CrearPlantillaDTO dto) {
         PlantillaAgenda plantilla = plantillaAgendaRepository.findById(plantillaId)
                 .orElseThrow(() -> new IllegalArgumentException("Plantilla no encontrada con ID: " + plantillaId));
+        securityUtils.verificarAccesoDoctor(plantilla.getDoctor(), false);
 
         plantilla.setNombre(dto.getNombre());
         plantilla.setDescripcion(dto.getDescripcion());
@@ -89,15 +96,21 @@ public class PlantillaAgendaService {
 
     @Transactional(readOnly = true)
     public List<PlantillaAgenda> listarPlantillasDoctor(UUID doctorId) {
+        Doctor doctor = doctorService.buscarPorId(doctorId).orElse(null);
+        securityUtils.verificarAccesoDoctor(doctor, false);
         return plantillaAgendaRepository.findByDoctorId(doctorId);
     }
 
     @Transactional
     public List<HorarioAtencion> aplicarPlantilla(UUID doctorId, AplicarPlantillaDTO dto) {
         Doctor doctor = doctorService.obtenerPorId(doctorId);
+        securityUtils.verificarAccesoDoctor(doctor, false);
 
         PlantillaAgenda plantilla = plantillaAgendaRepository.findById(dto.getPlantillaId())
                 .orElseThrow(() -> new IllegalArgumentException("Plantilla no encontrada con ID: " + dto.getPlantillaId()));
+        if (plantilla.getDoctor() == null || !plantilla.getDoctor().getId().equals(doctor.getId())) {
+            throw new AccessDeniedException("Access denied: template does not belong to the target doctor.");
+        }
 
         if (dto.getDiaSemana() == null && dto.getFecha() == null) {
             throw new IllegalArgumentException("Debe indicar un día de la semana o una fecha puntual para aplicar la plantilla.");
@@ -132,6 +145,10 @@ public class PlantillaAgendaService {
 
     @Transactional
     public void eliminarPlantilla(Long plantillaId) {
-        plantillaAgendaRepository.deleteById(plantillaId);
+        PlantillaAgenda plantilla = plantillaAgendaRepository.findById(plantillaId).orElse(null);
+        securityUtils.verificarAccesoDoctor(plantilla != null ? plantilla.getDoctor() : null, false);
+        if (plantilla != null) {
+            plantillaAgendaRepository.delete(plantilla);
+        }
     }
 }

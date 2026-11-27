@@ -25,6 +25,8 @@ public class ActualizarPerfilDoctorDTO {
 
     private String password;
 
+    private String currentPassword;
+
     private String fotoUrl;
 
     private List<Long> especialidadIds;

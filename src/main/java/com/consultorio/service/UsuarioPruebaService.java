@@ -13,10 +13,14 @@ import com.consultorio.repository.UsuarioRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -30,6 +34,8 @@ public class UsuarioPruebaService {
   private final PacienteRepository pacienteRepository;
   private final EspecialidadRepository especialidadRepository;
   private final PasswordEncoder passwordEncoder;
+  private final Environment environment;
+  private final boolean seedTestUsers;
 
   @Autowired
   public UsuarioPruebaService(
@@ -37,16 +43,27 @@ public class UsuarioPruebaService {
       DoctorRepository doctorRepository,
       PacienteRepository pacienteRepository,
       EspecialidadRepository especialidadRepository,
-      PasswordEncoder passwordEncoder) {
+      PasswordEncoder passwordEncoder,
+      Environment environment,
+      @Value("${app.dev.seed-test-users:false}") boolean seedTestUsers) {
     this.usuarioRepository = usuarioRepository;
     this.doctorRepository = doctorRepository;
     this.pacienteRepository = pacienteRepository;
     this.especialidadRepository = especialidadRepository;
     this.passwordEncoder = passwordEncoder;
+    this.environment = environment;
+    this.seedTestUsers = seedTestUsers;
   }
 
   @Transactional
   public int poblarUsuariosDePrueba() {
+    boolean esProduccion = Arrays.stream(environment.getActiveProfiles())
+        .anyMatch(p -> p.equalsIgnoreCase("prod") || p.equalsIgnoreCase("production"));
+    boolean esLocalODev = Arrays.stream(environment.getActiveProfiles())
+        .anyMatch(p -> p.equalsIgnoreCase("local") || p.equalsIgnoreCase("dev"));
+    if (esProduccion || (!esLocalODev && !seedTestUsers)) {
+      throw new AccessDeniedException("La generación de usuarios de prueba está deshabilitada en este entorno.");
+    }
     String defaultPassword = passwordEncoder.encode("Password123!");
 
     // Inicializar catálogo de especialidades médicas básicas si no existen

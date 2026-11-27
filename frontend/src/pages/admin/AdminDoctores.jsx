@@ -31,7 +31,7 @@ import {
 } from '@mui/icons-material';
 import { doctorService } from '../../api/doctorService';
 import { especialidadService } from '../../api/especialidadService';
-import { uploadDoctorAvatar } from '../../api/storageService';
+import { uploadDoctorAvatar, isAllowedRasterImage } from '../../api/storageService';
 
 const AdminDoctores = () => {
   const [doctores, setDoctores] = useState([]);
@@ -314,13 +314,19 @@ const AdminDoctores = () => {
               Subir Foto
               <input
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 hidden
                 onChange={(e) => {
                   const file = e.target.files[0];
                   if (!file) return;
-                  if (file.size > 8 * 1024 * 1024) {
-                    setError('La imagen seleccionada supera el tamaño máximo permitido de 8MB.');
+                  if (!isAllowedRasterImage(file)) {
+                    setError('Formato no permitido. Solo se aceptan imágenes JPG, PNG o WEBP.');
+                    e.target.value = '';
+                    return;
+                  }
+                  if (file.size > 5 * 1024 * 1024) {
+                    setError('La imagen seleccionada supera el tamaño máximo permitido de 5 MB.');
+                    e.target.value = '';
                     return;
                   }
                   setEditSelectedFile(file);

@@ -2,6 +2,7 @@ package com.consultorio.service;
 
 import com.consultorio.domain.Rol;
 import com.consultorio.domain.Usuario;
+import com.consultorio.dto.ConfirmarRestablecerPasswordDTO;
 import com.consultorio.dto.EstablecerPasswordDoctorDTO;
 import com.consultorio.dto.SolicitudRestablecerPasswordDTO;
 import com.consultorio.dto.UsuarioAdminDTO;
@@ -17,7 +18,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.Base64;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -25,21 +28,25 @@ import java.util.UUID;
 public class UsuarioService {
 
     private final static Logger log = LoggerFactory.getLogger(UsuarioService.class);
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
 
     private final UsuarioRepository usuarioRepository;
     private final EmailService emailService;
     private final PasswordEncoder passwordEncoder;
     private final ApplicationEventPublisher eventPublisher;
+    private final AuditLogService auditLogService;
 
     @Autowired
     public UsuarioService(UsuarioRepository usuarioRepository,
                           EmailService emailService,
                           PasswordEncoder passwordEncoder,
-                          ApplicationEventPublisher eventPublisher) {
+                          ApplicationEventPublisher eventPublisher,
+                          AuditLogService auditLogService) {
         this.usuarioRepository = usuarioRepository;
         this.emailService = emailService;
         this.passwordEncoder = passwordEncoder;
         this.eventPublisher = eventPublisher;
+        this.auditLogService = auditLogService;
     }
 
     public Optional<Usuario> obtenerPorEmail(String email) {
@@ -87,21 +94,51 @@ public class UsuarioService {
     }
 
     @Transactional
-    public void actualizarCredenciales(Long usuarioId, String nuevoEmail, String nuevaPasswordRaw) {
+    public void actualizarCredenciales(Long usuarioId, String nuevoEmail, String nuevaPasswordRaw, String currentPassword) {
         Usuario usuario = obtenerPorId(usuarioId);
-        if (nuevoEmail != null && !nuevoEmail.isBlank() && !usuario.getEmail().equalsIgnoreCase(nuevoEmail.trim())) {
+        boolean emailCambia = nuevoEmail != null && !nuevoEmail.isBlank()
+                && !usuario.getEmail().equalsIgnoreCase(nuevoEmail.trim());
+        boolean passwordCambia = nuevaPasswordRaw != null && !nuevaPasswordRaw.trim().isEmpty();
+
+        if (!emailCambia && !passwordCambia) {
+            return;
+        }
+
+        if (currentPassword == null || currentPassword.isBlank()
+                || !passwordEncoder.matches(currentPassword, usuario.getPassword())) {
+            throw new IllegalArgumentException(
+                    "Debe ingresar su contraseña actual válida para modificar el correo electrónico o la contraseña.");
+        }
+
+        if (emailCambia) {
             if (usuarioRepository.existsByEmail(nuevoEmail.trim())) {
-                throw new IllegalArgumentException("Ya existe una cuenta registrada con el email: " + nuevoEmail);
+                throw new IllegalArgumentException("Ya existe una cuenta registrada con el email ingresado.");
             }
             usuario.setEmail(nuevoEmail.trim());
         }
-        if (nuevaPasswordRaw != null && !nuevaPasswordRaw.trim().isEmpty()) {
-            if (nuevaPasswordRaw.trim().length() < 6) {
-                throw new IllegalArgumentException("La nueva contraseña debe tener al menos 6 caracteres.");
+        if (passwordCambia) {
+            if (nuevaPasswordRaw.trim().length() < 12) {
+                throw new IllegalArgumentException("La nueva contraseña debe tener al menos 12 caracteres.");
             }
             usuario.setPassword(passwordEncoder.encode(nuevaPasswordRaw.trim()));
         }
+        usuario.incrementTokenVersion();
         usuarioRepository.save(usuario);
+        if (auditLogService != null) {
+            auditLogService.record("CREDENTIALS_UPDATED", "SUCCESS", usuario.getId(), usuario.getRol().name(),
+                    "USUARIO", String.valueOf(usuario.getId()), "User credentials updated and session rotated");
+        }
+    }
+
+    @Transactional
+    public void revocarSesionesUsuario(String email) {
+        if (email == null || email.isBlank()) {
+            return;
+        }
+        usuarioRepository.findByEmailIgnoreCase(email.trim()).ifPresent(usuario -> {
+            usuario.incrementTokenVersion();
+            usuarioRepository.save(usuario);
+        });
     }
 
     public Usuario obtenerPorId(Long id) {
@@ -111,55 +148,79 @@ public class UsuarioService {
 
     @Transactional
     public void solicitarRestablecimientoPassword(SolicitudRestablecerPasswordDTO dto) {
-        if (dto.getConfirmarNuevaPassword() != null && !dto.getNuevaPassword().equals(dto.getConfirmarNuevaPassword())) {
-            throw new IllegalArgumentException("Las contraseñas no coinciden. Por favor verifíquelas.");
+        if (dto == null || dto.getEmail() == null || dto.getEmail().isBlank()) {
+            throw new IllegalArgumentException("El email es obligatorio.");
         }
 
-        Optional<Usuario> usuarioOpt = usuarioRepository.findByEmail(dto.getEmail());
+        Optional<Usuario> usuarioOpt = usuarioRepository.findByEmailIgnoreCase(dto.getEmail().trim());
         if (usuarioOpt.isEmpty()) {
-            throw new IllegalArgumentException("No existe ninguna cuenta registrada con el correo electrónico ingresado.");
+            // Silent return to prevent account enumeration
+            return;
         }
 
         Usuario usuario = usuarioOpt.get();
-        String token = UUID.randomUUID().toString();
+        String token = generarTokenSeguro();
 
-        usuario.setNuevaPasswordPendiente(passwordEncoder.encode(dto.getNuevaPassword()));
+        usuario.setNuevaPasswordPendiente(null);
         usuario.setTokenRestablecimientoPassword(token);
         usuario.setTokenRestablecimientoExpiracion(LocalDateTime.now().plusHours(1));
 
         usuarioRepository.save(usuario);
 
-        // Notificación por email con enlace de confirmación
         emailService.enviarEmailRestablecerPassword(usuario.getEmail(), token);
     }
 
-    @Transactional
-    public boolean confirmarRestablecimientoPassword(String token) {
-        Usuario usuario = usuarioRepository.findByTokenRestablecimientoPassword(token)
+    @Transactional(noRollbackFor = IllegalArgumentException.class)
+    public boolean confirmarRestablecimientoPassword(ConfirmarRestablecerPasswordDTO dto) {
+        if (dto == null || dto.getToken() == null || dto.getToken().isBlank()) {
+            throw new IllegalArgumentException("El token de confirmación es inválido o no existe.");
+        }
+        if (dto.getNuevaPassword() == null || dto.getNuevaPassword().length() < 12) {
+            throw new IllegalArgumentException("La nueva contraseña debe tener al menos 12 caracteres.");
+        }
+        if (!dto.getNuevaPassword().equals(dto.getConfirmarNuevaPassword())) {
+            throw new IllegalArgumentException("Las contraseñas no coinciden. Por favor verifíquelas.");
+        }
+
+        Usuario usuario = usuarioRepository.findByTokenRestablecimientoPassword(dto.getToken().trim())
                 .orElseThrow(() -> new IllegalArgumentException("El token de confirmación es inválido o no existe."));
 
-        if (usuario.getTokenRestablecimientoExpiracion() != null && usuario.getTokenRestablecimientoExpiracion().isBefore(LocalDateTime.now())) {
+        if (usuario.getTokenRestablecimientoExpiracion() == null
+                || usuario.getTokenRestablecimientoExpiracion().isBefore(LocalDateTime.now())) {
+            usuario.setTokenRestablecimientoPassword(null);
+            usuario.setTokenRestablecimientoExpiracion(null);
+            usuario.setNuevaPasswordPendiente(null);
+            usuarioRepository.save(usuario);
             throw new IllegalArgumentException("El token de confirmación ha expirado. Por favor solicite nuevamente el cambio de contraseña.");
         }
 
-        if (usuario.getNuevaPasswordPendiente() == null) {
-            throw new IllegalStateException("No hay ninguna contraseña nueva pendiente de activación.");
-        }
-
-        // Actualizar la contraseña real en la base de datos recién tras la confirmación vía mail
-        usuario.setPassword(usuario.getNuevaPasswordPendiente());
+        usuario.setPassword(passwordEncoder.encode(dto.getNuevaPassword()));
         usuario.setNuevaPasswordPendiente(null);
         usuario.setTokenRestablecimientoPassword(null);
         usuario.setTokenRestablecimientoExpiracion(null);
+        usuario.incrementTokenVersion();
 
         usuarioRepository.save(usuario);
-        log.info("✅ Contraseña actualizada con éxito para el usuario: {}", usuario.getEmail());
+        if (auditLogService != null) {
+            auditLogService.record("PASSWORD_RESET_COMPLETED", "SUCCESS", usuario.getId(), usuario.getRol().name(),
+                    "USUARIO", String.valueOf(usuario.getId()), "Password reset confirmed via two-step POST");
+        }
+        log.info("Contraseña actualizada con éxito para el usuario ID {}", usuario.getId());
 
         return true;
     }
 
+    private String generarTokenSeguro() {
+        byte[] bytes = new byte[32];
+        SECURE_RANDOM.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
     @Transactional
     public boolean establecerPasswordDoctor(EstablecerPasswordDoctorDTO dto) {
+        if (dto.getPassword() == null || dto.getPassword().length() < 12) {
+            throw new IllegalArgumentException("La contraseña debe tener al menos 12 caracteres.");
+        }
         if (dto.getConfirmarPassword() != null && !dto.getPassword().equals(dto.getConfirmarPassword())) {
             throw new IllegalArgumentException("Las contraseñas no coinciden. Por favor verifíquelas.");
         }
@@ -180,9 +241,10 @@ public class UsuarioService {
         usuario.setEmailVerificado(true);
         usuario.setTokenVerificacionEmail(null);
         usuario.setTokenVerificacionExpiracion(null);
+        usuario.incrementTokenVersion();
         usuarioRepository.save(usuario);
 
-        log.info("✅ Cuenta de médico activada con éxito para: {}", usuario.getEmail());
+        log.info("Cuenta de médico activada con éxito para usuario ID {}.", usuario.getId());
         return true;
     }
 
@@ -240,9 +302,16 @@ public class UsuarioService {
         }
 
         usuario.setBloqueado(bloquear);
+        if (bloquear) {
+            usuario.incrementTokenVersion();
+        }
         Usuario actualizado = usuarioRepository.save(usuario);
+        if (auditLogService != null) {
+            auditLogService.record("USER_LOCK_CHANGED", "SUCCESS", null, "ADMIN",
+                    "USUARIO", String.valueOf(actualizado.getId()), "Account lock changed to " + bloquear);
+        }
 
-        log.info("🛡️ Estado de bloqueo de usuario {} cambiado a: {}", usuario.getEmail(), bloquear);
+        log.info("Estado de bloqueo de usuario ID {} cambiado a: {}", usuario.getId(), bloquear);
 
         return UsuarioAdminDTO.builder()
                 .id(actualizado.getId())
@@ -265,6 +334,10 @@ public class UsuarioService {
 
         usuarioRepository.delete(usuario);
         eventPublisher.publishEvent(new UsuarioEliminadoEvent(usuarioId));
-        log.info("🗑️ Usuario {} eliminado del sistema por el admin {}", usuario.getEmail(), emailAdminActual);
+        if (auditLogService != null) {
+            auditLogService.record("USER_DELETED", "SUCCESS", null, "ADMIN",
+                    "USUARIO", String.valueOf(usuarioId), "Account deleted by administrator");
+        }
+        log.info("Usuario ID {} eliminado del sistema por administrador.", usuarioId);
     }
 }

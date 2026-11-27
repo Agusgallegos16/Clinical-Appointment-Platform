@@ -1,5 +1,6 @@
 package com.consultorio.email;
 
+import com.consultorio.util.LogSanitizer;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,7 +66,7 @@ public class BrevoEmailSender implements EmailSender {
         try {
             ResponseEntity<String> response = restTemplate.postForEntity(BREVO_API_URL, entity, String.class);
             if (response.getStatusCode().is2xxSuccessful()) {
-                log.info("✅ Correo HTML enviado exitosamente vía API REST de Brevo a: {}", to);
+                log.info("Correo HTML enviado exitosamente vía API REST de Brevo a: {}", LogSanitizer.maskEmail(to));
             } else {
                 throw new EmailProviderException("Brevo", "Respuesta no exitosa de Brevo", true, response.getStatusCode().value());
             }

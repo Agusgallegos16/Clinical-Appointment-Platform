@@ -54,7 +54,7 @@ class OAuth2ProvisioningServiceTest {
             return u;
         });
 
-        Usuario resultado = oAuth2ProvisioningService.procesarUsuarioOAuth2(email, googleId, name, givenName, familyName);
+        Usuario resultado = oAuth2ProvisioningService.procesarUsuarioOAuth2(email, googleId, name, givenName, familyName, true);
 
         assertNotNull(resultado);
         assertEquals(email, resultado.getEmail());
@@ -96,7 +96,7 @@ class OAuth2ProvisioningServiceTest {
         when(usuarioRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(usuarioExistente));
         when(usuarioRepository.save(any(Usuario.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        Usuario resultado = oAuth2ProvisioningService.procesarUsuarioOAuth2(email, googleId, "Maria Doctora", "Maria", "Doctora");
+        Usuario resultado = oAuth2ProvisioningService.procesarUsuarioOAuth2(email, googleId, "Maria Doctora", "Maria", "Doctora", true);
 
         assertEquals(50L, resultado.getId());
         assertEquals(googleId, resultado.getGoogleId());
@@ -121,9 +121,20 @@ class OAuth2ProvisioningServiceTest {
         when(usuarioRepository.findByEmailIgnoreCase(email)).thenReturn(Optional.of(usuarioBloqueado));
 
         IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
-                oAuth2ProvisioningService.procesarUsuarioOAuth2(email, "google_999", "Bloqueado", "Test", "User"));
+                oAuth2ProvisioningService.procesarUsuarioOAuth2(email, "google_999", "Bloqueado", "Test", "User", true));
 
         assertEquals("USER_BLOCKED", ex.getMessage());
+        verify(usuarioRepository, never()).save(any(Usuario.class));
+    }
+
+    @Test
+    @DisplayName("Email no verificado por Google OAuth2: Debe lanzar EMAIL_NOT_VERIFIED sin vincular ni crear usuario")
+    void testProcesarUsuarioOAuth2_EmailNoVerificado_Rechaza() {
+        IllegalStateException ex = assertThrows(IllegalStateException.class, () ->
+                oAuth2ProvisioningService.procesarUsuarioOAuth2("unverified@gmail.com", "google_unv", "No", "Ver", "User", false));
+
+        assertEquals("EMAIL_NOT_VERIFIED", ex.getMessage());
+        verify(usuarioRepository, never()).findByEmailIgnoreCase(anyString());
         verify(usuarioRepository, never()).save(any(Usuario.class));
     }
 }

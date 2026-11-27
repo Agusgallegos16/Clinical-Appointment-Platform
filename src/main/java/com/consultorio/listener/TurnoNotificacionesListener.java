@@ -152,7 +152,7 @@ public class TurnoNotificacionesListener {
                             .build();
                     emailService.enviarEmailCancelacionDoctor(event.pacienteEmail(), dto, event.motivo());
                 } catch (Exception e) {
-                    log.error("Error al enviar email de cancelación por médico al paciente {}: {}", event.pacienteEmail(), e.getMessage());
+                    log.error("Error al enviar email de cancelación por médico para turno {}: {}", event.turnoId(), e.getMessage());
                 }
             }
 
@@ -161,7 +161,7 @@ public class TurnoNotificacionesListener {
                 try {
                     emailService.enviarConfirmacionCancelacionDoctor(event.doctorEmail(), event);
                 } catch (Exception e) {
-                    log.error("Error al enviar constancia de cancelación al doctor {}: {}", event.doctorEmail(), e.getMessage());
+                    log.error("Error al enviar constancia de cancelación para turno {}: {}", event.turnoId(), e.getMessage());
                 }
             }
         } else {
@@ -171,7 +171,7 @@ public class TurnoNotificacionesListener {
                 try {
                     emailService.enviarEmailCancelacionPorPaciente(event.doctorEmail(), event);
                 } catch (Exception e) {
-                    log.error("Error al notificar al médico {} sobre cancelación del paciente: {}", event.doctorEmail(), e.getMessage());
+                    log.error("Error al notificar al médico sobre cancelación del turno {}: {}", event.turnoId(), e.getMessage());
                 }
             }
 
@@ -180,7 +180,7 @@ public class TurnoNotificacionesListener {
                 try {
                     emailService.enviarConfirmacionCancelacionPaciente(event.pacienteEmail(), event);
                 } catch (Exception e) {
-                    log.error("Error al enviar confirmación de cancelación al paciente {}: {}", event.pacienteEmail(), e.getMessage());
+                    log.error("Error al enviar confirmación de cancelación para turno {}: {}", event.turnoId(), e.getMessage());
                 }
             }
         }

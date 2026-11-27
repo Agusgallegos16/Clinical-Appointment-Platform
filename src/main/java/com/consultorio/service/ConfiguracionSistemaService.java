@@ -4,6 +4,7 @@ import com.consultorio.domain.ConfiguracionSistema;
 import com.consultorio.dto.ActualizarNotificacionesConfigDTO;
 import com.consultorio.dto.NotificacionesConfigDTO;
 import com.consultorio.repository.ConfiguracionSistemaRepository;
+import com.consultorio.util.LogSanitizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -66,8 +67,8 @@ public class ConfiguracionSistemaService {
         config.setModificadoPor(usuarioEmail != null ? usuarioEmail : "ADMIN");
 
         ConfiguracionSistema guardada = configuracionSistemaRepository.save(config);
-        log.info("⚙️ Configuración global de resúmenes actualizada por {}: diario={}, semanal={}",
-                usuarioEmail, guardada.isResumenDiarioMedicosHabilitado(), guardada.isResumenSemanalMedicosHabilitado());
+        log.info("Configuración global de resúmenes actualizada por {}: diario={}, semanal={}",
+                LogSanitizer.maskEmail(usuarioEmail), guardada.isResumenDiarioMedicosHabilitado(), guardada.isResumenSemanalMedicosHabilitado());
 
         return NotificacionesConfigDTO.builder()
                 .resumenDiarioMedicosHabilitado(guardada.isResumenDiarioMedicosHabilitado())

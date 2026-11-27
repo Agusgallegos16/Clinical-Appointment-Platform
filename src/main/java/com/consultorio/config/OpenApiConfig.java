@@ -23,7 +23,7 @@ public class OpenApiConfig {
                 .info(new Info()
                         .title("API - Sistema de Gestión de Turnos Médicos")
                         .description("Documentación interactiva oficial de la API RESTful para la gestión del Consultorio Médico.\n\n"
-                                + "### 🚀 Funcionalidades Principales:\n"
+                                + "### Funcionalidades Principales:\n"
                                 + "- **Autenticación y Roles**: Seguridad basada en JWT Bearer Token (ADMIN, DOCTOR, PACIENTE).\n"
                                 + "- **Gestión de Pacientes**: Perfil de paciente, historial de turnos y registro/desvinculación de menores a cargo.\n"
                                 + "- **Configuración de Médicos**: Control de visibilidad pública de perfil (`disponibleParaTurnos`) y configuración de doble sistema de advertencias (Bloqueante e Informativa).\n"

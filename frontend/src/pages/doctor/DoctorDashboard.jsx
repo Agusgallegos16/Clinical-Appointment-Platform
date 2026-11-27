@@ -240,7 +240,7 @@ const DoctorDashboard = () => {
       <Box maxWidth="480px" width="100%" textAlign="center">
         <Box mb={4}>
           <Typography variant="h4" fontWeight={700} color="primary" gutterBottom>
-            ¡Hola, Dr/a. {nombreDoctor}! 🩺
+            ¡Hola, Dr/a. {nombreDoctor}!
           </Typography>
           <Typography variant="body1" color="text.secondary">
             ¿Qué te gustaría hacer hoy?

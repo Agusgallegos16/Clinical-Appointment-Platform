@@ -28,7 +28,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
 
     private static final Logger log = LoggerFactory.getLogger(OAuth2AuthenticationSuccessHandler.class);
 
-    private final JwtUtils jwtUtils;
+    private final OAuth2OneTimeCodeService oauth2OneTimeCodeService;
     private final OAuth2ProvisioningService oAuth2ProvisioningService;
     private final HttpCookieOAuth2AuthorizationRequestRepository httpCookieOAuth2AuthorizationRequestRepository;
 
@@ -39,10 +39,10 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
     private List<String> allowedOrigins;
 
     @Autowired
-    public OAuth2AuthenticationSuccessHandler(JwtUtils jwtUtils,
+    public OAuth2AuthenticationSuccessHandler(OAuth2OneTimeCodeService oauth2OneTimeCodeService,
                                               OAuth2ProvisioningService oAuth2ProvisioningService,
                                               HttpCookieOAuth2AuthorizationRequestRepository httpCookieOAuth2AuthorizationRequestRepository) {
-        this.jwtUtils = jwtUtils;
+        this.oauth2OneTimeCodeService = oauth2OneTimeCodeService;
         this.oAuth2ProvisioningService = oAuth2ProvisioningService;
         this.httpCookieOAuth2AuthorizationRequestRepository = httpCookieOAuth2AuthorizationRequestRepository;
     }
@@ -54,7 +54,7 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         String targetUrl = determineTargetUrl(request, response, authentication);
 
         if (response.isCommitted()) {
-            log.debug("Response already committed. Unable to redirect to {}", targetUrl);
+            log.debug("Response already committed. Unable to perform OAuth2 redirect.");
             return;
         }
 
@@ -86,13 +86,17 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         String name = (String) attributes.get("name");
         String givenName = (String) attributes.get("given_name");
         String familyName = (String) attributes.get("family_name");
+        Object emailVerifiedAttr = attributes.get("email_verified");
+        boolean emailVerified = Boolean.TRUE.equals(emailVerifiedAttr)
+                || "true".equalsIgnoreCase(String.valueOf(emailVerifiedAttr));
 
         try {
-            Usuario usuario = oAuth2ProvisioningService.procesarUsuarioOAuth2(email, googleId, name, givenName, familyName);
-            String token = jwtUtils.generarToken(usuario.getEmail(), usuario.getRol().name());
+            Usuario usuario = oAuth2ProvisioningService.procesarUsuarioOAuth2(
+                    email, googleId, name, givenName, familyName, emailVerified);
+            String code = oauth2OneTimeCodeService.issueCode(usuario.getId());
 
             return UriComponentsBuilder.fromUriString(targetUrl)
-                    .queryParam("token", token)
+                    .queryParam("code", code)
                     .build().toUriString();
         } catch (IllegalStateException e) {
             if ("USER_BLOCKED".equals(e.getMessage())) {
@@ -100,11 +104,16 @@ public class OAuth2AuthenticationSuccessHandler extends SimpleUrlAuthenticationS
                         .queryParam("error", "account_blocked")
                         .build().toUriString();
             }
+            if ("EMAIL_NOT_VERIFIED".equals(e.getMessage())) {
+                return UriComponentsBuilder.fromUriString(defaultFrontendUrl + "/login")
+                        .queryParam("error", "email_not_verified")
+                        .build().toUriString();
+            }
             return UriComponentsBuilder.fromUriString(defaultFrontendUrl + "/login")
                     .queryParam("error", "oauth_error")
                     .build().toUriString();
         } catch (Exception e) {
-            log.error("Error al procesar login OAuth2: {}", e.getMessage(), e);
+            log.error("Error al procesar login OAuth2: {}", e.getMessage());
             return UriComponentsBuilder.fromUriString(defaultFrontendUrl + "/login")
                     .queryParam("error", "oauth_error")
                     .build().toUriString();

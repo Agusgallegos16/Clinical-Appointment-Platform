@@ -5,7 +5,7 @@ import com.consultorio.domain.Rol;
 import com.consultorio.domain.Usuario;
 import com.consultorio.repository.UsuarioRepository;
 import com.consultorio.service.UsuarioPruebaService;
-import com.consultorio.service.UsuarioService;
+import com.consultorio.util.LogSanitizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,27 +53,30 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        // Actualizaciones automáticas de DDL para bases de datos preexistentes (PostgreSQL / H2)
-        ejecutarDdlSeguro("ALTER TABLE usuarios DROP CONSTRAINT IF EXISTS usuarios_rol_check", "Eliminar check constraint rol anterior");
-        ejecutarDdlSeguro("ALTER TABLE usuarios ADD CONSTRAINT usuarios_rol_check CHECK (rol IN ('ADMIN', 'DOCTOR', 'PACIENTE', 'SECRETARIA'))", "Check constraint roles");
-        ejecutarDdlSeguro("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS google_id VARCHAR(255)", "Columna google_id en usuarios");
-        ejecutarDdlSeguro("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(50) DEFAULT 'LOCAL'", "Columna auth_provider en usuarios");
-        ejecutarDdlSeguro("UPDATE usuarios SET auth_provider = 'LOCAL' WHERE auth_provider IS NULL", "Poblar auth_provider por defecto en usuarios existentes");
-        ejecutarDdlSeguro("ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS email VARCHAR(100)", "Columna email en pacientes");
-        ejecutarDdlSeguro("ALTER TABLE pacientes ALTER COLUMN dni DROP NOT NULL", "Hacer DNI nullable en pacientes para Google OAuth JIT");
-        ejecutarDdlSeguro("ALTER TABLE turnos ADD COLUMN IF NOT EXISTS google_event_id_secretaria VARCHAR(255)", "Columna google_event_id_secretaria en turnos");
-        ejecutarDdlSeguro("CREATE UNIQUE INDEX IF NOT EXISTS uk_turnos_doctor_fecha_activos ON turnos (doctor_id, fecha_hora) WHERE estado != 'CANCELADO'", "Índice único de turnos activos");
-        ejecutarDdlSeguro("CREATE TABLE IF NOT EXISTS configuracion_sistema (" +
-                "id BIGINT PRIMARY KEY, " +
-                "resumen_diario_medicos_habilitado BOOLEAN NOT NULL DEFAULT TRUE, " +
-                "resumen_semanal_medicos_habilitado BOOLEAN NOT NULL DEFAULT TRUE, " +
-                "fecha_modificacion TIMESTAMP, " +
-                "modificado_por VARCHAR(100))", "Tabla de configuración global del sistema");
-        ejecutarDdlSeguro("INSERT INTO configuracion_sistema (id, resumen_diario_medicos_habilitado, resumen_semanal_medicos_habilitado) " +
-                "SELECT 1, TRUE, TRUE WHERE NOT EXISTS (SELECT 1 FROM configuracion_sistema WHERE id = 1)", "Inicializar fila singleton de configuración");
-        log.info("✅ DDL y migraciones de tablas usuarios, pacientes, turnos y configuración aplicadas correctamente.");
         boolean esProduccion = Arrays.stream(environment.getActiveProfiles())
                 .anyMatch(p -> p.equalsIgnoreCase("prod") || p.equalsIgnoreCase("production"));
+
+        if (!esProduccion) {
+            // Actualizaciones automáticas de DDL solo para desarrollo/tests sin Flyway
+            ejecutarDdlSeguro("ALTER TABLE usuarios DROP CONSTRAINT IF EXISTS usuarios_rol_check", "Eliminar check constraint rol anterior");
+            ejecutarDdlSeguro("ALTER TABLE usuarios ADD CONSTRAINT usuarios_rol_check CHECK (rol IN ('ADMIN', 'DOCTOR', 'PACIENTE', 'SECRETARIA'))", "Check constraint roles");
+            ejecutarDdlSeguro("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS google_id VARCHAR(255)", "Columna google_id en usuarios");
+            ejecutarDdlSeguro("ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS auth_provider VARCHAR(50) DEFAULT 'LOCAL'", "Columna auth_provider en usuarios");
+            ejecutarDdlSeguro("UPDATE usuarios SET auth_provider = 'LOCAL' WHERE auth_provider IS NULL", "Poblar auth_provider por defecto en usuarios existentes");
+            ejecutarDdlSeguro("ALTER TABLE pacientes ADD COLUMN IF NOT EXISTS email VARCHAR(100)", "Columna email en pacientes");
+            ejecutarDdlSeguro("ALTER TABLE pacientes ALTER COLUMN dni DROP NOT NULL", "Hacer DNI nullable en pacientes para Google OAuth JIT");
+            ejecutarDdlSeguro("ALTER TABLE turnos ADD COLUMN IF NOT EXISTS google_event_id_secretaria VARCHAR(255)", "Columna google_event_id_secretaria en turnos");
+            ejecutarDdlSeguro("CREATE UNIQUE INDEX IF NOT EXISTS uk_turnos_doctor_fecha_activos ON turnos (doctor_id, fecha_hora) WHERE estado != 'CANCELADO'", "Índice único de turnos activos");
+            ejecutarDdlSeguro("CREATE TABLE IF NOT EXISTS configuracion_sistema (" +
+                    "id BIGINT PRIMARY KEY, " +
+                    "resumen_diario_medicos_habilitado BOOLEAN NOT NULL DEFAULT TRUE, " +
+                    "resumen_semanal_medicos_habilitado BOOLEAN NOT NULL DEFAULT TRUE, " +
+                    "fecha_modificacion TIMESTAMP, " +
+                    "modificado_por VARCHAR(100))", "Tabla de configuración global del sistema");
+            ejecutarDdlSeguro("INSERT INTO configuracion_sistema (id, resumen_diario_medicos_habilitado, resumen_semanal_medicos_habilitado) " +
+                    "SELECT 1, TRUE, TRUE WHERE NOT EXISTS (SELECT 1 FROM configuracion_sistema WHERE id = 1)", "Inicializar fila singleton de configuración");
+            log.info("DDL y migraciones de desarrollo aplicadas correctamente.");
+        }
 
         if (!usuarioRepository.existsByEmail(adminEmail) && !usuarioRepository.existsByRol(Rol.ADMIN)) {
             String passAdmin = adminPassword;
@@ -94,7 +97,7 @@ public class DataInitializer implements CommandLineRunner {
                         .build();
 
                 usuarioRepository.save(admin);
-                log.info("✅ Usuario Administrador inicial ({}) creado correctamente en la primera ejecución.", adminEmail);
+                log.info("Usuario Administrador inicial ({}) creado correctamente en la primera ejecución.", LogSanitizer.maskEmail(adminEmail));
             }
         } else {
             log.info("ℹ️ Inicialización omitida: Ya existe al menos un usuario Administrador en la base de datos.");

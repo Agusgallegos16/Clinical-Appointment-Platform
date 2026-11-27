@@ -70,7 +70,7 @@ class AuthControllerMeEndpointTest {
                 .andExpect(jsonPath("$.email").value(email))
                 .andExpect(jsonPath("$.rol").value("PACIENTE"))
                 .andExpect(jsonPath("$.entidadId").value(paciente.getId().toString()))
-                .andExpect(jsonPath("$.token").isNotEmpty());
+                .andExpect(jsonPath("$.token").doesNotExist());
     }
 
     @Test

@@ -21,8 +21,8 @@ export const authService = {
     return response.data;
   },
 
-  confirmarRestablecimientoPassword: async (token) => {
-    const response = await axiosClient.get('/auth/confirmar-restablecimiento-password', { params: { token } });
+  confirmarRestablecimientoPassword: async (data) => {
+    const response = await axiosClient.post('/auth/confirmar-restablecimiento-password', data);
     return response.data;
   },
 
@@ -44,5 +44,15 @@ export const authService = {
   getCurrentUser: async () => {
     const response = await axiosClient.get('/auth/me');
     return response.data;
+  },
+
+  intercambiarCodigoOAuth2: async (code) => {
+    const response = await axiosClient.post('/auth/oauth2/exchange', { code });
+    return response.data;
+  },
+
+  logout: async (token) => {
+    const config = token ? { headers: { Authorization: `Bearer ${token}` } } : undefined;
+    await axiosClient.post('/auth/logout', null, config);
   },
 };

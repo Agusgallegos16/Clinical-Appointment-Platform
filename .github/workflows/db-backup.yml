@@ -6,48 +6,91 @@ on:
     - cron: '0 5 * * *'
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   backup:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Instalar rclone
+      - name: Validar secretos requeridos
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          if [ -z "${SUPABASE_DB_URL:-}" ]; then
+            echo "ERROR: Falta configurar el secreto SUPABASE_DB_URL."
+            exit 1
+          fi
+          if [ -z "${BACKUP_PASSPHRASE:-}" ]; then
+            echo "ERROR: Falta configurar el secreto BACKUP_ENCRYPTION_PASSPHRASE para cifrar el backup (ISO/IEC 27001 A.8.13 / A.8.24)."
+            exit 1
+          fi
+
+      - name: Instalar rclone y gnupg
         run: |
           sudo apt-get update
-          sudo apt-get install -y rclone
+          sudo apt-get install -y rclone gnupg
 
-      - name: Generar Backup con Docker (Postgres 17)
+      - name: Generar y cifrar Backup con Docker (Postgres 17 + AES-256 GPG)
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
         run: |
-          set -e
-          set -o pipefail
+          set -euo pipefail
+          umask 077
 
           TIMESTAMP=$(date +'%Y-%m-%d_%H-%M-%S')
-          FILENAME="backup_${TIMESTAMP}.sql.gz"
-          echo "Generando volcado de base de datos en ${FILENAME}..."
+          RAW_FILENAME="backup_${TIMESTAMP}.sql.gz"
+          ENC_FILENAME="${RAW_FILENAME}.gpg"
+          echo "Generando volcado de base de datos en ${RAW_FILENAME}..."
 
-          # Ejecuta pg_dump dentro del contenedor oficial de PostgreSQL 17
-          docker run --rm postgres:17 pg_dump "${{ secrets.SUPABASE_DB_URL }}" | gzip > "${FILENAME}"
+          docker run --rm -e SUPABASE_DB_URL postgres:17 \
+            sh -c 'pg_dump "$SUPABASE_DB_URL"' | gzip > "${RAW_FILENAME}"
 
-          # Valida que el archivo generado tenga contenido
-          if [ ! -s "${FILENAME}" ]; then
+          if [ ! -s "${RAW_FILENAME}" ]; then
             echo "ERROR: El archivo de backup se generó vacío."
             exit 1
           fi
 
-          ls -lh "${FILENAME}"
-          echo "BACKUP_FILE=${FILENAME}" >> $GITHUB_ENV
+          gpg --batch --yes --pinentry-mode loopback \
+            --cipher-algo AES256 \
+            --s2k-digest-algo SHA512 \
+            --s2k-mode 3 \
+            --s2k-count 65011712 \
+            --passphrase-fd 3 \
+            --symmetric \
+            --output "${ENC_FILENAME}" "${RAW_FILENAME}" 3<<< "${BACKUP_PASSPHRASE}"
 
-      - name: Configurar rclone con token OAuth
+          rm -f "${RAW_FILENAME}"
+
+          if [ ! -s "${ENC_FILENAME}" ]; then
+            echo "ERROR: El archivo de backup cifrado se generó vacío."
+            exit 1
+          fi
+
+          ls -lh "${ENC_FILENAME}"
+          echo "BACKUP_FILE=${ENC_FILENAME}" >> "$GITHUB_ENV"
+
+      - name: Configurar rclone con permisos restringidos
+        env:
+          GDRIVE_TOKEN: ${{ secrets.GDRIVE_TOKEN }}
+          GDRIVE_FOLDER_ID: ${{ secrets.GDRIVE_FOLDER_ID }}
         run: |
+          set -euo pipefail
+          umask 077
           mkdir -p ~/.config/rclone
           cat <<EOF > ~/.config/rclone/rclone.conf
           [gdrive]
           type = drive
-          token = ${{ secrets.GDRIVE_TOKEN }}
-          root_folder_id = ${{ secrets.GDRIVE_FOLDER_ID }}
+          token = ${GDRIVE_TOKEN}
+          root_folder_id = ${GDRIVE_FOLDER_ID}
           EOF
+          chmod 600 ~/.config/rclone/rclone.conf
 
-      - name: Subir backup a Google Drive
+      - name: Subir backup cifrado a Google Drive
         run: |
           echo "Subiendo ${{ env.BACKUP_FILE }} a Google Drive..."
           rclone copy "${{ env.BACKUP_FILE }}" gdrive:
@@ -56,7 +99,7 @@ jobs:
         run: |
           rclone delete --min-age 30d gdrive:
 
-      - name: Limpiar temporales locales
+      - name: Limpiar credenciales y temporales locales
         if: always()
         run: |
-          rm -f backup_*.sql.gz
+          rm -f backup_*.sql.gz backup_*.sql.gz.gpg ~/.config/rclone/rclone.conf

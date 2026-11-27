@@ -3,6 +3,7 @@ package com.consultorio.controller;
 import com.consultorio.domain.Doctor;
 import com.consultorio.domain.Paciente;
 import com.consultorio.dto.*;
+import com.consultorio.mapper.DtoMapper;
 import com.consultorio.service.AuthService;
 import com.consultorio.service.DoctorService;
 import com.consultorio.service.PacienteService;
@@ -27,31 +28,34 @@ public class AuthController {
     private final DoctorService doctorService;
     private final UsuarioService usuarioService;
     private final AuthService authService;
+    private final DtoMapper dtoMapper;
 
     @Autowired
     public AuthController(PacienteService pacienteService,
                           DoctorService doctorService,
                           UsuarioService usuarioService,
-                          AuthService authService) {
+                          AuthService authService,
+                          DtoMapper dtoMapper) {
         this.pacienteService = pacienteService;
         this.doctorService = doctorService;
         this.usuarioService = usuarioService;
         this.authService = authService;
+        this.dtoMapper = dtoMapper;
     }
 
     @PostMapping("/registro-paciente")
     @Operation(summary = "Registro de un nuevo Paciente (Público)")
-    public ResponseEntity<Paciente> registrarPaciente(@Valid @RequestBody RegistroPacienteDTO dto) {
+    public ResponseEntity<PacienteResponseDTO> registrarPaciente(@Valid @RequestBody RegistroPacienteDTO dto) {
         Paciente paciente = pacienteService.registrarPaciente(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(paciente);
+        return ResponseEntity.status(HttpStatus.CREATED).body(dtoMapper.toDto(paciente));
     }
 
     @PostMapping("/registro-doctor")
     @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Registro de un nuevo Doctor (Exclusivo ADMIN)")
-    public ResponseEntity<Doctor> registrarDoctor(@Valid @RequestBody RegistroDoctorDTO dto) {
+    public ResponseEntity<DoctorResponseDTO> registrarDoctor(@Valid @RequestBody RegistroDoctorDTO dto) {
         Doctor doctor = doctorService.registrarDoctor(dto);
-        return ResponseEntity.status(HttpStatus.CREATED).body(doctor);
+        return ResponseEntity.status(HttpStatus.CREATED).body(dtoMapper.toDto(doctor));
     }
 
     @GetMapping("/confirmar-email")
@@ -62,16 +66,16 @@ public class AuthController {
     }
 
     @PostMapping("/solicitar-restablecimiento-password")
-    @Operation(summary = "Solicitar restablecimiento de contraseña vía email (Público)")
+    @Operation(summary = "Solicitar restablecimiento de contraseña vía email (Paso 1, Público)")
     public ResponseEntity<Map<String, String>> solicitarRestablecimientoPassword(@Valid @RequestBody SolicitudRestablecerPasswordDTO dto) {
         usuarioService.solicitarRestablecimientoPassword(dto);
-        return ResponseEntity.ok(Map.of("message", "Se ha enviado un enlace de confirmación a tu correo electrónico para cambiar la contraseña."));
+        return ResponseEntity.ok(Map.of("message", "Si existe una cuenta asociada al correo ingresado, te enviamos un enlace para restablecer tu contraseña."));
     }
 
-    @GetMapping("/confirmar-restablecimiento-password")
-    @Operation(summary = "Confirmar el cambio de contraseña vía token (Público)")
-    public ResponseEntity<Map<String, String>> confirmarRestablecimientoPassword(@RequestParam("token") String token) {
-        usuarioService.confirmarRestablecimientoPassword(token);
+    @PostMapping("/confirmar-restablecimiento-password")
+    @Operation(summary = "Confirmar el cambio de contraseña enviando token y nueva contraseña vía POST (Paso 2, Público)")
+    public ResponseEntity<Map<String, String>> confirmarRestablecimientoPassword(@Valid @RequestBody ConfirmarRestablecerPasswordDTO dto) {
+        usuarioService.confirmarRestablecimientoPassword(dto);
         return ResponseEntity.ok(Map.of("message", "Contraseña cambiada con éxito. Ya puedes iniciar sesión con tu nueva contraseña."));
     }
 
@@ -86,6 +90,22 @@ public class AuthController {
     @Operation(summary = "Iniciar Sesión y obtener Token JWT Bearer")
     public ResponseEntity<JwtResponseDTO> login(@Valid @RequestBody LoginDTO loginDTO) {
         return ResponseEntity.ok(authService.autenticar(loginDTO));
+    }
+
+    @PostMapping("/oauth2/exchange")
+    @Operation(summary = "Intercambiar código OAuth2 de un solo uso por Token JWT Bearer (Público)")
+    public ResponseEntity<JwtResponseDTO> intercambiarCodigoOAuth2(@Valid @RequestBody OAuth2CodeExchangeDTO dto) {
+        return ResponseEntity.ok(authService.intercambiarCodigoOAuth2(dto.getCode()));
+    }
+
+    @PostMapping("/logout")
+    @Operation(summary = "Revocar la sesión JWT activa incrementando tokenVersion")
+    public ResponseEntity<Void> logout(org.springframework.security.core.Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        authService.revocarSesion(authentication.getName());
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/me")

@@ -1,6 +1,7 @@
 package com.consultorio.dto;
 
 import com.consultorio.domain.Rol;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -12,6 +13,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class JwtResponseDTO {
     private String token;
     @Builder.Default

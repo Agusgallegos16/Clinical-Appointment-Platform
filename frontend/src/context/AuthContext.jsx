@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext } from 'react';
+import React, { createContext, useState, useContext, useCallback } from 'react';
 import { authService } from '../api/authService';
 
 const AuthContext = createContext(null);
@@ -35,7 +35,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const loginWithToken = async (token) => {
+  const loginWithToken = useCallback(async (token) => {
     setLoading(true);
     try {
       localStorage.setItem('jwt_token', token);
@@ -60,7 +60,7 @@ export const AuthProvider = ({ children }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const updateUser = (newUserData) => {
     const updated = { ...user, ...newUserData };
@@ -69,9 +69,13 @@ export const AuthProvider = ({ children }) => {
   };
 
   const logout = () => {
+    const activeToken = localStorage.getItem('jwt_token');
     localStorage.removeItem('jwt_token');
     localStorage.removeItem('user_data');
     setUser(null);
+    if (activeToken) {
+      authService.logout(activeToken).catch(() => {});
+    }
   };
 
   return (

@@ -44,6 +44,7 @@ public class TurnoService {
     private final EspecialidadService especialidadService;
     private final SecurityUtils securityUtils;
     private final ApplicationEventPublisher eventPublisher;
+    private final AuditLogService auditLogService;
 
     @Autowired
     public TurnoService(TurnoRepository turnoRepository,
@@ -51,13 +52,15 @@ public class TurnoService {
                         DoctorService doctorService,
                         EspecialidadService especialidadService,
                         SecurityUtils securityUtils,
-                        ApplicationEventPublisher eventPublisher) {
+                        ApplicationEventPublisher eventPublisher,
+                        AuditLogService auditLogService) {
         this.turnoRepository = turnoRepository;
         this.pacienteService = pacienteService;
         this.doctorService = doctorService;
         this.especialidadService = especialidadService;
         this.securityUtils = securityUtils;
         this.eventPublisher = eventPublisher;
+        this.auditLogService = auditLogService;
     }
 
     @Transactional
@@ -240,6 +243,10 @@ public class TurnoService {
         );
 
         eventPublisher.publishEvent(event);
+        if (auditLogService != null) {
+            auditLogService.record("TURNO_CANCELLED", "SUCCESS", securityUtils.obtenerIdUsuarioAutenticado(), rolCancelador,
+                    "TURNO", String.valueOf(actualizado.getId()), "Appointment cancelled by " + rolCancelador);
+        }
 
         return mapearResponseDTO(actualizado);
     }
@@ -253,9 +260,15 @@ public class TurnoService {
     public TurnoResponseDTO cambiarEstadoTurno(UUID turnoId, EstadoTurno nuevoEstado) {
         Turno turno = turnoRepository.findByIdForUpdate(turnoId)
                 .orElseThrow(() -> new IllegalArgumentException("Turno no encontrado con ID: " + turnoId));
+        securityUtils.verificarAccesoDoctor(turno.getDoctor(), false);
 
         turno.transicionarA(nuevoEstado);
         Turno actualizado = turnoRepository.save(turno);
+        if (auditLogService != null) {
+            String actorRole = securityUtils.esAdmin() ? "ADMIN" : "DOCTOR";
+            auditLogService.record("TURNO_STATUS_CHANGED", "SUCCESS", securityUtils.obtenerIdUsuarioAutenticado(), actorRole,
+                    "TURNO", String.valueOf(actualizado.getId()), "Appointment status changed to " + nuevoEstado.name());
+        }
         return mapearResponseDTO(actualizado);
     }
 
@@ -272,8 +285,9 @@ public class TurnoService {
         boolean esSecretaria = securityUtils.esSecretaria();
         boolean esSuPaciente = paciente.getUsuario() != null && paciente.getUsuario().getEmail().equalsIgnoreCase(emailAutenticado);
         boolean esTutor = paciente.getTutor() != null && paciente.getTutor().getUsuario() != null && paciente.getTutor().getUsuario().getEmail().equalsIgnoreCase(emailAutenticado);
+        boolean esSuMedicoTratante = turnoRepository.existsByDoctorUsuarioEmailIgnoreCaseAndPacienteId(emailAutenticado, pacienteId);
 
-        if (!esAdmin && !esSecretaria && !esSuPaciente && !esTutor) {
+        if (!esAdmin && !esSecretaria && !esSuPaciente && !esTutor && !esSuMedicoTratante) {
             throw new AccessDeniedException("Acceso denegado: No tiene permiso para consultar los turnos de este paciente.");
         }
 

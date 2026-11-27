@@ -78,15 +78,15 @@ public class PacienteController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SECRETARIA', 'DOCTOR') or @securityUtils.puedeAccederAPaciente(#id)")
-    @Operation(summary = "Obtener el detalle de un paciente por su ID (PACIENTE / ADMIN / DOCTOR / SECRETARIA)")
+    @PreAuthorize("@securityUtils.puedeAccederAPaciente(#id)")
+    @Operation(summary = "Obtener el detalle de un paciente por su ID (PACIENTE / ADMIN / SECRETARIA / DOCTOR con relación asistencial)")
     public ResponseEntity<PacienteResponseDTO> obtenerPacientePorId(@PathVariable UUID id) {
         return ResponseEntity.ok(dtoMapper.toDto(pacienteService.obtenerPorId(id)));
     }
 
     @GetMapping("/buscar-por-dni/{dni}")
-    @PreAuthorize("hasRole('SECRETARIA') or hasRole('ADMIN') or hasRole('DOCTOR')")
-    @Operation(summary = "Buscar paciente por DNI para autocompletado en agendamiento (SECRETARIA / ADMIN / DOCTOR)")
+    @PreAuthorize("hasRole('SECRETARIA') or hasRole('ADMIN')")
+    @Operation(summary = "Buscar paciente por DNI para autocompletado en agendamiento (SECRETARIA / ADMIN)")
     public ResponseEntity<PacienteResponseDTO> buscarPorDni(@PathVariable Long dni) {
         return pacienteService.obtenerPorDniOpt(dni)
                 .map(dtoMapper::toDto)
@@ -95,8 +95,8 @@ public class PacienteController {
     }
 
     @GetMapping("/{id}/estadisticas")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SECRETARIA', 'DOCTOR') or @securityUtils.puedeAccederAPaciente(#id)")
-    @Operation(summary = "Obtener ficha y métricas estadísticas del paciente (DOCTOR / ADMIN / PACIENTE / SECRETARIA)")
+    @PreAuthorize("@securityUtils.puedeAccederAPaciente(#id)")
+    @Operation(summary = "Obtener ficha y métricas estadísticas del paciente (ADMIN / SECRETARIA / PACIENTE / DOCTOR con relación asistencial)")
     public ResponseEntity<com.consultorio.dto.PacienteResumenEstadisticasDTO> obtenerEstadisticasPaciente(@PathVariable UUID id) {
         return ResponseEntity.ok(turnoService.obtenerEstadisticasPaciente(id));
     }
