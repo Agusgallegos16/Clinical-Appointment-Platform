@@ -94,7 +94,7 @@ const Register = () => {
         <CardContent>
           <Box display="flex" flexDirection="column" alignItems="center" mb={3}>
             <HospitalIcon color="primary" sx={{ fontSize: 48, mb: 1 }} />
-            <Typography variant="h5" align="center" color="primary" fontWeight={700}>
+            <Typography variant="h5" component="h1" align="center" color="primary" fontWeight={700}>
               Registro de Paciente
             </Typography>
             <Typography variant="body2" color="text.secondary" align="center">
@@ -102,7 +102,7 @@ const Register = () => {
             </Typography>
           </Box>
 
-          {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+          {error && <Alert id="register-error-alert" role="alert" severity="error" sx={{ mb: 2 }}>{error}</Alert>}
           {successMessage && (
             <Alert severity="info" sx={{ mb: 3, fontWeight: 500 }}>
               {successMessage}
@@ -114,6 +114,7 @@ const Register = () => {
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6}>
                   <TextField
+                    id="register-nombre"
                     fullWidth
                     label="Nombre"
                     name="nombre"
@@ -124,6 +125,7 @@ const Register = () => {
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField
+                    id="register-apellido"
                     fullWidth
                     label="Apellido"
                     name="apellido"
@@ -134,6 +136,7 @@ const Register = () => {
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField
+                    id="register-dni"
                     fullWidth
                     label="DNI / Identificación"
                     name="dni"
@@ -145,6 +148,7 @@ const Register = () => {
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField
+                    id="register-telefono"
                     fullWidth
                     label="Teléfono"
                     name="telefono"
@@ -155,6 +159,7 @@ const Register = () => {
                 </Grid>
                 <Grid item xs={12}>
                   <TextField
+                    id="register-fechaNacimiento"
                     fullWidth
                     label="Fecha de Nacimiento"
                     name="fechaNacimiento"
@@ -168,6 +173,7 @@ const Register = () => {
                 </Grid>
                 <Grid item xs={12}>
                   <TextField
+                    id="register-email"
                     fullWidth
                     label="Correo Electrónico"
                     name="email"
@@ -179,6 +185,7 @@ const Register = () => {
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField
+                    id="register-password"
                     fullWidth
                     label="Contraseña"
                     name="password"
@@ -191,6 +198,7 @@ const Register = () => {
                 </Grid>
                 <Grid item xs={12} sm={6}>
                   <TextField
+                    id="register-confirmarPassword"
                     fullWidth
                     label="Confirmar Contraseña"
                     name="confirmarPassword"

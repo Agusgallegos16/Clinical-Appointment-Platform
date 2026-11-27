@@ -216,6 +216,7 @@ const AdminEspecialidades = () => {
                               color="primary"
                               onClick={() => handleOpenEditModal(esp)}
                               title="Editar especialidad"
+                              aria-label={`Editar especialidad ${esp.nombre}`}
                             >
                               <EditIcon />
                             </IconButton>
@@ -223,6 +224,7 @@ const AdminEspecialidades = () => {
                               color="error"
                               onClick={() => setSelectedDelete(esp)}
                               title="Eliminar especialidad"
+                              aria-label={`Eliminar especialidad ${esp.nombre}`}
                             >
                               <DeleteIcon />
                             </IconButton>
@@ -239,8 +241,8 @@ const AdminEspecialidades = () => {
       </Grid>
 
       {/* Modal Editar Especialidad */}
-      <Dialog open={!!selectedEdit} onClose={() => setSelectedEdit(null)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 700 }}>
+      <Dialog open={!!selectedEdit} onClose={() => setSelectedEdit(null)} maxWidth="sm" fullWidth aria-labelledby="edit-especialidad-dialog-title">
+        <DialogTitle id="edit-especialidad-dialog-title" sx={{ fontWeight: 700 }}>
           Editar Especialidad Médica ✏️
         </DialogTitle>
         <Box component="form" onSubmit={handleGuardarEdicion}>
@@ -279,8 +281,8 @@ const AdminEspecialidades = () => {
       </Dialog>
 
       {/* Modal Confirmación Eliminación */}
-      <Dialog open={!!selectedDelete} onClose={() => setSelectedDelete(null)}>
-        <DialogTitle>¿Eliminar la especialidad "{selectedDelete?.nombre}"?</DialogTitle>
+      <Dialog open={!!selectedDelete} onClose={() => setSelectedDelete(null)} aria-labelledby="delete-especialidad-dialog-title">
+        <DialogTitle id="delete-especialidad-dialog-title">¿Eliminar la especialidad "{selectedDelete?.nombre}"?</DialogTitle>
         <DialogContent>
           <DialogContentText>
             Esta acción eliminará la especialidad médica del catálogo.

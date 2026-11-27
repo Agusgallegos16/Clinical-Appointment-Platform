@@ -1,18 +1,21 @@
 package com.consultorio.service;
 
 import com.consultorio.domain.*;
+import com.consultorio.dto.CancelarTurnoDTO;
 import com.consultorio.dto.PacienteResumenEstadisticasDTO;
 import com.consultorio.dto.TurnoReservaDTO;
 import com.consultorio.dto.TurnoReservaSecretariaDTO;
 import com.consultorio.dto.TurnoResponseDTO;
 import com.consultorio.event.TurnoCanceladoEvent;
 import com.consultorio.event.TurnoReservadoEvent;
+import com.consultorio.exception.CancelacionTardiaException;
 import com.consultorio.exception.PerfilIncompletoException;
 import com.consultorio.repository.TurnoRepository;
 import com.consultorio.security.SecurityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -31,6 +34,9 @@ import java.util.stream.Collectors;
 public class TurnoService {
 
     private static final Logger log = LoggerFactory.getLogger(TurnoService.class);
+
+    @Value("${app.clinic.phone:+54 11 1234-5678}")
+    private String clinicPhone = "+54 11 1234-5678";
 
     private final TurnoRepository turnoRepository;
     private final PacienteService pacienteService;
@@ -138,6 +144,11 @@ public class TurnoService {
 
     @Transactional
     public TurnoResponseDTO cancelarTurno(UUID turnoId) {
+        return cancelarTurno(turnoId, null);
+    }
+
+    @Transactional
+    public TurnoResponseDTO cancelarTurno(UUID turnoId, CancelarTurnoDTO dto) {
         Turno turno = turnoRepository.findByIdForUpdate(turnoId)
                 .orElseThrow(() -> new IllegalArgumentException("Turno no encontrado con ID: " + turnoId));
 
@@ -157,42 +168,85 @@ public class TurnoService {
             throw new AccessDeniedException("Acceso denegado: No tiene permisos para cancelar este turno.");
         }
 
-        turno.cancelar(null, false);
+        boolean esStaff = esAdmin || esSecretaria || esSuDoctor;
+
+        // Regla de Negocio: Anticipación Mínima (24 horas) para cancelaciones de Pacientes
+        if (!esStaff) {
+            LocalDateTime ahora = LocalDateTime.now();
+            LocalDateTime fechaHoraTurno = turno.getFechaHora();
+            if (fechaHoraTurno == null || fechaHoraTurno.isBefore(ahora.plusHours(24))) {
+                String mensaje = String.format(
+                        "No es posible cancelar el turno con menos de 24 horas de anticipación. Por favor, comuníquese telefónicamente con el instituto al %s para gestionar su solicitud.",
+                        clinicPhone
+                );
+                throw new CancelacionTardiaException(mensaje);
+            }
+        }
+
+        String motivo = (dto != null && dto.getMotivo() != null) ? dto.getMotivo().trim() : null;
+
+        if (esStaff && (motivo == null || motivo.isBlank())) {
+            throw new IllegalArgumentException("Debe ingresar una justificación obligatoria para cancelar el turno del paciente.");
+        }
+
+        turno.cancelar(motivo, esStaff);
         Turno actualizado = turnoRepository.save(turno);
 
-        eventPublisher.publishEvent(new TurnoCanceladoEvent(actualizado.getId(), null, false));
+        // Identificación de rol y emisor para trazabilidad y auditoría
+        String rolCancelador;
+        String nombreCancelador;
+        if (esAdmin) {
+            rolCancelador = "ADMIN";
+            nombreCancelador = "Administración";
+        } else if (esSecretaria) {
+            rolCancelador = "SECRETARIA";
+            nombreCancelador = "Secretaría";
+        } else if (esSuDoctor) {
+            rolCancelador = "DOCTOR";
+            nombreCancelador = "Dr/a. " + actualizado.getDoctor().getNombre() + " " + actualizado.getDoctor().getApellido();
+        } else if (esTutor) {
+            rolCancelador = "TUTOR";
+            nombreCancelador = "Tutor legal";
+        } else {
+            rolCancelador = "PACIENTE";
+            nombreCancelador = actualizado.getPaciente().getNombre() + " " + actualizado.getPaciente().getApellido();
+        }
+
+        String emailPaciente = obtenerEmailNotificacionPaciente(actualizado.getPaciente());
+        String nombrePaciente = actualizado.getPaciente().getNombre() + " " + actualizado.getPaciente().getApellido();
+        String emailDoctor = (actualizado.getDoctor() != null && actualizado.getDoctor().getUsuario() != null)
+                ? actualizado.getDoctor().getUsuario().getEmail()
+                : null;
+        String nombreDoctor = actualizado.getDoctor() != null
+                ? actualizado.getDoctor().getNombre() + " " + actualizado.getDoctor().getApellido()
+                : "Profesional Médico";
+        String nombreEspecialidad = actualizado.getEspecialidad() != null
+                ? actualizado.getEspecialidad().getNombre()
+                : "Consulta General";
+
+        TurnoCanceladoEvent event = new TurnoCanceladoEvent(
+                actualizado.getId(),
+                actualizado.getMotivoCancelacion(),
+                rolCancelador,
+                nombreCancelador,
+                emailPaciente,
+                nombrePaciente,
+                emailDoctor,
+                nombreDoctor,
+                nombreEspecialidad,
+                actualizado.getFechaHora(),
+                actualizado.getGoogleEventId(),
+                actualizado.getGoogleEventIdDoctor()
+        );
+
+        eventPublisher.publishEvent(event);
 
         return mapearResponseDTO(actualizado);
     }
 
     @Transactional
     public TurnoResponseDTO cancelarTurnoPorDoctor(UUID turnoId, String motivoCancelacion) {
-        if (motivoCancelacion == null || motivoCancelacion.trim().isEmpty()) {
-            throw new IllegalArgumentException("Debe ingresar una justificación obligatoria para cancelar el turno del paciente.");
-        }
-
-        Turno turno = turnoRepository.findByIdForUpdate(turnoId)
-                .orElseThrow(() -> new IllegalArgumentException("Turno no encontrado con ID: " + turnoId));
-
-        String emailAutenticado = securityUtils.obtenerEmailUsuarioAutenticado();
-        if (emailAutenticado == null) {
-            throw new AccessDeniedException("Debe incluir un Token JWT válido en el encabezado Authorization para realizar esta acción.");
-        }
-
-        boolean esAdmin = securityUtils.esAdmin();
-        boolean esSecretaria = securityUtils.esSecretaria();
-        boolean esSuDoctor = turno.getDoctor().getUsuario().getEmail().equalsIgnoreCase(emailAutenticado);
-
-        if (!esAdmin && !esSecretaria && !esSuDoctor) {
-            throw new AccessDeniedException("Acceso denegado: Solo el médico asignado, la secretaría o un Administrador pueden justificar y cancelar este turno.");
-        }
-
-        turno.cancelar(motivoCancelacion.trim(), true);
-        Turno actualizado = turnoRepository.save(turno);
-
-        eventPublisher.publishEvent(new TurnoCanceladoEvent(actualizado.getId(), motivoCancelacion.trim(), true));
-
-        return mapearResponseDTO(actualizado);
+        return cancelarTurno(turnoId, new CancelarTurnoDTO(motivoCancelacion));
     }
 
     @Transactional
@@ -289,6 +343,12 @@ public class TurnoService {
         return turnosOcupados.stream()
                 .map(t -> t.getFechaHora().toLocalTime())
                 .collect(Collectors.toSet());
+    }
+
+    @Transactional(readOnly = true)
+    public Set<LocalDateTime> obtenerFechasHorasOcupadasDoctorDesde(UUID doctorId, LocalDateTime desde) {
+        return turnoRepository.findFechasHorasByDoctorIdAndFechaHoraGreaterThanEqualAndEstadoNot(
+                doctorId, desde, EstadoTurno.CANCELADO);
     }
 
     @Transactional(readOnly = true)

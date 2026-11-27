@@ -242,6 +242,11 @@ public class DoctorService {
         return doctorAgendaService.obtenerSlotsDoctorPorFecha(doctorId, fecha);
     }
 
+    @Transactional(readOnly = true)
+    public List<SlotHorario> obtenerSlotsDoctorDesdeOrdenados(UUID doctorId, LocalDate fechaDesde) {
+        return doctorAgendaService.obtenerSlotsDoctorDesdeOrdenados(doctorId, fechaDesde);
+    }
+
     @Transactional
     public void eliminarSlotIndividual(Long slotId) {
         doctorAgendaService.eliminarSlotIndividual(slotId);

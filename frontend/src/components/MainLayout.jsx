@@ -210,6 +210,7 @@ const MainLayout = () => {
             color="inherit"
             edge="start"
             onClick={handleDrawerToggle}
+            aria-label="Abrir menú de navegación lateral"
           >
             <MenuIcon />
           </IconButton>
@@ -250,8 +251,10 @@ const MainLayout = () => {
         component="main"
         sx={{
           flexGrow: 1,
-          p: 3,
-          width: { sm: `calc(100% - ${drawerWidth}px)` },
+          p: { xs: 2, sm: 3 },
+          width: { xs: '100%', sm: `calc(100% - ${drawerWidth}px)` },
+          maxWidth: '100%',
+          overflowX: 'hidden',
           minHeight: '100vh',
           backgroundColor: theme.palette.background.default,
           display: 'flex',
@@ -273,7 +276,11 @@ const MainLayout = () => {
         >
           {/* Toggle Modo Oscuro / Claro */}
           <Tooltip title={mode === 'dark' ? 'Modo Claro' : 'Modo Oscuro'}>
-            <IconButton onClick={toggleColorMode} color="inherit">
+            <IconButton
+              onClick={toggleColorMode}
+              color="inherit"
+              aria-label={mode === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+            >
               {mode === 'dark' ? <LightModeIcon sx={{ color: '#fba919' }} /> : <DarkModeIcon />}
             </IconButton>
           </Tooltip>

@@ -150,7 +150,7 @@ const AdminNuevoUsuario = () => {
         Volver al Panel Admin
       </Button>
 
-      <Paper sx={{ p: 4, borderRadius: 3 }}>
+      <Paper sx={{ p: { xs: 2, sm: 4 }, borderRadius: 3 }}>
         <Typography variant="h5" fontWeight={700} color="primary" mb={1}>
           Registrar Usuario en el Sistema 🛡️
         </Typography>
@@ -300,7 +300,7 @@ const AdminNuevoUsuario = () => {
             {rol === 'DOCTOR' && (
               <>
                 <Grid item xs={12}>
-                  <Box display="flex" gap={1.5} alignItems="flex-start">
+                  <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={1.5} alignItems={{ xs: 'stretch', sm: 'flex-start' }}>
                     <TextField
                       fullWidth
                       label="URL de Foto de Perfil (Opcional)"
@@ -314,7 +314,7 @@ const AdminNuevoUsuario = () => {
                     <Button
                       variant="outlined"
                       component="label"
-                      sx={{ minWidth: 160, height: 56, whiteSpace: 'nowrap', fontWeight: 600 }}
+                      sx={{ minWidth: { sm: 160 }, width: { xs: '100%', sm: 'auto' }, height: 56, whiteSpace: 'nowrap', fontWeight: 600 }}
                     >
                       Subir Foto
                       <input

@@ -53,7 +53,7 @@ const HorariosCalendarGrid = ({
   return (
     <>
       {/* PLANILLA MATRIZ Y LISTADO DE TURNOS POR DÍA DE LA SEMANA */}
-      <Paper sx={{ p: 3, mb: 4, bgcolor: 'background.paper', borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
+      <Paper sx={{ p: { xs: 1.5, sm: 3 }, mb: 4, bgcolor: 'background.paper', borderRadius: 3, boxShadow: '0 4px 20px rgba(0,0,0,0.06)' }}>
         <Box display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2} mb={2.5}>
           <Box display="flex" alignItems="center" gap={1}>
             <Button
@@ -82,7 +82,7 @@ const HorariosCalendarGrid = ({
             </Button>
           </Box>
 
-          <Box display="flex" alignItems="center" gap={2}>
+          <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} gap={1.5}>
             <Typography variant="h6" fontWeight={700} color="primary">
               Semana del {currentWeekStart.format('DD/MM/YYYY')} al {currentWeekStart.add(6, 'day').format('DD/MM/YYYY')}
             </Typography>
@@ -101,7 +101,7 @@ const HorariosCalendarGrid = ({
         </Box>
 
         {/* PLANILLA MATRIZ ESTILO EXCEL CON FILTRO GRIS EN DÍAS/HORAS PASADOS */}
-        <TableContainer sx={{ maxHeight: 650, borderRadius: 2 }}>
+        <TableContainer sx={{ maxHeight: 650, borderRadius: 2, overflowX: 'auto', width: '100%' }}>
           <Table stickyHeader size="small" border={1} borderColor="#cbd5e1" sx={{ borderCollapse: 'collapse', bgcolor: '#f8fafc' }}>
             <TableHead>
               <TableRow>
@@ -396,6 +396,7 @@ const HorariosCalendarGrid = ({
                               color="primary"
                               onClick={() => handleOpenEditModal(h)}
                               title="Editar Franja ⚙️"
+                              aria-label={`Configurar franja horaria ${h.horaInicio} a ${h.horaFin}`}
                             >
                               <SettingsIcon fontSize="small" />
                             </IconButton>
@@ -404,6 +405,7 @@ const HorariosCalendarGrid = ({
                               color="error"
                               onClick={() => setSelectedHorarioDelete(h)}
                               title="Eliminar Franja"
+                              aria-label={`Eliminar franja horaria ${h.horaInicio} a ${h.horaFin}`}
                             >
                               <DeleteIcon fontSize="small" />
                             </IconButton>

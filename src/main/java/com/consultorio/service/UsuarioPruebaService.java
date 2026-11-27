@@ -1,10 +1,13 @@
 package com.consultorio.service;
 
+import com.consultorio.domain.AuthProvider;
 import com.consultorio.domain.Doctor;
+import com.consultorio.domain.Especialidad;
 import com.consultorio.domain.Paciente;
 import com.consultorio.domain.Rol;
 import com.consultorio.domain.Usuario;
 import com.consultorio.repository.DoctorRepository;
+import com.consultorio.repository.EspecialidadRepository;
 import com.consultorio.repository.PacienteRepository;
 import com.consultorio.repository.UsuarioRepository;
 import org.slf4j.Logger;
@@ -14,6 +17,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashSet;
+import java.util.Set;
+
 @Service
 public class UsuarioPruebaService {
 
@@ -22,25 +28,62 @@ public class UsuarioPruebaService {
   private final UsuarioRepository usuarioRepository;
   private final DoctorRepository doctorRepository;
   private final PacienteRepository pacienteRepository;
+  private final EspecialidadRepository especialidadRepository;
   private final PasswordEncoder passwordEncoder;
 
   @Autowired
   public UsuarioPruebaService(
-      UsuarioRepository usuarioRepository1,
-      DoctorRepository doctorRepository1,
-      PacienteRepository pacienteRepository1,
-      PasswordEncoder passwordEncoder1){
-    this.usuarioRepository = usuarioRepository1;
-    this.doctorRepository = doctorRepository1;
-    this.pacienteRepository = pacienteRepository1;
-    this.passwordEncoder = passwordEncoder1;
+      UsuarioRepository usuarioRepository,
+      DoctorRepository doctorRepository,
+      PacienteRepository pacienteRepository,
+      EspecialidadRepository especialidadRepository,
+      PasswordEncoder passwordEncoder) {
+    this.usuarioRepository = usuarioRepository;
+    this.doctorRepository = doctorRepository;
+    this.pacienteRepository = pacienteRepository;
+    this.especialidadRepository = especialidadRepository;
+    this.passwordEncoder = passwordEncoder;
   }
 
   @Transactional
   public int poblarUsuariosDePrueba() {
     String defaultPassword = passwordEncoder.encode("Password123!");
 
+    // Inicializar catálogo de especialidades médicas básicas si no existen
+    Especialidad espGeneral = especialidadRepository.findByNombreIgnoreCase("Medicina General")
+        .orElseGet(() -> especialidadRepository.save(Especialidad.builder()
+            .nombre("Medicina General")
+            .descripcion("Atención médica primaria integral y preventiva para adultos y familias.")
+            .build()));
+
+    Especialidad espCardio = especialidadRepository.findByNombreIgnoreCase("Cardiología")
+        .orElseGet(() -> especialidadRepository.save(Especialidad.builder()
+            .nombre("Cardiología")
+            .descripcion("Prevención, diagnóstico y tratamiento integral de patologías cardiovasculares.")
+            .build()));
+
+    Especialidad espPedia = especialidadRepository.findByNombreIgnoreCase("Pediatría")
+        .orElseGet(() -> especialidadRepository.save(Especialidad.builder()
+            .nombre("Pediatría")
+            .descripcion("Atención integral del desarrollo, salud y patologías de niños y adolescentes.")
+            .build()));
+
+    Especialidad espDerma = especialidadRepository.findByNombreIgnoreCase("Dermatología")
+        .orElseGet(() -> especialidadRepository.save(Especialidad.builder()
+            .nombre("Dermatología")
+            .descripcion("Diagnóstico y tratamiento de afecciones de la piel, pelo y uñas.")
+            .build()));
+
+    Especialidad espTrauma = especialidadRepository.findByNombreIgnoreCase("Traumatología")
+        .orElseGet(() -> especialidadRepository.save(Especialidad.builder()
+            .nombre("Traumatología")
+            .descripcion("Especialidad médica dedicada al tratamiento de lesiones óseas y musculares.")
+            .build()));
+
     String[][] datos = {
+        {"Doctor", "Prueba", "doctor@test.com", "DOCTOR", "true", "false", "true"},
+        {"Secretaría", "Prueba", "secretaria@test.com", "SECRETARIA", "true", "false", "true"},
+        {"Paciente", "Prueba", "paciente@test.com", "PACIENTE", "true", "false", "true"},
         {"Agustín", "Benítez", "agustin.benitez@test.com", "PACIENTE", "true", "false", "true"},
         {"Alicia", "Gómez", "alicia.gomez@test.com", "PACIENTE", "true", "false", "true"},
         {"Beatriz", "Morales", "beatriz.morales@test.com", "DOCTOR", "true", "false", "true"},
@@ -106,6 +149,7 @@ public class UsuarioPruebaService {
           .activo(activo)
           .bloqueado(bloqueado)
           .emailVerificado(emailVerificado)
+          .authProvider(AuthProvider.LOCAL)
           .build();
 
       Usuario savedUser = usuarioRepository.save(usuario);
@@ -125,11 +169,29 @@ public class UsuarioPruebaService {
             .build();
         pacienteRepository.save(paciente);
       } else if (rol == Rol.DOCTOR) {
+        Set<Especialidad> especialidadesDoctor = new HashSet<>();
+        String emailLower = email.toLowerCase();
+        if (emailLower.contains("diana") || emailLower.contains("cardio")) {
+          especialidadesDoctor.add(espCardio);
+        } else if (emailLower.contains("florencia") || emailLower.contains("santiago") || emailLower.contains("pedia")) {
+          especialidadesDoctor.add(espPedia);
+        } else if (emailLower.contains("javier") || emailLower.contains("derma")) {
+          especialidadesDoctor.add(espDerma);
+        } else if (emailLower.contains("lucia") || emailLower.contains("trauma")) {
+          especialidadesDoctor.add(espTrauma);
+        } else if (emailLower.contains("nicolas") || emailLower.contains("doctor@test.com")) {
+          especialidadesDoctor.add(espCardio);
+          especialidadesDoctor.add(espGeneral);
+        } else {
+          especialidadesDoctor.add(espGeneral);
+        }
+
         Doctor doctor = Doctor.builder()
             .usuario(savedUser)
             .nombre(nombre)
             .apellido(apellido)
             .disponibleParaTurnos(true)
+            .especialidades(especialidadesDoctor)
             .build();
         doctorRepository.save(doctor);
       }

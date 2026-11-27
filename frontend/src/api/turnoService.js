@@ -11,15 +11,18 @@ export const turnoService = {
     return response.data;
   },
 
-  cancelar: async (turnoId) => {
-    const response = await axiosClient.put(`/turnos/${turnoId}/cancelar`);
+  cancelar: async (turnoId, motivo = null) => {
+    const payload = motivo ? { motivo } : {};
+    const response = await axiosClient.put(`/turnos/${turnoId}/cancelar`, payload);
     return response.data;
   },
 
   cancelarPorDoctor: async (turnoId, motivo) => {
-    const response = await axiosClient.put(`/turnos/${turnoId}/cancelar-doctor`, null, {
-      params: { motivo },
-    });
+    const response = await axiosClient.put(
+      `/turnos/${turnoId}/cancelar-doctor`,
+      { motivo },
+      { params: { motivo } }
+    );
     return response.data;
   },
 

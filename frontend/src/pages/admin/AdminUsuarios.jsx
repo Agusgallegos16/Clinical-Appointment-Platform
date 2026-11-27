@@ -213,7 +213,7 @@ const AdminUsuarios = () => {
       {/* Barra de Búsqueda por Nombre, Apellido o Email */}
       <Paper elevation={0} variant="outlined" sx={{ p: 2.5, mb: 4, borderRadius: 3 }}>
         <form onSubmit={handleSearch}>
-          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="center">
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems={{ xs: 'stretch', sm: 'center' }}>
             <TextField
               fullWidth
               variant="outlined"
@@ -228,7 +228,7 @@ const AdminUsuarios = () => {
                 ),
                 endAdornment: searchQuery && (
                   <InputAdornment position="end">
-                    <IconButton size="small" onClick={handleClearSearch}>
+                    <IconButton size="small" onClick={handleClearSearch} aria-label="Limpiar término de búsqueda">
                       <ClearIcon fontSize="small" />
                     </IconButton>
                   </InputAdornment>
@@ -241,7 +241,7 @@ const AdminUsuarios = () => {
               color="primary"
               size="large"
               startIcon={<SearchIcon />}
-              sx={{ px: 3.5, py: 1.8, minWidth: 140, fontWeight: 700, borderRadius: 2 }}
+              sx={{ px: 3.5, py: 1.8, minWidth: { sm: 140 }, width: { xs: '100%', sm: 'auto' }, fontWeight: 700, borderRadius: 2 }}
             >
               Buscar
             </Button>
@@ -250,7 +250,7 @@ const AdminUsuarios = () => {
       </Paper>
 
       {/* Tabla de Resultados de Usuarios */}
-      <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3 }}>
+      <TableContainer component={Paper} variant="outlined" sx={{ borderRadius: 3, overflowX: 'auto', width: '100%' }}>
         {loading ? (
           <Box display="flex" justifyContent="center" alignItems="center" py={6}>
             <CircularProgress />
@@ -263,7 +263,7 @@ const AdminUsuarios = () => {
           </Box>
         ) : (
           <>
-            <Table>
+            <Table sx={{ minWidth: 600 }}>
               <TableHead sx={{ backgroundColor: 'action.hover' }}>
                 <TableRow>
                   <TableCell sx={{ fontWeight: 700 }}>ID</TableCell>
@@ -278,7 +278,7 @@ const AdminUsuarios = () => {
                 {usuarios.map((u) => (
                   <TableRow key={u.id} hover>
                     <TableCell>{u.id}</TableCell>
-                    <TableCell sx={{ fontWeight: 600 }}>{u.email}</TableCell>
+                    <TableCell sx={{ fontWeight: 600, wordBreak: 'break-all' }}>{u.email}</TableCell>
                     <TableCell>
                       {u.nombre && u.apellido ? `${u.nombre} ${u.apellido}` : '—'}
                     </TableCell>
@@ -310,6 +310,7 @@ const AdminUsuarios = () => {
                             color={u.bloqueado ? 'success' : 'warning'}
                             onClick={() => handleToggleBloqueo(u)}
                             disabled={actionLoading}
+                            aria-label={u.bloqueado ? `Desbloquear usuario ${u.email}` : `Bloquear usuario ${u.email}`}
                           >
                             {u.bloqueado ? <LockOpenIcon /> : <BlockIcon />}
                           </IconButton>
@@ -321,6 +322,7 @@ const AdminUsuarios = () => {
                             color="error"
                             onClick={() => handleOpenDeleteModal(u)}
                             disabled={actionLoading}
+                            aria-label={`Eliminar usuario ${u.email}`}
                           >
                             <DeleteIcon />
                           </IconButton>
@@ -353,8 +355,9 @@ const AdminUsuarios = () => {
         onClose={() => setConfirmDeleteOpen(false)}
         maxWidth="xs"
         fullWidth
+        aria-labelledby="confirm-delete-usuario-title"
       >
-        <DialogTitle sx={{ fontWeight: 700, color: 'error.main' }}>
+        <DialogTitle id="confirm-delete-usuario-title" sx={{ fontWeight: 700, color: 'error.main' }}>
           ⚠️ Confirmar Eliminación de Usuario
         </DialogTitle>
         <DialogContent>

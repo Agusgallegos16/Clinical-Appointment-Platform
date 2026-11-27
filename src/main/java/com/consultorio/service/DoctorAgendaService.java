@@ -190,6 +190,11 @@ public class DoctorAgendaService {
         return slotHorarioRepository.findByDoctorIdAndFecha(doctorId, fecha);
     }
 
+    @Transactional(readOnly = true)
+    public List<SlotHorario> obtenerSlotsDoctorDesdeOrdenados(UUID doctorId, LocalDate fechaDesde) {
+        return slotHorarioRepository.findFuturosPorDoctorOrdenados(doctorId, fechaDesde);
+    }
+
     @Transactional
     public void eliminarSlotIndividual(Long slotId) {
         slotHorarioRepository.deleteById(slotId);

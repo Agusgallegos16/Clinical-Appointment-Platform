@@ -1,6 +1,7 @@
 package com.consultorio.service;
 
 import com.consultorio.dto.TurnoResponseDTO;
+import com.consultorio.event.TurnoCanceladoEvent;
 import com.consultorio.email.EmailSender;
 import com.consultorio.factory.EmailTemplateFactory;
 import jakarta.mail.internet.MimeMessage;
@@ -100,6 +101,27 @@ public class EmailService {
     public void enviarEmailCancelacionDoctor(String emailDestino, TurnoResponseDTO turno, String motivoCancelacion) {
         String asunto = "Aviso importante: Cancelación de Turno Médico - Dr/a. " + turno.getDoctorNombre();
         String htmlContent = emailTemplateFactory.crearEmailCancelacionDoctor(turno, motivoCancelacion);
+        enviarCorreoHtml(emailDestino, asunto, htmlContent);
+    }
+
+    // 7b. Email al Doctor notificando que el Paciente canceló su cita
+    public void enviarEmailCancelacionPorPaciente(String emailDestino, TurnoCanceladoEvent event) {
+        String asunto = "Turno liberado: El paciente ha cancelado su cita - " + clinicName;
+        String htmlContent = emailTemplateFactory.crearEmailCancelacionPacienteParaDoctor(event);
+        enviarCorreoHtml(emailDestino, asunto, htmlContent);
+    }
+
+    // 7c. Email de confirmación al Paciente cuando cancela su cita
+    public void enviarConfirmacionCancelacionPaciente(String emailDestino, TurnoCanceladoEvent event) {
+        String asunto = "Confirmación de cancelación de turno médico - " + clinicName;
+        String htmlContent = emailTemplateFactory.crearEmailConfirmacionCancelacionPaciente(event);
+        enviarCorreoHtml(emailDestino, asunto, htmlContent);
+    }
+
+    // 7d. Email de constancia al Doctor cuando cancela una cita
+    public void enviarConfirmacionCancelacionDoctor(String emailDestino, TurnoCanceladoEvent event) {
+        String asunto = "Constancia de cancelación médica - " + clinicName;
+        String htmlContent = emailTemplateFactory.crearEmailConfirmacionCancelacionDoctor(event);
         enviarCorreoHtml(emailDestino, asunto, htmlContent);
     }
 

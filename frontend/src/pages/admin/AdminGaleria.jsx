@@ -208,7 +208,7 @@ const AdminGaleria = () => {
               severity={message.type || 'info'}
               action={
                 <IconButton
-                  aria-label="close"
+                  aria-label="Cerrar notificación"
                   color="inherit"
                   size="small"
                   onClick={() => setMessage({ type: '', title: '', text: '' })}
@@ -282,7 +282,7 @@ const AdminGaleria = () => {
                     component="img"
                     height="200"
                     image={img.url}
-                    alt={img.name}
+                    alt={`Fotografía institucional: ${img.name}`}
                     sx={{ objectFit: 'cover' }}
                   />
                   <CardActions sx={{ justifyContent: 'space-between', px: 2, py: 1.2, bgcolor: 'background.paper' }}>
@@ -294,6 +294,7 @@ const AdminGaleria = () => {
                       size="small"
                       onClick={() => handleDelete(img.name)}
                       title="Eliminar foto"
+                      aria-label={`Eliminar foto ${img.name}`}
                     >
                       <DeleteIcon fontSize="small" />
                     </IconButton>

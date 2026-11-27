@@ -41,3 +41,6 @@ app.jwt.secret=local-dev-jwt-secret-key-must-be-at-least-256-bits-long-384729
 # 8. Administrador inicial para testing local
 app.admin.email=admin@adminconsultorio.com
 app.admin.password=AdminLocal123!
+
+# 9. Generación automática de usuarios de prueba para testing local
+app.dev.seed-test-users=true

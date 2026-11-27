@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   Box,
   Typography,
@@ -16,7 +16,9 @@ import {
   MenuItem,
   Select,
   FormControl,
+  FormControlLabel,
   InputLabel,
+  Switch,
   Avatar,
   Stepper,
   Step,
@@ -42,7 +44,15 @@ import {
 import dayjs from 'dayjs';
 import axiosClient from '../../api/axiosClient';
 import { doctorService } from '../../api/doctorService';
+import { turnoService } from '../../api/turnoService';
 import ModalAgendarSecretaria from '../../components/secretaria/ModalAgendarSecretaria';
+import BotonProximoTurnoDisponible from '../../components/turnos/BotonProximoTurnoDisponible';
+import { useProximoTurnoDisponible } from '../../hooks/useProximoTurnoDisponible';
+import {
+  buildFechaHoraISO,
+  formatFechaHoraResumen,
+  formatLocalTimeToHHmm,
+} from '../../utils/turnoSlotUtils';
 
 const SecretariaAgenda = () => {
 
@@ -52,6 +62,7 @@ const SecretariaAgenda = () => {
   const [especialidades, setEspecialidades] = useState([]);
   const [searchDoctorQuery, setSearchDoctorQuery] = useState('');
   const [filterEspecialidadId, setFilterEspecialidadId] = useState('');
+  const [mostrarOcultos, setMostrarOcultos] = useState(false);
 
   const [selectedDoctor, setSelectedDoctor] = useState(null);
   const [fecha, setFecha] = useState(dayjs().format('YYYY-MM-DD'));
@@ -63,6 +74,10 @@ const SecretariaAgenda = () => {
 
   const [agendaTurnos, setAgendaTurnos] = useState([]);
   const [slotsDisponibles, setSlotsDisponibles] = useState([]);
+  const [highlightedSlot, setHighlightedSlot] = useState(null);
+  const [mensajeProximoTurno, setMensajeProximoTurno] = useState(null);
+  const slotCardRefs = useRef({});
+  const lastScrolledKeyRef = useRef(null);
 
   const [modalAgendarOpen, setModalAgendarOpen] = useState(false);
   const [selectedSlotParaAgendar, setSelectedSlotParaAgendar] = useState(null);
@@ -103,6 +118,10 @@ const SecretariaAgenda = () => {
   const handleSelectDoctor = (doc) => {
     setSelectedDoctor(doc);
     setSelectedEspecialidadFiltroAgenda('');
+    setHighlightedSlot(null);
+    setMensajeProximoTurno(null);
+    lastScrolledKeyRef.current = null;
+    limpiarEstadoProximoTurno();
     setActiveStep(1);
   };
 
@@ -111,6 +130,10 @@ const SecretariaAgenda = () => {
       setError('Por favor seleccioná una fecha válida.');
       return;
     }
+    setHighlightedSlot(null);
+    setMensajeProximoTurno(null);
+    lastScrolledKeyRef.current = null;
+    limpiarEstadoProximoTurno();
     setActiveStep(2);
     cargarAgendaYDisponibilidad(selectedDoctor.id, fecha);
   };
@@ -119,14 +142,13 @@ const SecretariaAgenda = () => {
     setLoading(true);
     setError('');
     try {
-      const dispUrl = `/doctores/${doctorId}/disponibilidad?fecha=${fechaSel}${espFiltro ? `&especialidadId=${espFiltro}` : ''}`;
-      const [agendaRes, dispRes] = await Promise.all([
-        axiosClient.get(`/doctores/${doctorId}/agenda?fecha=${fechaSel}`),
-        axiosClient.get(dispUrl),
+      const [agendaData, dispData] = await Promise.all([
+        doctorService.obtenerAgenda(doctorId, fechaSel),
+        doctorService.obtenerDisponibilidad(doctorId, fechaSel, espFiltro || null),
       ]);
 
-      setAgendaTurnos(agendaRes.data || []);
-      setSlotsDisponibles(dispRes.data || []);
+      setAgendaTurnos(agendaData || []);
+      setSlotsDisponibles(dispData || []);
     } catch (err) {
       console.error('Error al cargar agenda y disponibilidad:', err);
       setError('Error al consultar la agenda del médico.');
@@ -135,8 +157,43 @@ const SecretariaAgenda = () => {
     }
   };
 
+  const {
+    buscarProximoTurno,
+    loading: loadingProximoTurno,
+    sinDisponibilidad: sinProximoTurno,
+    error: errorProximoTurno,
+    limpiarEstado: limpiarEstadoProximoTurno,
+  } = useProximoTurnoDisponible({
+    doctorId: selectedDoctor?.id,
+    especialidadId: selectedEspecialidadFiltroAgenda ? Number(selectedEspecialidadFiltroAgenda) : null,
+    onFound: async (proximo) => {
+      if (!selectedDoctor) return;
+      setFecha(proximo.fecha);
+      setActiveStep(2);
+      setTabFiltro((prev) => (prev === 1 ? 2 : prev));
+      lastScrolledKeyRef.current = null;
+      setHighlightedSlot({
+        fecha: proximo.fecha,
+        hora: proximo.hora,
+        slotId: proximo.slotId,
+      });
+      setMensajeProximoTurno(
+        `Próximo turno disponible: ${formatFechaHoraResumen(proximo.fecha, proximo.hora)}`
+      );
+      await cargarAgendaYDisponibilidad(
+        selectedDoctor.id,
+        proximo.fecha,
+        selectedEspecialidadFiltroAgenda
+      );
+    },
+  });
+
   const handleCambiarFiltroEspecialidadAgenda = (espId) => {
     setSelectedEspecialidadFiltroAgenda(espId);
+    setHighlightedSlot(null);
+    setMensajeProximoTurno(null);
+    lastScrolledKeyRef.current = null;
+    limpiarEstadoProximoTurno();
     if (selectedDoctor && fecha) {
       cargarAgendaYDisponibilidad(selectedDoctor.id, fecha, espId);
     }
@@ -146,6 +203,8 @@ const SecretariaAgenda = () => {
     if (!slotId) return;
     try {
       await doctorService.eliminarSlot(slotId);
+      setHighlightedSlot(null);
+      setMensajeProximoTurno(null);
       cargarAgendaYDisponibilidad(selectedDoctor.id, fecha, selectedEspecialidadFiltroAgenda);
     } catch (err) {
       console.error('Error al deshabilitar slot:', err);
@@ -190,14 +249,12 @@ const SecretariaAgenda = () => {
     }
     setSubmittingCancel(true);
     try {
-      await axiosClient.put(
-        `/turnos/${turnoACancelar.id}/cancelar-doctor?motivo=${encodeURIComponent(motivoCancelacion.trim())}`
-      );
+      await turnoService.cancelarPorDoctor(turnoACancelar.id, motivoCancelacion.trim());
       handleCloseCancelDialog();
       cargarAgendaYDisponibilidad(selectedDoctor.id, fecha, selectedEspecialidadFiltroAgenda);
     } catch (err) {
       console.error('Error al cancelar turno:', err);
-      setError(err.response?.data?.message || 'No se pudo cancelar el turno.');
+      setError(err.response?.data?.mensaje || err.response?.data?.message || 'No se pudo cancelar el turno.');
     } finally {
       setSubmittingCancel(false);
     }
@@ -229,9 +286,10 @@ const SecretariaAgenda = () => {
       const nombreCompleto = `${doc.nombre} ${doc.apellido}`.toLowerCase();
       const coincideNombre = nombreCompleto.includes(searchDoctorQuery.toLowerCase());
       const coincideEspecialidad = !filterEspecialidadId || doc.especialidades?.some((e) => e.id === Number(filterEspecialidadId));
-      return coincideNombre && coincideEspecialidad;
+      const coincideVisibilidad = mostrarOcultos || doc.disponibleParaTurnos !== false;
+      return coincideNombre && coincideEspecialidad && coincideVisibilidad;
     });
-  }, [doctores, searchDoctorQuery, filterEspecialidadId]);
+  }, [doctores, searchDoctorQuery, filterEspecialidadId, mostrarOcultos]);
 
   const turnosReservadosActivos = useMemo(() => {
     return Array.isArray(agendaTurnos) ? agendaTurnos.filter((t) => t && t.estado !== 'CANCELADO') : [];
@@ -266,9 +324,8 @@ const SecretariaAgenda = () => {
       slotsDisponibles.forEach((s) => {
         if (!s || s.disponible === false) return;
 
-        const horaStr = typeof s.hora === 'string' ? s.hora : String(s.hora);
-        const horaCorta = horaStr.substring(0, 5);
-        const fullIsoFechaHora = `${fecha}T${horaStr.length === 5 ? horaStr + ':00' : horaStr}`;
+        const horaCorta = formatLocalTimeToHHmm(s.hora);
+        const fullIsoFechaHora = buildFechaHoraISO(fecha, horaCorta);
 
         lista.push({
           tipo: 'LIBRE',
@@ -307,6 +364,22 @@ const SecretariaAgenda = () => {
 
     return listaFiltrada;
   }, [listaTodos, selectedEspecialidadFiltroAgenda, tabFiltro]);
+
+  useEffect(() => {
+    if (activeStep !== 2 || loading || !highlightedSlot || highlightedSlot.fecha !== fecha) {
+      return;
+    }
+    const scrollKey = `${highlightedSlot.fecha}-${highlightedSlot.hora}`;
+    if (lastScrolledKeyRef.current === scrollKey) {
+      return;
+    }
+    const targetNode = slotCardRefs.current[highlightedSlot.hora];
+    if (targetNode && typeof targetNode.scrollIntoView === 'function') {
+      targetNode.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      lastScrolledKeyRef.current = scrollKey;
+    }
+  }, [activeStep, loading, highlightedSlot, fecha, listaFinal]);
+
   const especialidadPrincipal = selectedDoctor?.especialidades?.[0];
 
   const steps = ['Seleccionar Médico', 'Seleccionar Día', 'Agendar'];
@@ -352,7 +425,7 @@ const SecretariaAgenda = () => {
         <Box>
           <Paper sx={{ p: 2.5, mb: 3, borderRadius: 3 }}>
             <Grid container spacing={2} alignItems="center">
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12} sm={6} md={5}>
                 <TextField
                   fullWidth
                   placeholder="Buscar médico por nombre o apellido..."
@@ -367,7 +440,7 @@ const SecretariaAgenda = () => {
                   }}
                 />
               </Grid>
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12} sm={6} md={4}>
                 <FormControl fullWidth>
                   <InputLabel id="filter-esp-label">Filtrar por Especialidad</InputLabel>
                   <Select
@@ -384,6 +457,18 @@ const SecretariaAgenda = () => {
                     ))}
                   </Select>
                 </FormControl>
+              </Grid>
+              <Grid item xs={12} md={3} display="flex" justifyContent={{ xs: 'flex-start', md: 'center' }}>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={mostrarOcultos}
+                      onChange={(e) => setMostrarOcultos(e.target.checked)}
+                      color="primary"
+                    />
+                  }
+                  label="Mostrar ocultos"
+                />
               </Grid>
             </Grid>
           </Paper>
@@ -420,9 +505,14 @@ const SecretariaAgenda = () => {
                           {doc.nombre?.charAt(0).toUpperCase()}
                         </Avatar>
                         <Box>
-                          <Typography variant="h6" fontWeight={700}>
-                            Dr. {doc.nombre} {doc.apellido}
-                          </Typography>
+                          <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
+                            <Typography variant="h6" fontWeight={700}>
+                              Dr. {doc.nombre} {doc.apellido}
+                            </Typography>
+                            {doc.disponibleParaTurnos === false && (
+                              <Chip label="Oculto" size="small" color="warning" />
+                            )}
+                          </Box>
                           <Typography variant="caption" color="text.secondary">
                             📧 {doc.usuario?.email || 'Medicina General'}
                           </Typography>
@@ -515,6 +605,21 @@ const SecretariaAgenda = () => {
             >
               Ver Agenda & Turnos
             </Button>
+
+            <Box mt={2}>
+              <BotonProximoTurnoDisponible
+                fullWidth
+                size="large"
+                onClick={() => {
+                  setMensajeProximoTurno(null);
+                  buscarProximoTurno();
+                }}
+                loading={loadingProximoTurno}
+                disabled={!selectedDoctor || loading}
+                sinDisponibilidad={sinProximoTurno}
+                error={errorProximoTurno}
+              />
+            </Box>
           </Paper>
         </Box>
       )}
@@ -557,17 +662,60 @@ const SecretariaAgenda = () => {
               </Grid>
 
               <Grid item xs={12} sm={4} textAlign={{ xs: 'left', sm: 'right' }}>
-                <Button
-                  variant="outlined"
-                  color="primary"
-                  startIcon={<RestartIcon />}
-                  onClick={() => setActiveStep(0)}
-                  sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
+                <Box
+                  display="flex"
+                  flexWrap="wrap"
+                  gap={1}
+                  justifyContent={{ xs: 'flex-start', sm: 'flex-end' }}
+                  alignItems="flex-start"
                 >
-                  Regresar
-                </Button>
+                  <BotonProximoTurnoDisponible
+                    size="small"
+                    onClick={() => {
+                      setMensajeProximoTurno(null);
+                      buscarProximoTurno();
+                    }}
+                    loading={loadingProximoTurno}
+                    disabled={!selectedDoctor || loading}
+                  />
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    size="small"
+                    startIcon={<RestartIcon />}
+                    onClick={() => {
+                      setHighlightedSlot(null);
+                      setMensajeProximoTurno(null);
+                      limpiarEstadoProximoTurno();
+                      setActiveStep(0);
+                    }}
+                    sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
+                  >
+                    Regresar
+                  </Button>
+                </Box>
               </Grid>
             </Grid>
+
+            {(errorProximoTurno || sinProximoTurno || mensajeProximoTurno) && (
+              <Box mt={2}>
+                {errorProximoTurno && (
+                  <Alert severity="error" variant="outlined" sx={{ py: 0.25 }}>
+                    {errorProximoTurno}
+                  </Alert>
+                )}
+                {!errorProximoTurno && sinProximoTurno && (
+                  <Alert severity="info" variant="outlined" sx={{ py: 0.25 }}>
+                    No hay turnos disponibles cargados próximamente para este profesional.
+                  </Alert>
+                )}
+                {!errorProximoTurno && !sinProximoTurno && mensajeProximoTurno && (
+                  <Alert severity="success" variant="outlined" sx={{ py: 0.25 }}>
+                    {mensajeProximoTurno}
+                  </Alert>
+                )}
+              </Box>
+            )}
           </Paper>
 
           {/* Barra de Filtros: Por Especialidad (si aplica) + Tabs de Estado */}
@@ -621,20 +769,41 @@ const SecretariaAgenda = () => {
                 const esReservado = item.tipo === 'RESERVADO';
                 const turno = esReservado ? item.datos : null;
                 const slot = !esReservado ? item.datos : null;
+                const esProximoResaltado =
+                  !esReservado &&
+                  highlightedSlot &&
+                  highlightedSlot.fecha === fecha &&
+                  highlightedSlot.hora === item.hora;
 
                 return (
-                  <Grid item xs={12} key={index}>
+                  <Grid
+                    item
+                    xs={12}
+                    key={index}
+                    ref={(node) => {
+                      if (!esReservado) {
+                        slotCardRefs.current[item.hora] = node;
+                      }
+                    }}
+                  >
                     <Card
                       sx={{
-                        borderLeft: `6px solid ${getBorderColor(item)}`,
+                        borderLeft: `6px solid ${esProximoResaltado ? '#0d9488' : getBorderColor(item)}`,
                         transition: '0.2s',
                         borderRadius: 2,
+                        ...(esProximoResaltado && {
+                          boxShadow: '0 0 0 2px #0d9488, 0 8px 20px rgba(13, 148, 136, 0.18)',
+                          backgroundColor: (theme) =>
+                            theme.palette.mode === 'light'
+                              ? 'rgba(13, 148, 136, 0.05)'
+                              : 'rgba(13, 148, 136, 0.14)',
+                        }),
                         '&:hover': { boxShadow: '0 4px 14px rgba(0,0,0,0.08)' },
                       }}
                     >
                       <CardContent sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, justifyContent: 'space-between', alignItems: { sm: 'center' }, gap: 2 }}>
-                        <Box>
-                          <Box display="flex" alignItems="center" gap={1.5} mb={0.5}>
+                        <Box sx={{ minWidth: 0, wordBreak: 'break-word' }}>
+                          <Box display="flex" alignItems="center" flexWrap="wrap" gap={1.5} mb={0.5}>
                             <Typography variant="h6" fontWeight={700} color="primary">
                               {item.hora} hs
                             </Typography>
@@ -644,6 +813,14 @@ const SecretariaAgenda = () => {
                               size="small"
                               sx={{ fontWeight: 700 }}
                             />
+                            {esProximoResaltado && (
+                              <Chip
+                                label="PRÓXIMO DISPONIBLE"
+                                color="secondary"
+                                size="small"
+                                sx={{ fontWeight: 700 }}
+                              />
+                            )}
                           </Box>
 
                           {esReservado ? (
@@ -669,7 +846,7 @@ const SecretariaAgenda = () => {
                           )}
                         </Box>
 
-                        <Box>
+                        <Box sx={{ width: { xs: '100%', sm: 'auto' } }}>
                           {esReservado ? (
                             turno?.estado !== 'COMPLETADO' && turno?.estado !== 'CANCELADO' && turno?.estado !== 'AUSENTE' && (
                               <Button
@@ -678,6 +855,7 @@ const SecretariaAgenda = () => {
                                 size="small"
                                 startIcon={<CancelIcon />}
                                 onClick={() => handleOpenCancelDialog(turno)}
+                                sx={{ width: { xs: '100%', sm: 'auto' } }}
                               >
                                 Cancelar Turno
                               </Button>
@@ -720,7 +898,11 @@ const SecretariaAgenda = () => {
             <ModalAgendarSecretaria
               open={modalAgendarOpen}
               onClose={handleCloseAgendarModal}
-              onSuccess={() => cargarAgendaYDisponibilidad(selectedDoctor.id, fecha, selectedEspecialidadFiltroAgenda)}
+              onSuccess={() => {
+                setHighlightedSlot(null);
+                setMensajeProximoTurno(null);
+                cargarAgendaYDisponibilidad(selectedDoctor.id, fecha, selectedEspecialidadFiltroAgenda);
+              }}
               doctor={selectedDoctor}
               especialidadId={selectedSlotParaAgendar.especialidadId}
               especialidadNombre={selectedSlotParaAgendar.especialidadNombre}
@@ -729,8 +911,8 @@ const SecretariaAgenda = () => {
           )}
 
           {/* Dialog de Confirmación de Cancelación */}
-          <Dialog open={cancelDialogOpen} onClose={handleCloseCancelDialog} maxWidth="sm" fullWidth>
-            <DialogTitle fontWeight={700} color="error.main">
+          <Dialog open={cancelDialogOpen} onClose={handleCloseCancelDialog} maxWidth="sm" fullWidth aria-labelledby="cancelar-secretaria-dialog-title">
+            <DialogTitle id="cancelar-secretaria-dialog-title" fontWeight={700} color="error.main">
               Confirmar Cancelación de Turno
             </DialogTitle>
             <DialogContent dividers>

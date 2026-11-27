@@ -15,6 +15,7 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Repository
@@ -24,6 +25,10 @@ public interface TurnoRepository extends JpaRepository<Turno, UUID> {
     @QueryHints({@QueryHint(name = "jakarta.persistence.lock.timeout", value = "3000")})
     @Query("SELECT t FROM Turno t WHERE t.id = :id")
     Optional<Turno> findByIdForUpdate(@Param("id") UUID id);
+
+    @EntityGraph(attributePaths = {"paciente.usuario", "paciente.tutor.usuario", "doctor.usuario", "especialidad"})
+    @Query("SELECT t FROM Turno t WHERE t.id = :id")
+    Optional<Turno> findByIdWithRelaciones(@Param("id") UUID id);
 
     @EntityGraph(attributePaths = {"paciente", "doctor", "especialidad"})
     List<Turno> findByPacienteIdOrderByFechaHoraDesc(UUID pacienteId);
@@ -53,4 +58,11 @@ public interface TurnoRepository extends JpaRepository<Turno, UUID> {
     @EntityGraph(attributePaths = {"paciente", "doctor.usuario", "especialidad"})
     List<Turno> findByFechaHoraBetweenAndEstadoNotOrderByFechaHoraAsc(
             LocalDateTime desde, LocalDateTime hasta, EstadoTurno estadoNoDeseado);
+
+    @Query("SELECT t.fechaHora FROM Turno t " +
+           "WHERE t.doctor.id = :doctorId AND t.fechaHora >= :desde AND t.estado <> :estadoExcluido")
+    Set<LocalDateTime> findFechasHorasByDoctorIdAndFechaHoraGreaterThanEqualAndEstadoNot(
+            @Param("doctorId") UUID doctorId,
+            @Param("desde") LocalDateTime desde,
+            @Param("estadoExcluido") EstadoTurno estadoExcluido);
 }

@@ -168,7 +168,7 @@ const AdminDoctores = () => {
 
   return (
     <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+      <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} justifyContent="space-between" alignItems={{ xs: 'flex-start', sm: 'center' }} gap={2} mb={3}>
         <Box>
           <Typography variant="h4" fontWeight={700} color="primary" gutterBottom>
             Nómina de Profesionales Médicos
@@ -182,6 +182,7 @@ const AdminDoctores = () => {
           variant="contained"
           startIcon={<PersonAddIcon />}
           onClick={() => navigate('/admin/usuarios/nuevo')}
+          sx={{ width: { xs: '100%', sm: 'auto' } }}
         >
           Registrar Nuevo Usuario
         </Button>
@@ -211,7 +212,7 @@ const AdminDoctores = () => {
                         <Typography variant="subtitle1" fontWeight={700}>
                           Dr/a. {doc.nombre} {doc.apellido}
                         </Typography>
-                        <Typography variant="body2" color="text.secondary">
+                        <Typography variant="body2" color="text.secondary" sx={{ wordBreak: 'break-all' }}>
                           📧 {doc.usuario?.email}
                         </Typography>
                       </Box>
@@ -221,6 +222,7 @@ const AdminDoctores = () => {
                       size="small"
                       onClick={() => setSelectedDoctorDelete(doc)}
                       title="Eliminar médico"
+                      aria-label={`Eliminar médico ${doc.nombre} ${doc.apellido}`}
                     >
                       <DeleteIcon />
                     </IconButton>
@@ -254,8 +256,8 @@ const AdminDoctores = () => {
       )}
 
       {/* Modal Editar Doctor */}
-      <Dialog open={!!selectedDoctorEdit} onClose={() => setSelectedDoctorEdit(null)} maxWidth="sm" fullWidth>
-        <DialogTitle>Editar Datos del Profesional</DialogTitle>
+      <Dialog open={!!selectedDoctorEdit} onClose={() => setSelectedDoctorEdit(null)} maxWidth="sm" fullWidth aria-labelledby="edit-doctor-dialog-title">
+        <DialogTitle id="edit-doctor-dialog-title">Editar Datos del Profesional</DialogTitle>
         <DialogContent dividers>
           <Box display="flex" alignItems="center" gap={2} mb={2}>
             <Avatar
@@ -292,7 +294,7 @@ const AdminDoctores = () => {
             value={editFormData.email}
             onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })}
           />
-          <Box display="flex" gap={1.5} alignItems="flex-start" mt={2}>
+          <Box display="flex" flexDirection={{ xs: 'column', sm: 'row' }} gap={1.5} alignItems={{ xs: 'stretch', sm: 'flex-start' }} mt={2}>
             <TextField
               fullWidth
               label="URL manual de la imagen (Opcional)"
@@ -307,7 +309,7 @@ const AdminDoctores = () => {
             <Button
               variant="outlined"
               component="label"
-              sx={{ minWidth: 150, height: 56, whiteSpace: 'nowrap', fontWeight: 600 }}
+              sx={{ minWidth: { sm: 150 }, width: { xs: '100%', sm: 'auto' }, height: 56, whiteSpace: 'nowrap', fontWeight: 600 }}
             >
               Subir Foto
               <input
@@ -355,8 +357,8 @@ const AdminDoctores = () => {
       </Dialog>
 
       {/* Modal Confirmar Eliminación */}
-      <Dialog open={!!selectedDoctorDelete} onClose={() => setSelectedDoctorDelete(null)}>
-        <DialogTitle>¿Eliminar a este profesional?</DialogTitle>
+      <Dialog open={!!selectedDoctorDelete} onClose={() => setSelectedDoctorDelete(null)} aria-labelledby="delete-doctor-dialog-title">
+        <DialogTitle id="delete-doctor-dialog-title">¿Eliminar a este profesional?</DialogTitle>
         <DialogContent>
           <DialogContentText>
             Vas a dar de baja al Dr/a. <strong>{selectedDoctorDelete?.nombre} {selectedDoctorDelete?.apellido}</strong>. Esta acción eliminará sus horarios y turnos asociados.

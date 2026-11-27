@@ -20,7 +20,7 @@ const Contacto = () => {
         </Button>
 
         <Paper elevation={0} sx={{ p: { xs: 3, md: 5 }, borderRadius: 4, border: '1px solid', borderColor: 'divider', boxShadow: '0 4px 20px rgba(0,0,0,0.05)' }}>
-          <Typography variant="h4" fontWeight={800} color="primary" mb={1}>
+          <Typography variant="h4" component="h1" fontWeight={800} color="primary" mb={1}>
             Medios de Contacto y Atención
           </Typography>
           <Typography variant="body1" color="text.secondary" mb={3}>

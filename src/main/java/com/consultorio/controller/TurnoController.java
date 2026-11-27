@@ -1,6 +1,7 @@
 package com.consultorio.controller;
 
 import com.consultorio.domain.EstadoTurno;
+import com.consultorio.dto.CancelarTurnoDTO;
 import com.consultorio.dto.TurnoReservaDTO;
 import com.consultorio.dto.TurnoReservaSecretariaDTO;
 import com.consultorio.dto.TurnoResponseDTO;
@@ -55,8 +56,10 @@ public class TurnoController {
     @PutMapping("/{id}/cancelar")
     @PreAuthorize("hasRole('PACIENTE') or hasRole('DOCTOR') or hasRole('ADMIN') or hasRole('SECRETARIA')")
     @Operation(summary = "Cancelar un turno agendado (PACIENTE / DOCTOR / ADMIN / SECRETARIA)")
-    public ResponseEntity<TurnoResponseDTO> cancelarTurno(@PathVariable UUID id) {
-        return ResponseEntity.ok(turnoService.cancelarTurno(id));
+    public ResponseEntity<TurnoResponseDTO> cancelarTurno(
+            @PathVariable UUID id,
+            @Valid @RequestBody(required = false) CancelarTurnoDTO dto) {
+        return ResponseEntity.ok(turnoService.cancelarTurno(id, dto));
     }
 
     @PutMapping("/{id}/cancelar-doctor")
@@ -64,8 +67,12 @@ public class TurnoController {
     @Operation(summary = "Cancelar un turno por parte del médico o secretaría con justificación obligatoria (DOCTOR / ADMIN / SECRETARIA)")
     public ResponseEntity<TurnoResponseDTO> cancelarTurnoPorDoctor(
             @PathVariable UUID id,
-            @RequestParam("motivo") String motivo) {
-        return ResponseEntity.ok(turnoService.cancelarTurnoPorDoctor(id, motivo));
+            @RequestParam(value = "motivo", required = false) String motivoParam,
+            @Valid @RequestBody(required = false) CancelarTurnoDTO dto) {
+        String motivoFinal = (dto != null && dto.getMotivo() != null && !dto.getMotivo().isBlank())
+                ? dto.getMotivo()
+                : motivoParam;
+        return ResponseEntity.ok(turnoService.cancelarTurno(id, new CancelarTurnoDTO(motivoFinal)));
     }
 
     @PutMapping("/{id}/estado")
