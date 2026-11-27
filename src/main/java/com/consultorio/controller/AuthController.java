@@ -66,16 +66,16 @@ public class AuthController {
     }
 
     @PostMapping("/solicitar-restablecimiento-password")
-    @Operation(summary = "Solicitar restablecimiento de contraseña vía email (Público)")
+    @Operation(summary = "Solicitar restablecimiento de contraseña vía email (Paso 1, Público)")
     public ResponseEntity<Map<String, String>> solicitarRestablecimientoPassword(@Valid @RequestBody SolicitudRestablecerPasswordDTO dto) {
         usuarioService.solicitarRestablecimientoPassword(dto);
-        return ResponseEntity.ok(Map.of("message", "Se ha enviado un enlace de confirmación a tu correo electrónico para cambiar la contraseña."));
+        return ResponseEntity.ok(Map.of("message", "Si existe una cuenta asociada al correo ingresado, te enviamos un enlace para restablecer tu contraseña."));
     }
 
-    @GetMapping("/confirmar-restablecimiento-password")
-    @Operation(summary = "Confirmar el cambio de contraseña vía token (Público)")
-    public ResponseEntity<Map<String, String>> confirmarRestablecimientoPassword(@RequestParam("token") String token) {
-        usuarioService.confirmarRestablecimientoPassword(token);
+    @PostMapping("/confirmar-restablecimiento-password")
+    @Operation(summary = "Confirmar el cambio de contraseña enviando token y nueva contraseña vía POST (Paso 2, Público)")
+    public ResponseEntity<Map<String, String>> confirmarRestablecimientoPassword(@Valid @RequestBody ConfirmarRestablecerPasswordDTO dto) {
+        usuarioService.confirmarRestablecimientoPassword(dto);
         return ResponseEntity.ok(Map.of("message", "Contraseña cambiada con éxito. Ya puedes iniciar sesión con tu nueva contraseña."));
     }
 

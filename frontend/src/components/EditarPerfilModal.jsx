@@ -27,7 +27,7 @@ import {
 import { pacienteService } from '../api/pacienteService';
 import { doctorService } from '../api/doctorService';
 import { especialidadService } from '../api/especialidadService';
-import { uploadDoctorAvatar } from '../api/storageService';
+import { uploadDoctorAvatar, isAllowedRasterImage } from '../api/storageService';
 import { useAuth } from '../context/AuthContext';
 
 const EditarPerfilModal = ({ open, onClose }) => {
@@ -101,10 +101,27 @@ const EditarPerfilModal = ({ open, onClose }) => {
     const file = e.target.files[0];
     if (!file) return;
 
+    if (!isAllowedRasterImage(file)) {
+      setError('Formato no permitido. Solo se aceptan imágenes JPG, PNG o WEBP.');
+      e.target.value = '';
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError('La imagen seleccionada supera el tamaño máximo permitido de 5 MB.');
+      e.target.value = '';
+      return;
+    }
+
     setUploadingFoto(true);
     setError('');
+    setSuccessMsg('');
     try {
       const publicUrl = await uploadDoctorAvatar(file, doctorId || 'profile-edit');
+      if (!publicUrl) {
+        setError('No se pudo subir la foto de perfil. Verificá que sea una imagen JPG, PNG o WEBP válida.');
+        return;
+      }
       setFotoUrl(publicUrl);
       setSuccessMsg('Foto de perfil subida correctamente.');
     } catch (err) {
@@ -112,6 +129,7 @@ const EditarPerfilModal = ({ open, onClose }) => {
       setError('No se pudo subir la foto de perfil.');
     } finally {
       setUploadingFoto(false);
+      e.target.value = '';
     }
   };
 
@@ -203,7 +221,7 @@ const EditarPerfilModal = ({ open, onClose }) => {
                         '&:hover': { bgcolor: '#f0f9ff' },
                       }}
                     >
-                      <input hidden accept="image/*" type="file" onChange={handleSubirFoto} />
+                      <input hidden accept="image/jpeg,image/png,image/webp" type="file" onChange={handleSubirFoto} />
                       {uploadingFoto ? <CircularProgress size={20} /> : <PhotoCameraIcon fontSize="small" />}
                     </IconButton>
                   </Box>

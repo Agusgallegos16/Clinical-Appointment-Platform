@@ -4,6 +4,7 @@ import com.consultorio.domain.*;
 import com.consultorio.dto.HorarioAtencionDTO;
 import com.consultorio.dto.RegistroDoctorDTO;
 import com.consultorio.repository.DoctorRepository;
+import com.consultorio.security.SecurityUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -25,18 +26,21 @@ public class DoctorService {
     private final UsuarioService usuarioService;
     private final EspecialidadService especialidadService;
     private final EmailService emailService;
+    private final SecurityUtils securityUtils;
 
     @Autowired
     public DoctorService(DoctorRepository doctorRepository,
                          DoctorAgendaService doctorAgendaService,
                          UsuarioService usuarioService,
                          EspecialidadService especialidadService,
-                         EmailService emailService) {
+                         EmailService emailService,
+                         SecurityUtils securityUtils) {
         this.doctorRepository = doctorRepository;
         this.doctorAgendaService = doctorAgendaService;
         this.usuarioService = usuarioService;
         this.especialidadService = especialidadService;
         this.emailService = emailService;
+        this.securityUtils = securityUtils;
     }
 
     @Transactional
@@ -107,6 +111,7 @@ public class DoctorService {
     @Transactional
     public Doctor cambiarDisponibilidadTurnos(UUID id, boolean disponible) {
         Doctor doctor = obtenerPorId(id);
+        securityUtils.verificarAccesoDoctor(doctor, false);
         doctor.setDisponibleParaTurnos(disponible);
         return doctorRepository.save(doctor);
     }
@@ -114,6 +119,7 @@ public class DoctorService {
     @Transactional
     public Doctor configurarAdvertenciaBloqueante(UUID id, boolean activa, String mensaje) {
         Doctor doctor = obtenerPorId(id);
+        securityUtils.verificarAccesoDoctor(doctor, false);
         doctor.setTieneAdvertenciaBloqueante(activa);
         doctor.setMensajeAdvertenciaBloqueante(mensaje);
         return doctorRepository.save(doctor);
@@ -122,6 +128,7 @@ public class DoctorService {
     @Transactional
     public Doctor configurarAdvertenciaInformativa(UUID id, boolean activa, String mensaje) {
         Doctor doctor = obtenerPorId(id);
+        securityUtils.verificarAccesoDoctor(doctor, false);
         doctor.setTieneAdvertenciaInformativa(activa);
         doctor.setMensajeAdvertenciaInformativa(mensaje);
         return doctorRepository.save(doctor);
@@ -148,6 +155,10 @@ public class DoctorService {
     public Doctor obtenerPorId(UUID id) {
         return doctorRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Doctor no encontrado con ID: " + id));
+    }
+
+    public Optional<Doctor> buscarPorId(UUID id) {
+        return doctorRepository.findById(id);
     }
 
     @Transactional

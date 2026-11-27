@@ -1,5 +1,6 @@
 package com.consultorio.domain;
 
+import com.consultorio.security.EncryptedStringAttributeConverter;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
@@ -74,10 +75,12 @@ public class Usuario {
     private String nuevaPasswordPendiente;
 
     @JsonIgnore
+    @Convert(converter = EncryptedStringAttributeConverter.class)
     @Column(name = "google_access_token", length = 2048)
     private String googleAccessToken;
 
     @JsonIgnore
+    @Convert(converter = EncryptedStringAttributeConverter.class)
     @Column(name = "google_refresh_token", length = 2048)
     private String googleRefreshToken;
 

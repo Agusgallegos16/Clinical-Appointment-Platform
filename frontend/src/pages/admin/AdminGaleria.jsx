@@ -30,6 +30,7 @@ import {
   getInstitucionGallery,
   uploadInstitucionImage,
   deleteInstitucionImage,
+  isAllowedRasterImage,
 } from '../../api/storageService';
 
 const AdminGaleria = () => {
@@ -64,12 +65,12 @@ const AdminGaleria = () => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validar tipo de archivo
-    if (!file.type.startsWith('image/')) {
+    // Validar tipo de archivo (solo raster: JPG, PNG, WEBP; SVG rechazado)
+    if (!isAllowedRasterImage(file)) {
       setMessage({
         type: 'warning',
         title: 'Formato no soportado',
-        text: 'Por favor seleccioná un archivo de imagen válido (JPG, PNG, WEBP, SVG).',
+        text: 'Por favor seleccioná un archivo de imagen válido (JPG, PNG o WEBP). Los archivos SVG no están permitidos.',
       });
       event.target.value = '';
       return;
@@ -195,7 +196,7 @@ const AdminGaleria = () => {
             <input
               type="file"
               hidden
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
               onChange={handleFileUpload}
             />
           </Button>

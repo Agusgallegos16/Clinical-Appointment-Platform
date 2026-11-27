@@ -70,7 +70,7 @@ public class EmailTemplateFactory {
     public String crearEmailRestablecerPassword(String urlConfirmacion) {
         String contenido = String.format(
                 "<p style='color: #334155; font-size: 16px; margin: 0 0 16px 0; line-height: 1.5;'>Hola,</p>" +
-                "<p style='color: #475569; font-size: 15px; margin: 0 0 24px 0; line-height: 1.6;'>Hemos recibido una solicitud para restablecer la contraseña de tu cuenta en <strong>%s</strong>. Haz clic en el botón a continuación para autorizar el cambio:</p>" +
+                "<p style='color: #475569; font-size: 15px; margin: 0 0 24px 0; line-height: 1.6;'>Hemos recibido una solicitud para restablecer la contraseña de tu cuenta en <strong>%s</strong>. Haz clic en el botón a continuación para definir tu nueva contraseña:</p>" +
                 "<div style='text-align: center; margin: 28px 0;'>" +
                 "  <a href='%s' style='display: inline-block; background-color: #0284c7; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px; box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3);'>Restablecer Mi Contraseña</a>" +
                 "</div>" +

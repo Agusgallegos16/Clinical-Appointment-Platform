@@ -5,6 +5,7 @@ import com.consultorio.dto.HorarioAtencionDTO;
 import com.consultorio.repository.DoctorRepository;
 import com.consultorio.repository.HorarioAtencionRepository;
 import com.consultorio.repository.SlotHorarioRepository;
+import com.consultorio.security.SecurityUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,22 +25,26 @@ public class DoctorAgendaService {
     private final SlotHorarioRepository slotHorarioRepository;
     private final DoctorRepository doctorRepository;
     private final EspecialidadService especialidadService;
+    private final SecurityUtils securityUtils;
 
     @Autowired
     public DoctorAgendaService(HorarioAtencionRepository horarioAtencionRepository,
                                SlotHorarioRepository slotHorarioRepository,
                                DoctorRepository doctorRepository,
-                               EspecialidadService especialidadService) {
+                               EspecialidadService especialidadService,
+                               SecurityUtils securityUtils) {
         this.horarioAtencionRepository = horarioAtencionRepository;
         this.slotHorarioRepository = slotHorarioRepository;
         this.doctorRepository = doctorRepository;
         this.especialidadService = especialidadService;
+        this.securityUtils = securityUtils;
     }
 
     @Transactional
     public HorarioAtencion agregarHorarioAtencion(UUID doctorId, HorarioAtencionDTO dto) {
         Doctor doctor = doctorRepository.findById(doctorId)
                 .orElseThrow(() -> new IllegalArgumentException("Doctor no encontrado con ID: " + doctorId));
+        securityUtils.verificarAccesoDoctor(doctor, false);
         LocalDate hoy = LocalDate.now();
 
         if (dto.getFecha() != null && dto.getFecha().isBefore(hoy)) {
@@ -96,6 +101,7 @@ public class DoctorAgendaService {
     public HorarioAtencion actualizarHorarioAtencion(Long horarioId, HorarioAtencionDTO dto) {
         HorarioAtencion horario = horarioAtencionRepository.findById(horarioId)
                 .orElseThrow(() -> new IllegalArgumentException("Horario no encontrado con ID: " + horarioId));
+        securityUtils.verificarAccesoDoctor(horario.getDoctor(), false);
 
         LocalDate hoy = LocalDate.now();
 
@@ -143,12 +149,15 @@ public class DoctorAgendaService {
 
     @Transactional(readOnly = true)
     public List<HorarioAtencion> obtenerHorariosDoctor(UUID doctorId) {
+        Doctor doctor = doctorRepository.findById(doctorId).orElse(null);
+        securityUtils.verificarAccesoDoctor(doctor, false);
         return horarioAtencionRepository.findByDoctorId(doctorId);
     }
 
     @Transactional
     public void eliminarHorarioAtencion(Long horarioId) {
         HorarioAtencion horario = horarioAtencionRepository.findById(horarioId).orElse(null);
+        securityUtils.verificarAccesoDoctor(horario != null ? horario.getDoctor() : null, false);
         if (horario != null) {
             eliminarSlotsDeHorario(horario);
             horarioAtencionRepository.delete(horario);
@@ -157,6 +166,8 @@ public class DoctorAgendaService {
 
     @Transactional
     public void limpiarHorariosSemana(UUID doctorId, LocalDate desde, LocalDate hasta) {
+        Doctor doctor = doctorRepository.findById(doctorId).orElse(null);
+        securityUtils.verificarAccesoDoctor(doctor, false);
         slotHorarioRepository.deleteByDoctorIdAndFechaBetween(doctorId, desde, hasta);
 
         List<HorarioAtencion> horarios = horarioAtencionRepository.findByDoctorId(doctorId);
@@ -179,6 +190,8 @@ public class DoctorAgendaService {
 
     @Transactional(readOnly = true)
     public List<SlotHorario> obtenerSlotsDoctor(UUID doctorId, LocalDate desde, LocalDate hasta) {
+        Doctor doctor = doctorRepository.findById(doctorId).orElse(null);
+        securityUtils.verificarAccesoDoctor(doctor, false);
         if (desde != null && hasta != null) {
             return slotHorarioRepository.findByDoctorIdAndFechaBetween(doctorId, desde, hasta);
         }
@@ -197,7 +210,11 @@ public class DoctorAgendaService {
 
     @Transactional
     public void eliminarSlotIndividual(Long slotId) {
-        slotHorarioRepository.deleteById(slotId);
+        SlotHorario slot = slotHorarioRepository.findById(slotId).orElse(null);
+        securityUtils.verificarAccesoDoctor(slot != null ? slot.getDoctor() : null, true);
+        if (slot != null) {
+            slotHorarioRepository.delete(slot);
+        }
     }
 
     @Transactional(readOnly = true)

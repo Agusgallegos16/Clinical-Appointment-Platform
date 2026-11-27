@@ -253,6 +253,7 @@ public class TurnoService {
     public TurnoResponseDTO cambiarEstadoTurno(UUID turnoId, EstadoTurno nuevoEstado) {
         Turno turno = turnoRepository.findByIdForUpdate(turnoId)
                 .orElseThrow(() -> new IllegalArgumentException("Turno no encontrado con ID: " + turnoId));
+        securityUtils.verificarAccesoDoctor(turno.getDoctor(), false);
 
         turno.transicionarA(nuevoEstado);
         Turno actualizado = turnoRepository.save(turno);

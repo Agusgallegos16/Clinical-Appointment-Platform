@@ -1,7 +1,9 @@
 package com.consultorio.security;
 
+import com.consultorio.domain.Doctor;
 import com.consultorio.service.PacienteService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -71,5 +73,22 @@ public class SecurityUtils {
             return false;
         }
         return pacienteService.esPacientePropietarioOTutor(pacienteId, email);
+    }
+
+    public void verificarAccesoDoctor(Doctor doctor, boolean permitirSecretaria) {
+        String emailAutenticado = obtenerEmailUsuarioAutenticado();
+        if (emailAutenticado == null) {
+            throw new AccessDeniedException("Authentication is required to perform this action.");
+        }
+        if (esAdmin() || (permitirSecretaria && esSecretaria())) {
+            return;
+        }
+        if (doctor != null
+                && doctor.getUsuario() != null
+                && doctor.getUsuario().getEmail() != null
+                && doctor.getUsuario().getEmail().equalsIgnoreCase(emailAutenticado)) {
+            return;
+        }
+        throw new AccessDeniedException("Access denied: you do not have permission to access another doctor's resources.");
     }
 }

@@ -37,6 +37,7 @@ app.mail.console-mode=true
 
 # 7. Clave JWT de desarrollo (HMAC-SHA256 >= 256 bits)
 app.jwt.secret=local-dev-jwt-secret-key-must-be-at-least-256-bits-long-384729
+app.security.token-encryption-key=${APP_TOKEN_ENCRYPTION_KEY:}
 
 # 8. Administrador inicial para testing local
 app.admin.email=admin@adminconsultorio.com
@@ -44,3 +45,7 @@ app.admin.password=AdminLocal123!
 
 # 9. Generación automática de usuarios de prueba para testing local
 app.dev.seed-test-users=true
+
+# 10. Supabase Storage (opcional en local para subidas autenticadas vía backend)
+app.supabase.url=${SUPABASE_URL:}
+app.supabase.service-role-key=${SUPABASE_SERVICE_ROLE_KEY:}

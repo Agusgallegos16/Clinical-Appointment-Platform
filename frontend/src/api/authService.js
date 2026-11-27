@@ -21,8 +21,8 @@ export const authService = {
     return response.data;
   },
 
-  confirmarRestablecimientoPassword: async (token) => {
-    const response = await axiosClient.get('/auth/confirmar-restablecimiento-password', { params: { token } });
+  confirmarRestablecimientoPassword: async (data) => {
+    const response = await axiosClient.post('/auth/confirmar-restablecimiento-password', data);
     return response.data;
   },
 
