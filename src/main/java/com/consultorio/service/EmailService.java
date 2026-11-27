@@ -4,6 +4,7 @@ import com.consultorio.dto.TurnoResponseDTO;
 import com.consultorio.event.TurnoCanceladoEvent;
 import com.consultorio.email.EmailSender;
 import com.consultorio.factory.EmailTemplateFactory;
+import com.consultorio.util.LogSanitizer;
 import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -140,23 +141,19 @@ public class EmailService {
     }
 
     private void enviarCorreoHtml(String destino, String asunto, String cuerpoHtml) {
-        String logMessage = String.format("\n📧 ==================== [NOTIFICACIÓN POR EMAIL HTML] ====================\nRemitente (From): %s\nPara: %s\nAsunto: %s\n====================================================================",
-                mailFrom, destino, asunto);
-
-        log.info(logMessage);
+        String maskedDestino = LogSanitizer.maskEmail(destino);
+        log.info("Notificación por email preparada [para={}, asunto={}]", maskedDestino, asunto);
 
         if (consoleMode) {
-            log.info("\n📺 [MODO CONSOLA DESARROLLO LOCAL - EMAIL NO ENVIADO A RED]\n" +
-                    "Para: {}\nAsunto: {}\nContenido:\n{}\n" +
-                    "====================================================================",
-                    destino, asunto, cuerpoHtml);
+            log.info("[MODO CONSOLA DESARROLLO LOCAL - EMAIL NO ENVIADO A RED] para={}, asunto={}", maskedDestino, asunto);
+            log.debug("Contenido redactado: {}", LogSanitizer.redactTokens(cuerpoHtml));
             return;
         }
 
         try {
             emailSender.sendHtmlEmail(destino, asunto, cuerpoHtml);
         } catch (Exception e) {
-            log.warn("⚠️ No se pudo enviar el correo vía proveedores API (Brevo/Resend): {}. Intentando vía SMTP...", e.getMessage());
+            log.warn("No se pudo enviar el correo vía proveedores API (Brevo/Resend): {}. Intentando vía SMTP...", e.getMessage());
             if (mailSender != null) {
                 try {
                     MimeMessage message = mailSender.createMimeMessage();
@@ -168,9 +165,9 @@ public class EmailService {
                     helper.setSubject(asunto);
                     helper.setText(cuerpoHtml, true);
                     mailSender.send(message);
-                    log.info("✅ Correo HTML enviado exitosamente vía SMTP de respaldo a: {}", destino);
+                    log.info("Correo HTML enviado exitosamente vía SMTP de respaldo a: {}", maskedDestino);
                 } catch (Exception smtpEx) {
-                    log.warn("⚠️ Tampoco se pudo enviar el correo vía SMTP: {}", smtpEx.getMessage());
+                    log.warn("Tampoco se pudo enviar el correo vía SMTP: {}", smtpEx.getMessage());
                 }
             }
         }

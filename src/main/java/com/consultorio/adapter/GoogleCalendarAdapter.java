@@ -25,7 +25,7 @@ public class GoogleCalendarAdapter implements CalendarioAdapter {
     @Override
     public String agendarEventoParaUsuario(Turno turno, Usuario usuario) {
         if (usuario == null || !usuario.isGoogleCalendarConnected()) {
-            log.info("ℹ️ El usuario {} no tiene Google Calendar vinculado. Se omite la sincronización.", usuario != null ? usuario.getEmail() : "null");
+            log.debug("Usuario ID {} sin Google Calendar vinculado; se omite sincronización.", usuario != null ? usuario.getId() : null);
             return null;
         }
 

@@ -424,7 +424,7 @@ class Phase2IndependentSecurityProbesTest {
         try {
             mockMvc.perform(post("/api/auth/confirmar-restablecimiento-password")
                             .contentType(MediaType.APPLICATION_JSON)
-                            .content("{\"token\":\"%s\",\"nuevaPassword\":\"NewPass123!\",\"confirmarNuevaPassword\":\"NewPass123!\"}".formatted(expiredToken)))
+                            .content("{\"token\":\"%s\",\"nuevaPassword\":\"NewPass12345!\",\"confirmarNuevaPassword\":\"NewPass12345!\"}".formatted(expiredToken)))
                     .andExpect(status().isBadRequest());
 
             Usuario reloaded = usuarioRepository.findById(u.getId()).orElseThrow();

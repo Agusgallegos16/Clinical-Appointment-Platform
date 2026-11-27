@@ -56,6 +56,26 @@ public class DtoMapper {
                 .build();
     }
 
+    public DoctorResponseDTO toPublicDto(Doctor doctor) {
+        if (doctor == null) return null;
+        List<EspecialidadResponseDTO> especialidadesDto = doctor.getEspecialidades() != null
+                ? doctor.getEspecialidades().stream().map(this::toDto).collect(Collectors.toList())
+                : Collections.emptyList();
+
+        return DoctorResponseDTO.builder()
+                .id(doctor.getId())
+                .nombre(doctor.getNombre())
+                .apellido(doctor.getApellido())
+                .fotoUrl(doctor.getFotoUrl())
+                .especialidades(especialidadesDto)
+                .disponibleParaTurnos(doctor.isDisponibleParaTurnos())
+                .tieneAdvertenciaBloqueante(doctor.isTieneAdvertenciaBloqueante())
+                .mensajeAdvertenciaBloqueante(doctor.getMensajeAdvertenciaBloqueante())
+                .tieneAdvertenciaInformativa(doctor.isTieneAdvertenciaInformativa())
+                .mensajeAdvertenciaInformativa(doctor.getMensajeAdvertenciaInformativa())
+                .build();
+    }
+
     public PacienteResponseDTO toDto(Paciente paciente) {
         if (paciente == null) return null;
         UUID tutorId = paciente.getTutor() != null ? paciente.getTutor().getId() : null;

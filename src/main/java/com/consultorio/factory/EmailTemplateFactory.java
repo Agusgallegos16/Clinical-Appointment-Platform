@@ -5,13 +5,14 @@ import com.consultorio.dto.TurnoResponseDTO;
 import com.consultorio.event.TurnoCanceladoEvent;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.web.util.HtmlUtils;
 
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
 /**
  * Factoría (Factory Pattern) para la generación de plantillas HTML de correo electrónico.
- * Garantiza un diseño estético moderno, sobrio y responsive unificado para todas las notificaciones del sistema.
+ * Garantiza un diseño estético moderno, sobrio, responsive y con escape HTML estricto.
  */
 @Component
 public class EmailTemplateFactory {
@@ -27,6 +28,10 @@ public class EmailTemplateFactory {
 
     @Value("${app.frontend.url:${APP_FRONTEND_URL:http://localhost:5173}}")
     private String frontendUrl;
+
+    private String esc(String value) {
+        return value == null ? "" : HtmlUtils.htmlEscape(value);
+    }
 
     private String getCleanFrontendUrl() {
         if (frontendUrl == null || frontendUrl.isBlank()) return "http://localhost:5173";
@@ -45,7 +50,7 @@ public class EmailTemplateFactory {
                 "<div style='background-color: #fffbeb; border: 1px solid #fef3c7; border-radius: 8px; padding: 14px 18px; margin-top: 20px;'>" +
                 "  <p style='color: #92400e; font-size: 13px; margin: 0; line-height: 1.5;'>⏱️ <strong>Nota de Seguridad:</strong> Este enlace expira en 24 horas.</p>" +
                 "</div>",
-                nombreUsuario, clinicName, urlVerificacion
+                esc(nombreUsuario), esc(clinicName), esc(urlVerificacion)
         );
         return construirBaseTemplate("Confirmación de Cuenta", "Activación de Usuario", contenido);
     }
@@ -61,7 +66,7 @@ public class EmailTemplateFactory {
                 "<div style='background-color: #fffbeb; border: 1px solid #fef3c7; border-radius: 8px; padding: 14px 18px; margin-top: 20px;'>" +
                 "  <p style='color: #92400e; font-size: 13px; margin: 0; line-height: 1.5;'>⚠️ <strong>Importante:</strong> Este enlace expira en 24 horas. Transcurrido dicho plazo, el registro se descartará automáticamente.</p>" +
                 "</div>",
-                nombreDoctor, clinicName, urlActivacion
+                esc(nombreDoctor), esc(clinicName), esc(urlActivacion)
         );
         return construirBaseTemplate("Bienvenido/a a " + clinicName, "Configuración de Contraseña Médica", contenido);
     }
@@ -75,7 +80,7 @@ public class EmailTemplateFactory {
                 "  <a href='%s' style='display: inline-block; background-color: #0284c7; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px; box-shadow: 0 2px 8px rgba(2, 132, 199, 0.3);'>Restablecer Mi Contraseña</a>" +
                 "</div>" +
                 "<p style='color: #64748b; font-size: 13px; line-height: 1.5;'>Si no solicitaste este cambio, puedes ignorar este mensaje de forma segura y tu contraseña actual no será modificada. Este enlace vence en 1 hora.</p>",
-                clinicName, urlConfirmacion
+                esc(clinicName), esc(urlConfirmacion)
         );
         return construirBaseTemplate("Seguridad de la Cuenta", "Solicitud de Cambio de Contraseña", contenido);
     }
@@ -92,7 +97,7 @@ public class EmailTemplateFactory {
                 "<div style='text-align: center; margin: 28px 0;'>" +
                 "  <a href='%s/login' style='display: inline-block; background-color: #0284c7; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px;'>Ingresar a Mi Cuenta</a>" +
                 "</div>",
-                nombreUsuario, clinicAddress, clinicPhone, getCleanFrontendUrl()
+                esc(nombreUsuario), esc(clinicAddress), esc(clinicPhone), esc(getCleanFrontendUrl())
         );
         return construirBaseTemplate("¡Bienvenido/a a " + clinicName + "!", "Registro Completado Exitosamente", contenido);
     }
@@ -102,6 +107,7 @@ public class EmailTemplateFactory {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy 'a las' HH:mm");
         String fechaFormateada = turno.getFechaHora().format(formatter);
         String osInfo = (turno.getObraSocial() != null && !turno.getObraSocial().trim().isEmpty()) ? turno.getObraSocial() : "Particular / Sin Obra Social";
+        String motivo = turno.getMotivoConsulta() != null ? turno.getMotivoConsulta() : "Consulta General";
 
         String contenido = String.format(
                 "<p style='color: #334155; font-size: 16px; margin: 0 0 16px 0; line-height: 1.5;'>Hola <strong style='color: #0f172a;'>%s</strong>,</p>" +
@@ -124,9 +130,9 @@ public class EmailTemplateFactory {
                 "<div style='text-align: center; margin: 24px 0 12px 0;'>" +
                 "  <a href='%s/paciente/turnos' style='display: inline-block; background-color: #0284c7; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px;'>Ver Mi Turno en el Portal</a>" +
                 "</div>",
-                turno.getPacienteNombre(), fechaFormateada, turno.getDoctorNombre(), turno.getEspecialidadNombre(),
-                osInfo, turno.getMotivoConsulta() != null ? turno.getMotivoConsulta() : "Consulta General",
-                clinicAddress, clinicPhone, getCleanFrontendUrl()
+                esc(turno.getPacienteNombre()), esc(fechaFormateada), esc(turno.getDoctorNombre()), esc(turno.getEspecialidadNombre()),
+                esc(osInfo), esc(motivo),
+                esc(clinicAddress), esc(clinicPhone), esc(getCleanFrontendUrl())
         );
         return construirBaseTemplate("Confirmación de Turno", "Cita Médica Reservada", contenido);
     }
@@ -150,7 +156,7 @@ public class EmailTemplateFactory {
                 "  <tr><td style='padding: 10px 0; color: #64748b; font-size: 14px;'>Teléfono:</td><td style='padding: 10px 0; color: #0f172a; font-size: 15px;'>%s</td></tr>" +
                 "</table>" +
                 "<p style='color: #64748b; font-size: 13px; text-align: center; margin-top: 20px;'>En caso de no poder asistir, por favor cancela tu turno desde la plataforma para liberar la vacante a otro paciente.</p>",
-                turno.getPacienteNombre(), fechaFormateada, turno.getDoctorNombre(), turno.getEspecialidadNombre(), clinicAddress, clinicPhone
+                esc(turno.getPacienteNombre()), esc(fechaFormateada), esc(turno.getDoctorNombre()), esc(turno.getEspecialidadNombre()), esc(clinicAddress), esc(clinicPhone)
         );
         return construirBaseTemplate("Recordatorio de Turno", "Cita en 48 Horas", contenido);
     }
@@ -171,7 +177,7 @@ public class EmailTemplateFactory {
                 "<div style='text-align: center; margin: 24px 0;'>" +
                 "  <a href='%s/paciente/reservar' style='display: inline-block; background-color: #0284c7; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px;'>Reprogramar Nuevo Turno</a>" +
                 "</div>",
-                turno.getPacienteNombre(), fechaFormateada, turno.getDoctorNombre(), turno.getEspecialidadNombre(), motivoCancelacion, getCleanFrontendUrl()
+                esc(turno.getPacienteNombre()), esc(fechaFormateada), esc(turno.getDoctorNombre()), esc(turno.getEspecialidadNombre()), esc(motivoCancelacion), esc(getCleanFrontendUrl())
         );
         return construirBaseTemplate("Aviso de Cancelación", "Modificación de Agenda Médica", contenido);
     }
@@ -187,7 +193,7 @@ public class EmailTemplateFactory {
                     "<div style='background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 24px;'>" +
                     "  <span style='display: block; color: #475569; font-size: 13px; font-weight: 700; margin-bottom: 4px;'>📝 Motivo manifestado por el paciente:</span>" +
                     "  <span style='display: block; color: #0f172a; font-size: 14px; font-style: italic;'>\"%s\"</span>" +
-                    "</div>", event.motivo().trim());
+                    "</div>", esc(event.motivo().trim()));
         } else {
             motivoHtml = "<div style='background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 24px;'>" +
                     "  <span style='display: block; color: #64748b; font-size: 13px;'>El paciente no especificó un motivo para la cancelación. El sobreturno ha quedado liberado en tu agenda.</span>" +
@@ -199,7 +205,7 @@ public class EmailTemplateFactory {
                 "<p style='color: #475569; font-size: 15px; margin: 0 0 20px 0; line-height: 1.6;'>Te informamos que el/la paciente <strong>%s</strong> ha cancelado su cita programada para el día <strong>%s hs</strong> (%s).</p>" +
                 "%s" +
                 "<p style='color: #475569; font-size: 14px; line-height: 1.6;'>El horario ha quedado disponible para ser reservado por nuevos pacientes.</p>",
-                event.doctorNombre(), event.pacienteNombre(), fechaFormateada, event.especialidadNombre(), motivoHtml
+                esc(event.doctorNombre()), esc(event.pacienteNombre()), esc(fechaFormateada), esc(event.especialidadNombre()), motivoHtml
         );
         return construirBaseTemplate("Cancelación de Cita", "Turno Liberado en Agenda", contenido);
     }
@@ -215,7 +221,7 @@ public class EmailTemplateFactory {
                     "<div style='background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 24px;'>" +
                     "  <span style='display: block; color: #475569; font-size: 13px; font-weight: 700; margin-bottom: 4px;'>📝 Motivo registrado:</span>" +
                     "  <span style='display: block; color: #0f172a; font-size: 14px; font-style: italic;'>\"%s\"</span>" +
-                    "</div>", event.motivo().trim());
+                    "</div>", esc(event.motivo().trim()));
         }
 
         String contenido = String.format(
@@ -226,7 +232,7 @@ public class EmailTemplateFactory {
                 "<div style='text-align: center; margin: 24px 0;'>" +
                 "  <a href='%s/paciente/reservar' style='display: inline-block; background-color: #0284c7; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 700; padding: 14px 28px; border-radius: 8px;'>Reservar Nuevo Turno</a>" +
                 "</div>",
-                event.pacienteNombre(), event.doctorNombre(), event.especialidadNombre(), fechaFormateada, motivoHtml, getCleanFrontendUrl()
+                esc(event.pacienteNombre()), esc(event.doctorNombre()), esc(event.especialidadNombre()), esc(fechaFormateada), motivoHtml, esc(getCleanFrontendUrl())
         );
         return construirBaseTemplate("Cancelación Confirmada", "Turno Cancelado con Éxito", contenido);
     }
@@ -235,6 +241,7 @@ public class EmailTemplateFactory {
     public String crearEmailConfirmacionCancelacionDoctor(TurnoCanceladoEvent event) {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy 'a las' HH:mm");
         String fechaFormateada = event.fechaHora() != null ? event.fechaHora().format(formatter) : "Fecha a confirmar";
+        String motivo = event.motivo() != null ? event.motivo().trim() : "Sin justificación";
 
         String contenido = String.format(
                 "<p style='color: #334155; font-size: 16px; margin: 0 0 16px 0; line-height: 1.5;'>Estimado/a <strong style='color: #0f172a;'>Dr/a. %s</strong>,</p>" +
@@ -244,7 +251,7 @@ public class EmailTemplateFactory {
                 "  <span style='display: block; color: #7f1d1d; font-size: 14px; font-style: italic;'>\"%s\"</span>" +
                 "</div>" +
                 "<p style='color: #475569; font-size: 14px; line-height: 1.6;'>El paciente ha sido debidamente notificado por correo electrónico con esta justificación.</p>",
-                event.doctorNombre(), event.pacienteNombre(), event.especialidadNombre(), fechaFormateada, event.motivo() != null ? event.motivo().trim() : "Sin justificación"
+                esc(event.doctorNombre()), esc(event.pacienteNombre()), esc(event.especialidadNombre()), esc(fechaFormateada), esc(motivo)
         );
         return construirBaseTemplate("Cancelación Registrada", "Notificación Enviada al Paciente", contenido);
     }
@@ -252,19 +259,20 @@ public class EmailTemplateFactory {
     // 8. Email de Resumen Diario para el Doctor
     public String crearEmailResumenDiarioDoctor(String doctorNombre, String fechaMañana, List<TurnoResponseDTO> turnos) {
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format("<p style='color: #334155; font-size: 16px; margin: 0 0 16px 0;'>Estimado/a <strong style='color: #0f172a;'>Dr/a. %s</strong>,</p>", doctorNombre));
-        sb.append(String.format("<p style='color: #475569; font-size: 15px; margin: 0 0 20px 0;'>Le presentamos la nómina de turnos médica agendados en <strong>%s</strong> para el día de mañana (<strong>%s</strong>):</p>", clinicName, fechaMañana));
+        sb.append(String.format("<p style='color: #334155; font-size: 16px; margin: 0 0 16px 0;'>Estimado/a <strong style='color: #0f172a;'>Dr/a. %s</strong>,</p>", esc(doctorNombre)));
+        sb.append(String.format("<p style='color: #475569; font-size: 15px; margin: 0 0 20px 0;'>Le presentamos la nómina de turnos médica agendados en <strong>%s</strong> para el día de mañana (<strong>%s</strong>):</p>", esc(clinicName), esc(fechaMañana)));
 
         DateTimeFormatter horaFormatter = DateTimeFormatter.ofPattern("HH:mm");
         sb.append("<table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' style='border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden; margin-bottom: 24px;'>");
         sb.append("  <tr style='background-color: #f8fafc;'><th style='padding: 10px 12px; text-align: left; color: #64748b; font-size: 13px;'>Hora</th><th style='padding: 10px 12px; text-align: left; color: #64748b; font-size: 13px;'>Paciente</th><th style='padding: 10px 12px; text-align: left; color: #64748b; font-size: 13px;'>Especialidad</th><th style='padding: 10px 12px; text-align: left; color: #64748b; font-size: 13px;'>Motivo</th></tr>");
 
         for (TurnoResponseDTO t : turnos) {
+            String motivo = t.getMotivoConsulta() != null ? t.getMotivoConsulta() : "Consulta General";
             sb.append("  <tr>");
-            sb.append(String.format("    <td style='padding: 10px 12px; border-top: 1px solid #f1f5f9; color: #0284c7; font-weight: 700; font-size: 14px;'>%s hs</td>", t.getFechaHora().format(horaFormatter)));
-            sb.append(String.format("    <td style='padding: 10px 12px; border-top: 1px solid #f1f5f9; color: #0f172a; font-weight: 600; font-size: 14px;'>%s</td>", t.getPacienteNombre()));
-            sb.append(String.format("    <td style='padding: 10px 12px; border-top: 1px solid #f1f5f9; color: #475569; font-size: 13px;'>%s</td>", t.getEspecialidadNombre()));
-            sb.append(String.format("    <td style='padding: 10px 12px; border-top: 1px solid #f1f5f9; color: #64748b; font-size: 13px;'>%s</td>", t.getMotivoConsulta() != null ? t.getMotivoConsulta() : "Consulta General"));
+            sb.append(String.format("    <td style='padding: 10px 12px; border-top: 1px solid #f1f5f9; color: #0284c7; font-weight: 700; font-size: 14px;'>%s hs</td>", esc(t.getFechaHora().format(horaFormatter))));
+            sb.append(String.format("    <td style='padding: 10px 12px; border-top: 1px solid #f1f5f9; color: #0f172a; font-weight: 600; font-size: 14px;'>%s</td>", esc(t.getPacienteNombre())));
+            sb.append(String.format("    <td style='padding: 10px 12px; border-top: 1px solid #f1f5f9; color: #475569; font-size: 13px;'>%s</td>", esc(t.getEspecialidadNombre())));
+            sb.append(String.format("    <td style='padding: 10px 12px; border-top: 1px solid #f1f5f9; color: #64748b; font-size: 13px;'>%s</td>", esc(motivo)));
             sb.append("  </tr>");
         }
         sb.append("</table>");
@@ -279,8 +287,8 @@ public class EmailTemplateFactory {
         long confirmados = turnos.stream().filter(t -> t.getEstado() == EstadoTurno.CONFIRMADO || t.getEstado() == EstadoTurno.PENDIENTE).count();
 
         StringBuilder sb = new StringBuilder();
-        sb.append(String.format("<p style='color: #334155; font-size: 16px; margin: 0 0 16px 0;'>Estimado/a <strong style='color: #0f172a;'>Dr/a. %s</strong>,</p>", doctorNombre));
-        sb.append(String.format("<p style='color: #475569; font-size: 15px; margin: 0 0 20px 0;'>A continuación se detalla el informe semanal de actividad (%s):</p>", periodoFormateado));
+        sb.append(String.format("<p style='color: #334155; font-size: 16px; margin: 0 0 16px 0;'>Estimado/a <strong style='color: #0f172a;'>Dr/a. %s</strong>,</p>", esc(doctorNombre)));
+        sb.append(String.format("<p style='color: #475569; font-size: 15px; margin: 0 0 20px 0;'>A continuación se detalla el informe semanal de actividad (%s):</p>", esc(periodoFormateado)));
 
         sb.append("<table role='presentation' width='100%' cellspacing='0' cellpadding='0' border='0' style='margin-bottom: 24px; background-color: #f8fafc; border-radius: 8px; padding: 16px;'>");
         sb.append("  <tr>");
@@ -329,7 +337,7 @@ public class EmailTemplateFactory {
                 "  </table>" +
                 "</body>" +
                 "</html>",
-                clinicName, tituloBanner, subtituloBanner, contenidoHtml, clinicName
+                esc(clinicName), esc(tituloBanner), esc(subtituloBanner), contenidoHtml, esc(clinicName)
         );
     }
 }

@@ -58,6 +58,11 @@ const Register = () => {
       return;
     }
 
+    if (formData.password.length < 12) {
+      setError('La contraseña debe tener al menos 12 caracteres.');
+      return;
+    }
+
     if (formData.password !== formData.confirmarPassword) {
       setError('Las contraseñas no coinciden. Por favor verifíquelas.');
       return;
@@ -193,7 +198,7 @@ const Register = () => {
                     value={formData.password}
                     onChange={handleChange}
                     required
-                    helperText="Mínimo 6 caracteres"
+                    helperText="Mínimo 12 caracteres"
                   />
                 </Grid>
                 <Grid item xs={12} sm={6}>

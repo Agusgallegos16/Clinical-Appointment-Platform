@@ -356,7 +356,7 @@ public class PacienteService {
 
         Usuario usuario = paciente.getUsuario();
         if (usuario != null) {
-            usuarioService.actualizarCredenciales(usuario.getId(), dto.getEmail(), dto.getPassword());
+            usuarioService.actualizarCredenciales(usuario.getId(), dto.getEmail(), dto.getPassword(), dto.getCurrentPassword());
         }
 
         return pacienteRepository.save(paciente);

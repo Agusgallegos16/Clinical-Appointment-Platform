@@ -35,7 +35,11 @@ public class OAuth2ProvisioningService {
     }
 
     @Transactional
-    public Usuario procesarUsuarioOAuth2(String email, String googleId, String name, String givenName, String familyName) {
+    public Usuario procesarUsuarioOAuth2(String email, String googleId, String name, String givenName, String familyName, boolean emailVerified) {
+        if (!emailVerified) {
+            log.warn("Intento de autenticación OAuth2 rechazado: email no verificado por el proveedor.");
+            throw new IllegalStateException("EMAIL_NOT_VERIFIED");
+        }
         if (email == null || email.isBlank()) {
             throw new IllegalArgumentException("El email recibido desde Google OAuth es nulo o vacío");
         }
@@ -46,16 +50,16 @@ public class OAuth2ProvisioningService {
         if (usuarioOpt.isPresent()) {
             Usuario usuario = usuarioOpt.get();
             if (usuario.isBloqueado()) {
-                log.warn("⛔ Intento de acceso OAuth2 para cuenta bloqueada: {}", normalizedEmail);
+                log.warn("Intento de acceso OAuth2 rechazado para cuenta bloqueada (usuario ID {}).", usuario.getId());
                 throw new IllegalStateException("USER_BLOCKED");
             }
 
             if (usuario.getGoogleId() == null && googleId != null) {
                 usuario.setGoogleId(googleId);
-                log.info("🔗 Cuenta vinculada con Google ID para usuario: {}", normalizedEmail);
+                log.info("Cuenta vinculada con Google OAuth2 (usuario ID {}).", usuario.getId());
             }
 
-            // Al autenticar vía Google, validamos y activamos la cuenta automáticamente
+            // Al autenticar vía Google con email verificado, validamos y activamos la cuenta automáticamente
             if (!usuario.isEmailVerificado() || !usuario.isActivo()) {
                 usuario.setEmailVerificado(true);
                 usuario.setActivo(true);
@@ -72,7 +76,7 @@ public class OAuth2ProvisioningService {
         }
 
         // Just-In-Time Provisioning: Creación de nuevo Usuario y Paciente
-        log.info("👤 Creando nuevo usuario JIT vía Google OAuth: {}", normalizedEmail);
+        log.info("Creando nuevo usuario JIT vía Google OAuth2.");
 
         Usuario nuevoUsuario = Usuario.builder()
                 .email(normalizedEmail)
@@ -113,6 +117,6 @@ public class OAuth2ProvisioningService {
                 .build();
 
         pacienteRepository.save(paciente);
-        log.info("✅ Perfil de Paciente creado automáticamente para: {}", usuario.getEmail());
+        log.info("Perfil de Paciente creado automáticamente para usuario ID {}.", usuario.getId());
     }
 }

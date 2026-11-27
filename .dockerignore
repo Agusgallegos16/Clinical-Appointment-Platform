@@ -19,4 +19,5 @@ target/
 # Archivos de entorno locales
 .env*
 *.log
-application.properties
+
+

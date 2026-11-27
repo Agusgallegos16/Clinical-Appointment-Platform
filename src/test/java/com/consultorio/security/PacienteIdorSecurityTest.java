@@ -123,12 +123,11 @@ class PacienteIdorSecurityTest {
 
     @Test
     @WithMockUser(username = "medico@test.com", roles = {"DOCTOR"})
-    @DisplayName("Doctor consultando perfil de cualquier paciente debe recibir HTTP 200 OK")
-    void testDoctorPuedeVerPerfilDePaciente() throws Exception {
+    @DisplayName("Doctor sin relación asistencial con el paciente debe recibir HTTP 403 Forbidden (ISO A.5.34)")
+    void testDoctorSinRelacionNoPuedeVerPerfilDePaciente() throws Exception {
         mockMvc.perform(get("/api/pacientes/" + pacienteB.getId())
                 .contentType(MediaType.APPLICATION_JSON))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.nombre").value("Maria"));
+                .andExpect(status().isForbidden());
     }
 
     @Test

@@ -86,20 +86,18 @@ public class DoctorController {
     }
 
     @GetMapping
-    @Operation(summary = "Listar todos los médicos o filtrar por especialidad (Público)")
+    @Operation(summary = "Listar todos los médicos o filtrar por especialidad (Público; redacta email/usuario fuera de ADMIN/SECRETARIA)")
     public ResponseEntity<List<DoctorResponseDTO>> listarDoctores(
             @Parameter(description = "ID opcional de especialidad médica para filtrar") @RequestParam(required = false) Long especialidadId,
             @Parameter(description = "Si es true, solo retorna médicos visibles para reserva por pacientes") @RequestParam(required = false, defaultValue = "false") boolean soloVisibles) {
-        if (especialidadId != null) {
-            List<DoctorResponseDTO> docs = doctorService.listarPorEspecialidad(especialidadId, soloVisibles).stream()
-                    .map(dtoMapper::toDto)
-                    .collect(Collectors.toList());
-            return ResponseEntity.ok(docs);
-        }
-        List<DoctorResponseDTO> todos = doctorService.listarTodos(soloVisibles).stream()
-                .map(dtoMapper::toDto)
+        boolean incluirDatosInternos = securityUtils.esAdmin() || securityUtils.esSecretaria();
+        List<Doctor> doctores = (especialidadId != null)
+                ? doctorService.listarPorEspecialidad(especialidadId, soloVisibles)
+                : doctorService.listarTodos(soloVisibles);
+        List<DoctorResponseDTO> respuesta = doctores.stream()
+                .map(d -> incluirDatosInternos ? dtoMapper.toDto(d) : dtoMapper.toPublicDto(d))
                 .collect(Collectors.toList());
-        return ResponseEntity.ok(todos);
+        return ResponseEntity.ok(respuesta);
     }
 
     @PatchMapping("/{id}/disponibilidad-turnos")
@@ -134,9 +132,11 @@ public class DoctorController {
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Obtener el detalle de un médico por su ID (Público)")
+    @Operation(summary = "Obtener el detalle de un médico por su ID (Público; redacta email/usuario fuera de ADMIN/SECRETARIA)")
     public ResponseEntity<DoctorResponseDTO> obtenerDoctorPorId(@PathVariable UUID id) {
-        return ResponseEntity.ok(dtoMapper.toDto(doctorService.obtenerPorId(id)));
+        Doctor doctor = doctorService.obtenerPorId(id);
+        boolean incluirDatosInternos = securityUtils.esAdmin() || securityUtils.esSecretaria();
+        return ResponseEntity.ok(incluirDatosInternos ? dtoMapper.toDto(doctor) : dtoMapper.toPublicDto(doctor));
     }
 
     @PutMapping("/{id}")

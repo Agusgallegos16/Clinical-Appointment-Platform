@@ -92,6 +92,22 @@ public class AuthController {
         return ResponseEntity.ok(authService.autenticar(loginDTO));
     }
 
+    @PostMapping("/oauth2/exchange")
+    @Operation(summary = "Intercambiar código OAuth2 de un solo uso por Token JWT Bearer (Público)")
+    public ResponseEntity<JwtResponseDTO> intercambiarCodigoOAuth2(@Valid @RequestBody OAuth2CodeExchangeDTO dto) {
+        return ResponseEntity.ok(authService.intercambiarCodigoOAuth2(dto.getCode()));
+    }
+
+    @PostMapping("/logout")
+    @Operation(summary = "Revocar la sesión JWT activa incrementando tokenVersion")
+    public ResponseEntity<Void> logout(org.springframework.security.core.Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated() || "anonymousUser".equals(authentication.getPrincipal())) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
+        authService.revocarSesion(authentication.getName());
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/me")
     @Operation(summary = "Obtener perfil y detalles del usuario actualmente autenticado vía JWT")
     public ResponseEntity<JwtResponseDTO> obtenerUsuarioActual(org.springframework.security.core.Authentication authentication) {

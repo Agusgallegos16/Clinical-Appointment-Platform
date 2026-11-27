@@ -33,8 +33,8 @@ const ConfirmarRestablecimiento = () => {
     e.preventDefault();
     setError('');
 
-    if (nuevaPassword.length < 6) {
-      setError('La contraseña debe tener al menos 6 caracteres.');
+    if (nuevaPassword.length < 12) {
+      setError('La contraseña debe tener al menos 12 caracteres.');
       return;
     }
 
@@ -136,7 +136,7 @@ const ConfirmarRestablecimiento = () => {
                   onChange={(e) => setNuevaPassword(e.target.value)}
                   required
                   margin="normal"
-                  helperText="Mínimo 6 caracteres"
+                  helperText="Mínimo 12 caracteres"
                 />
 
                 <TextField

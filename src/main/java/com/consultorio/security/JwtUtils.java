@@ -90,16 +90,32 @@ public class JwtUtils {
     }
 
     public String generarToken(String email, String rol) {
+        return generarToken(email, rol, 0);
+    }
+
+    public String generarToken(String email, String rol, int tokenVersion) {
         Date ahora = new Date();
         Date expiracion = new Date(ahora.getTime() + jwtExpirationMs);
 
         return Jwts.builder()
                 .subject(email)
                 .claim("rol", rol)
+                .claim("tv", tokenVersion)
                 .issuedAt(ahora)
                 .expiration(expiracion)
                 .signWith(this.key)
                 .compact();
+    }
+
+    public Integer obtenerTokenVersionDelToken(String token) {
+        String tokenLimpio = limpiarToken(token);
+        Number tv = Jwts.parser()
+                .verifyWith(this.key)
+                .build()
+                .parseSignedClaims(tokenLimpio)
+                .getPayload()
+                .get("tv", Number.class);
+        return tv != null ? tv.intValue() : null;
     }
 
     public String obtenerEmailDelToken(String token) {

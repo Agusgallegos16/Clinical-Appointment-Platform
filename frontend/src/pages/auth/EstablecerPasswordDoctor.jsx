@@ -52,6 +52,10 @@ const EstablecerPasswordDoctor = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (password.length < 12) {
+      setError('La contraseña debe tener al menos 12 caracteres.');
+      return;
+    }
     if (password !== confirmarPassword) {
       setError('Las contraseñas no coinciden. Por favor verifíquelas.');
       return;
@@ -124,7 +128,7 @@ const EstablecerPasswordDoctor = () => {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                helperText="Mínimo 6 caracteres"
+                helperText="Mínimo 12 caracteres"
                 sx={{ mb: 2.5 }}
               />
 

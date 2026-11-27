@@ -100,4 +100,17 @@ public class Usuario {
     @Column(name = "auth_provider")
     @Builder.Default
     private AuthProvider authProvider = AuthProvider.LOCAL;
+
+    @JsonIgnore
+    @Builder.Default
+    @Column(name = "token_version", columnDefinition = "integer default 0")
+    private Integer tokenVersion = 0;
+
+    public int getTokenVersionOrZero() {
+        return this.tokenVersion != null ? this.tokenVersion : 0;
+    }
+
+    public void incrementTokenVersion() {
+        this.tokenVersion = getTokenVersionOrZero() + 1;
+    }
 }

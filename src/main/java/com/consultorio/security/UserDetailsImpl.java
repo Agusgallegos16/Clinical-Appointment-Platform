@@ -19,15 +19,21 @@ public class UserDetailsImpl implements UserDetails {
     private final Rol rol;
     private final boolean activo;
     private final boolean bloqueado;
+    private final int tokenVersion;
     private final Collection<? extends GrantedAuthority> authorities;
 
     public UserDetailsImpl(Long id, String email, String password, Rol rol, boolean activo, boolean bloqueado, Collection<? extends GrantedAuthority> authorities) {
+        this(id, email, password, rol, activo, bloqueado, 0, authorities);
+    }
+
+    public UserDetailsImpl(Long id, String email, String password, Rol rol, boolean activo, boolean bloqueado, int tokenVersion, Collection<? extends GrantedAuthority> authorities) {
         this.id = id;
         this.email = email;
         this.password = password;
         this.rol = rol;
         this.activo = activo;
         this.bloqueado = bloqueado;
+        this.tokenVersion = tokenVersion;
         this.authorities = authorities;
     }
 
@@ -43,8 +49,13 @@ public class UserDetailsImpl implements UserDetails {
                 usuario.getRol(),
                 usuario.isActivo(),
                 usuario.isBloqueado(),
+                usuario.getTokenVersionOrZero(),
                 authorities
         );
+    }
+
+    public int getTokenVersion() {
+        return tokenVersion;
     }
 
     public Long getId() {
