@@ -8,7 +8,7 @@ export default function BotonProximoTurnoDisponible({
   sinDisponibilidad = false,
   error = null,
   mensajeExito = null,
-  label = 'Ir al próximo turno disponible',
+  label = 'Ir al próximo turno libre',
   loadingLabel = 'Buscando próximo turno...',
   emptyMessage = 'No hay turnos disponibles cargados próximamente para este profesional.',
   variant = 'outlined',
