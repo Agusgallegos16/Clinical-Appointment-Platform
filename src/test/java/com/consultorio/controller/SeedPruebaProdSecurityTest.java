@@ -29,7 +29,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "spring.datasource.username=sa",
         "spring.datasource.password=",
         "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
-        "spring.jpa.hibernate.ddl-auto=create-drop",
         "app.jwt.secret=secret-key-for-prod-profile-testing-purpose-only-256-bits-long",
         "app.cors.allowed-origins=http://localhost:3000",
         "app.google.calendar.redirect-uri=http://localhost:8080/api/google-calendar/callback"
