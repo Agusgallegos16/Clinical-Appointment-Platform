@@ -55,7 +55,7 @@ const SecretariaDashboard = () => {
         {}
         <Box mb={4} display="flex" flexDirection="column" alignItems="center">
           <Typography variant="h4" fontWeight={700} color="primary" gutterBottom>
-            ¡Hola, {nombreMostrar}! 👩‍💼
+            ¡Hola, {nombreMostrar}!
           </Typography>
           <Typography variant="body1" color="text.secondary" mb={2}>
             ¿Qué te gustaría hacer hoy?
