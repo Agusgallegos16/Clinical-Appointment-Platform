@@ -10,7 +10,9 @@ frontend/node_modules/
 frontend/dist/
 frontend/.vite/
 *.log
-.antigravity
+/.antigravity
+/odd
+odd
 
 ### STS ###
 .apt_generated
@@ -49,5 +51,5 @@ application-local.properties
 application.properties
 application-prod.properties
 
+/.engram
 .engram
-odd
