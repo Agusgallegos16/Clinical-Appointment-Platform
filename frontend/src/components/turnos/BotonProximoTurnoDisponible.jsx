@@ -1,5 +1,5 @@
 import { Alert, Box, Button, CircularProgress } from '@mui/material';
-import EventAvailableIcon from '@mui/icons-material/EventAvailable';
+import { EventAvailable as EventAvailableIcon } from '@mui/icons-material';
 
 export default function BotonProximoTurnoDisponible({
   onClick,
