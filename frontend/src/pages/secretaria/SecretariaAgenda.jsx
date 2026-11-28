@@ -28,6 +28,7 @@ import {
   DialogContent,
   DialogActions,
   InputAdornment,
+  Tooltip,
 } from '@mui/material';
 import {
   PersonAdd as PersonAddIcon,
@@ -40,18 +41,21 @@ import {
   CheckCircle as CheckIcon,
   FilterList as FilterListIcon,
   Block as BlockIcon,
+  AddCircleOutline as AddCircleOutlineIcon,
 } from '@mui/icons-material';
 import dayjs from 'dayjs';
 import axiosClient from '../../api/axiosClient';
 import { doctorService } from '../../api/doctorService';
 import { turnoService } from '../../api/turnoService';
 import ModalAgendarSecretaria from '../../components/secretaria/ModalAgendarSecretaria';
+import ModalAgregarSlotSecretaria from '../../components/secretaria/ModalAgregarSlotSecretaria';
 import BotonProximoTurnoDisponible from '../../components/turnos/BotonProximoTurnoDisponible';
 import { useProximoTurnoDisponible } from '../../hooks/useProximoTurnoDisponible';
 import {
   buildFechaHoraISO,
   formatFechaHoraResumen,
   formatLocalTimeToHHmm,
+  normalizeFechaISO,
 } from '../../utils/turnoSlotUtils';
 
 const SecretariaAgenda = () => {
@@ -81,6 +85,7 @@ const SecretariaAgenda = () => {
 
   const [modalAgendarOpen, setModalAgendarOpen] = useState(false);
   const [selectedSlotParaAgendar, setSelectedSlotParaAgendar] = useState(null);
+  const [modalAgregarSlotOpen, setModalAgregarSlotOpen] = useState(false);
 
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [turnoACancelar, setTurnoACancelar] = useState(null);
@@ -227,6 +232,50 @@ const SecretariaAgenda = () => {
   const handleCloseAgendarModal = () => {
     setModalAgendarOpen(false);
     setSelectedSlotParaAgendar(null);
+  };
+
+  const esFechaPasada = Boolean(fecha && dayjs(fecha).isBefore(dayjs(), 'day'));
+  const puedeAgregarSlot = Boolean(selectedDoctor?.disponibleParaTurnos) && !esFechaPasada;
+  const motivoBloqueoAgregarSlot = !selectedDoctor?.disponibleParaTurnos
+    ? 'El profesional no está habilitado para recibir turnos.'
+    : esFechaPasada
+      ? 'No se pueden agregar horarios en fechas pasadas.'
+      : '';
+
+  const handleSlotIndividualCreado = async (slotCreado, agendarAhora = false) => {
+    if (!selectedDoctor || !slotCreado) return;
+    const fechaNormalizada = normalizeFechaISO(slotCreado.fecha) || fecha;
+    const horaHHmm = formatLocalTimeToHHmm(slotCreado.horaInicio);
+    const filtroDestino =
+      selectedEspecialidadFiltroAgenda &&
+      slotCreado.especialidadId &&
+      Number(slotCreado.especialidadId) !== Number(selectedEspecialidadFiltroAgenda)
+        ? Number(slotCreado.especialidadId)
+        : selectedEspecialidadFiltroAgenda;
+
+    if (filtroDestino !== selectedEspecialidadFiltroAgenda) {
+      setSelectedEspecialidadFiltroAgenda(filtroDestino);
+    }
+
+    setTabFiltro((prev) => (prev === 1 ? 2 : prev));
+    lastScrolledKeyRef.current = null;
+    setHighlightedSlot({
+      fecha: fechaNormalizada,
+      hora: horaHHmm,
+      slotId: slotCreado.id,
+    });
+    setMensajeProximoTurno(
+      `Horario puntual agregado: ${formatFechaHoraResumen(fechaNormalizada, horaHHmm)}`
+    );
+    await cargarAgendaYDisponibilidad(selectedDoctor.id, fechaNormalizada, filtroDestino);
+
+    if (agendarAhora) {
+      handleOpenAgendarModal({
+        fechaHora: buildFechaHoraISO(fechaNormalizada, horaHHmm),
+        especialidadId: slotCreado.especialidadId,
+        especialidadNombre: slotCreado.especialidadNombre,
+      });
+    }
   };
 
   const handleOpenCancelDialog = (turno) => {
@@ -641,7 +690,7 @@ const SecretariaAgenda = () => {
             }}
           >
             <Grid container spacing={2} alignItems="center" justifyContent="space-between">
-              <Grid item xs={12} sm={8}>
+              <Grid item xs={12} md={7}>
                 <Box display="flex" alignItems="center" gap={2}>
                   <Avatar
                     src={selectedDoctor.fotoUrl}
@@ -661,23 +710,13 @@ const SecretariaAgenda = () => {
                 </Box>
               </Grid>
 
-              <Grid item xs={12} sm={4} textAlign={{ xs: 'left', sm: 'right' }}>
+              <Grid item xs={12} md={5}>
                 <Box
                   display="flex"
-                  flexWrap="wrap"
+                  flexDirection="column"
                   gap={1}
-                  justifyContent={{ xs: 'flex-start', sm: 'flex-end' }}
-                  alignItems="flex-start"
+                  alignItems={{ xs: 'flex-start', md: 'flex-end' }}
                 >
-                  <BotonProximoTurnoDisponible
-                    size="small"
-                    onClick={() => {
-                      setMensajeProximoTurno(null);
-                      buscarProximoTurno();
-                    }}
-                    loading={loadingProximoTurno}
-                    disabled={!selectedDoctor || loading}
-                  />
                   <Button
                     variant="outlined"
                     color="primary"
@@ -693,6 +732,38 @@ const SecretariaAgenda = () => {
                   >
                     Regresar
                   </Button>
+                  <Box
+                    display="flex"
+                    flexWrap="wrap"
+                    gap={1}
+                    justifyContent={{ xs: 'flex-start', md: 'flex-end' }}
+                    alignItems="center"
+                  >
+                    <Tooltip title={motivoBloqueoAgregarSlot}>
+                      <span>
+                        <Button
+                          variant="contained"
+                          color="primary"
+                          size="small"
+                          startIcon={<AddCircleOutlineIcon />}
+                          onClick={() => setModalAgregarSlotOpen(true)}
+                          disabled={!puedeAgregarSlot || loading}
+                          sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}
+                        >
+                          Agregar horario
+                        </Button>
+                      </span>
+                    </Tooltip>
+                    <BotonProximoTurnoDisponible
+                      size="small"
+                      onClick={() => {
+                        setMensajeProximoTurno(null);
+                        buscarProximoTurno();
+                      }}
+                      loading={loadingProximoTurno}
+                      disabled={!selectedDoctor || loading}
+                    />
+                  </Box>
                 </Box>
               </Grid>
             </Grid>
@@ -762,7 +833,25 @@ const SecretariaAgenda = () => {
           {loading ? (
             <Box display="flex" justifyContent="center" py={6}><CircularProgress /></Box>
           ) : listaFinal.length === 0 ? (
-            <Alert severity="info">No se encontraron turnos u horarios libres configurados para la fecha y filtros seleccionados.</Alert>
+            <Alert
+              severity="info"
+              action={
+                puedeAgregarSlot ? (
+                  <Button
+                    color="inherit"
+                    size="small"
+                    variant="outlined"
+                    startIcon={<AddCircleOutlineIcon />}
+                    onClick={() => setModalAgregarSlotOpen(true)}
+                    sx={{ textTransform: 'none', fontWeight: 600 }}
+                  >
+                    Agregar horario
+                  </Button>
+                ) : null
+              }
+            >
+              No se encontraron turnos u horarios libres configurados para la fecha y filtros seleccionados.
+            </Alert>
           ) : (
             <Grid container spacing={2}>
               {listaFinal.map((item, index) => {
@@ -892,6 +981,16 @@ const SecretariaAgenda = () => {
               })}
             </Grid>
           )}
+
+          {/* Modal para Agregar Horario Puntual */}
+          <ModalAgregarSlotSecretaria
+            open={modalAgregarSlotOpen}
+            onClose={() => setModalAgregarSlotOpen(false)}
+            doctor={selectedDoctor}
+            fecha={fecha}
+            defaultEspecialidadId={selectedEspecialidadFiltroAgenda}
+            onSlotCreado={handleSlotIndividualCreado}
+          />
 
           {/* Modal de Agendado por Secretaría */}
           {modalAgendarOpen && selectedSlotParaAgendar && (

@@ -218,6 +218,16 @@ public class DoctorController {
         return ResponseEntity.ok(slots);
     }
 
+    @PostMapping("/{id}/slots")
+    @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN') or hasRole('SECRETARIA')")
+    @Operation(summary = "Crear un slot puntual individual para un doctor (DOCTOR / ADMIN / SECRETARIA)")
+    public ResponseEntity<SlotHorarioResponseDTO> crearSlotIndividual(
+            @PathVariable UUID id,
+            @Valid @RequestBody CrearSlotIndividualDTO dto) {
+        SlotHorario slot = doctorAgendaService.crearSlotIndividual(id, dto);
+        return ResponseEntity.status(HttpStatus.CREATED).body(dtoMapper.toDto(slot));
+    }
+
     @DeleteMapping("/slots/{slotId}")
     @PreAuthorize("hasRole('DOCTOR') or hasRole('ADMIN') or hasRole('SECRETARIA')")
     @Operation(summary = "Eliminar/Deshabilitar un slot individual concreto (DOCTOR / ADMIN / SECRETARIA)")

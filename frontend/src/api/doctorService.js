@@ -133,6 +133,11 @@ export const doctorService = {
     return response.data;
   },
 
+  crearSlotIndividual: async (doctorId, slotData) => {
+    const response = await axiosClient.post(`/doctores/${doctorId}/slots`, slotData);
+    return response.data;
+  },
+
   eliminarSlot: async (slotId) => {
     const response = await axiosClient.delete(`/doctores/slots/${slotId}`);
     return response.data;

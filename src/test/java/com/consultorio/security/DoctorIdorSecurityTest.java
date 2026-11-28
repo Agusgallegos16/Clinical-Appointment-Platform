@@ -24,6 +24,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
@@ -390,5 +391,131 @@ class DoctorIdorSecurityTest {
                         .with(user("secretaria@test.com").roles("SECRETARIA")))
                 .andExpect(status().isNoContent());
         assertThat(slotHorarioRepository.existsById(slotB.getId())).isFalse();
+    }
+
+    @Test
+    void postIndividualSlotAllowsSecretariaAdminAndOwnerDoctorButBlocksIdorAndPaciente() throws Exception {
+        LocalDate futureDate = LocalDate.now().plusDays(12);
+        String secretariaBody = """
+                {
+                  "fecha": "%s",
+                  "horaInicio": "15:00",
+                  "duracionMinutos": 30
+                }
+                """.formatted(futureDate);
+        String adminBody = """
+                {
+                  "fecha": "%s",
+                  "horaInicio": "16:00",
+                  "duracionMinutos": 30
+                }
+                """.formatted(futureDate);
+        String ownerDoctorBody = """
+                {
+                  "fecha": "%s",
+                  "horaInicio": "17:00",
+                  "duracionMinutos": 30
+                }
+                """.formatted(futureDate);
+
+        // Anonymous -> 401
+        mockMvc.perform(post("/api/doctores/" + doctorB.getId() + "/slots")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(secretariaBody))
+                .andExpect(status().isUnauthorized());
+
+        // PACIENTE -> 403
+        mockMvc.perform(post("/api/doctores/" + doctorB.getId() + "/slots")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(secretariaBody)
+                        .with(user("paciente@test.com").roles("PACIENTE")))
+                .andExpect(status().isForbidden());
+
+        // Doctor A attempting to create a slot for Doctor B -> 403 (IDOR blocked)
+        mockMvc.perform(post("/api/doctores/" + doctorB.getId() + "/slots")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(secretariaBody)
+                        .with(user(usuarioDoctorA.getEmail()).roles("DOCTOR")))
+                .andExpect(status().isForbidden());
+
+        // Doctor A attempting to create a slot for a nonexistent doctor -> 403 (fail-closed)
+        mockMvc.perform(post("/api/doctores/" + UUID.randomUUID() + "/slots")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(secretariaBody)
+                        .with(user(usuarioDoctorA.getEmail()).roles("DOCTOR")))
+                .andExpect(status().isForbidden());
+
+        // SECRETARIA can create a punctual slot for Doctor B -> 201
+        mockMvc.perform(post("/api/doctores/" + doctorB.getId() + "/slots")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(secretariaBody)
+                        .with(user("secretaria@test.com").roles("SECRETARIA")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.fecha").value(futureDate.toString()))
+                .andExpect(jsonPath("$.horaInicio").value("15:00:00"))
+                .andExpect(jsonPath("$.horaFin").value("15:30:00"))
+                .andExpect(jsonPath("$.esPuntual").value(true));
+
+        // Duplicate / colliding slot at the same time -> 409 Conflict
+        mockMvc.perform(post("/api/doctores/" + doctorB.getId() + "/slots")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(secretariaBody)
+                        .with(user("secretaria@test.com").roles("SECRETARIA")))
+                .andExpect(status().isConflict());
+
+        // ADMIN can create a punctual slot for Doctor B -> 201
+        mockMvc.perform(post("/api/doctores/" + doctorB.getId() + "/slots")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(adminBody)
+                        .with(user("admin@test.com").roles("ADMIN")))
+                .andExpect(status().isCreated());
+
+        // Owner Doctor A can create a punctual slot for Doctor A -> 201
+        mockMvc.perform(post("/api/doctores/" + doctorA.getId() + "/slots")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(ownerDoctorBody)
+                        .with(user(usuarioDoctorA.getEmail()).roles("DOCTOR")))
+                .andExpect(status().isCreated());
+
+        // Real DB half-open interval check against orphaned active Turno at 10:00:
+        // - Back-to-back 09:30-10:00 MUST succeed (201) despite TIMESTAMP(6) precision
+        // - Overlapping 09:45-10:15 MUST be rejected (409)
+        LocalDate turnoDate = LocalDate.now().plusDays(15);
+        turnoRepository.save(Turno.builder()
+                .doctor(doctorB)
+                .paciente(turnoB.getPaciente())
+                .especialidad(especialidad)
+                .fechaHora(LocalDateTime.of(turnoDate, LocalTime.of(10, 0)))
+                .estado(EstadoTurno.CONFIRMADO)
+                .build());
+
+        String overlappingTurnoBody = """
+                {
+                  "fecha": "%s",
+                  "horaInicio": "09:45",
+                  "duracionMinutos": 30
+                }
+                """.formatted(turnoDate);
+        String adjacentBackToBackBody = """
+                {
+                  "fecha": "%s",
+                  "horaInicio": "09:30",
+                  "duracionMinutos": 30
+                }
+                """.formatted(turnoDate);
+
+        mockMvc.perform(post("/api/doctores/" + doctorB.getId() + "/slots")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(overlappingTurnoBody)
+                        .with(user("secretaria@test.com").roles("SECRETARIA")))
+                .andExpect(status().isConflict());
+
+        mockMvc.perform(post("/api/doctores/" + doctorB.getId() + "/slots")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(adjacentBackToBackBody)
+                        .with(user("secretaria@test.com").roles("SECRETARIA")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.horaInicio").value("09:30:00"))
+                .andExpect(jsonPath("$.horaFin").value("10:00:00"));
     }
 }

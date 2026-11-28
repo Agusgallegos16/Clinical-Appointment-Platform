@@ -1,20 +1,25 @@
 package com.consultorio.service;
 
 import com.consultorio.domain.*;
+import com.consultorio.dto.CrearSlotIndividualDTO;
 import com.consultorio.dto.HorarioAtencionDTO;
 import com.consultorio.repository.DoctorRepository;
 import com.consultorio.repository.HorarioAtencionRepository;
 import com.consultorio.repository.SlotHorarioRepository;
+import com.consultorio.repository.TurnoRepository;
 import com.consultorio.security.SecurityUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -24,20 +29,29 @@ public class DoctorAgendaService {
     private final HorarioAtencionRepository horarioAtencionRepository;
     private final SlotHorarioRepository slotHorarioRepository;
     private final DoctorRepository doctorRepository;
+    private final TurnoRepository turnoRepository;
     private final EspecialidadService especialidadService;
     private final SecurityUtils securityUtils;
+    private final AuditLogService auditLogService;
+    private final Clock clock;
 
     @Autowired
     public DoctorAgendaService(HorarioAtencionRepository horarioAtencionRepository,
                                SlotHorarioRepository slotHorarioRepository,
                                DoctorRepository doctorRepository,
+                               TurnoRepository turnoRepository,
                                EspecialidadService especialidadService,
-                               SecurityUtils securityUtils) {
+                               SecurityUtils securityUtils,
+                               AuditLogService auditLogService,
+                               Clock clock) {
         this.horarioAtencionRepository = horarioAtencionRepository;
         this.slotHorarioRepository = slotHorarioRepository;
         this.doctorRepository = doctorRepository;
+        this.turnoRepository = turnoRepository;
         this.especialidadService = especialidadService;
         this.securityUtils = securityUtils;
+        this.auditLogService = auditLogService;
+        this.clock = clock;
     }
 
     @Transactional
@@ -209,6 +223,81 @@ public class DoctorAgendaService {
     }
 
     @Transactional
+    public SlotHorario crearSlotIndividual(UUID doctorId, CrearSlotIndividualDTO dto) {
+        Doctor doctorCheck = doctorRepository.findById(doctorId).orElse(null);
+        securityUtils.verificarAccesoDoctor(doctorCheck, true);
+        if (doctorCheck == null) {
+            throw new IllegalArgumentException("Doctor no encontrado con ID: " + doctorId);
+        }
+
+        Doctor doctor = doctorRepository.findByIdWithLock(doctorId)
+                .orElseThrow(() -> new IllegalArgumentException("Doctor no encontrado con ID: " + doctorId));
+        if (!doctor.isDisponibleParaTurnos()) {
+            throw new IllegalStateException("El profesional no está habilitado para recibir turnos.");
+        }
+
+        if (dto.getHoraInicio().getSecond() != 0 || dto.getHoraInicio().getNano() != 0) {
+            throw new IllegalArgumentException("La hora de inicio no debe incluir segundos.");
+        }
+
+        int duracion = dto.getDuracionMinutos() != null ? dto.getDuracionMinutos() : 30;
+        if (duracion < 5 || duracion > 240) {
+            throw new IllegalArgumentException("La duración del turno debe estar entre 5 y 240 minutos.");
+        }
+
+        LocalDateTime fechaHoraInicio = LocalDateTime.of(dto.getFecha(), dto.getHoraInicio());
+        if (fechaHoraInicio.isBefore(LocalDateTime.now(clock))) {
+            throw new IllegalArgumentException("No se pueden crear horarios en fechas u horas pasadas.");
+        }
+
+        LocalTime horaFin = dto.getHoraInicio().plusMinutes(duracion);
+        if (!horaFin.isAfter(dto.getHoraInicio())) {
+            throw new IllegalArgumentException("El horario excede el límite del día (00:00 hs).");
+        }
+
+        Especialidad especialidad = null;
+        if (dto.getEspecialidadId() != null) {
+            especialidad = especialidadService.buscarPorId(dto.getEspecialidadId())
+                    .orElseThrow(() -> new IllegalArgumentException("Especialidad no encontrada con ID: " + dto.getEspecialidadId()));
+            Long espId = especialidad.getId();
+            boolean perteneceAlDoctor = doctor.getEspecialidades() != null
+                    && doctor.getEspecialidades().stream().anyMatch(e -> espId.equals(e.getId()));
+            if (!perteneceAlDoctor) {
+                throw new IllegalArgumentException("El profesional no atiende la especialidad seleccionada.");
+            }
+        }
+
+        List<SlotHorario> slotsExistentes = slotHorarioRepository.findByDoctorIdAndFecha(doctorId, dto.getFecha());
+        buscarSlotColisionante(slotsExistentes, dto.getHoraInicio(), horaFin).ifPresent(slotExist -> {
+            throw new IllegalStateException(formatearMensajeColision(dto.getHoraInicio(), horaFin, dto.getFecha(), slotExist));
+        });
+
+        LocalDateTime fechaHoraFin = LocalDateTime.of(dto.getFecha(), horaFin);
+        boolean colisionaTurnoActivo = turnoRepository
+                .existsByDoctorIdAndFechaHoraGreaterThanEqualAndFechaHoraLessThanAndEstadoNot(
+                        doctorId, fechaHoraInicio, fechaHoraFin, EstadoTurno.CANCELADO);
+        if (colisionaTurnoActivo) {
+            throw new IllegalStateException("Ya existe un turno activo reservado dentro de ese rango horario.");
+        }
+
+        SlotHorario guardado = slotHorarioRepository.save(
+                construirSlot(doctor, especialidad, dto.getFecha(), dto.getHoraInicio(), horaFin, duracion, true)
+        );
+
+        auditLogService.record(
+                "SLOT_CREATED",
+                "SUCCESS",
+                securityUtils.obtenerIdUsuarioAutenticado(),
+                resolverRolActor(),
+                "SLOT",
+                guardado.getId() != null ? guardado.getId().toString() : null,
+                String.format("doctor=%s fecha=%s hora=%s duracion=%d", doctor.getId(), dto.getFecha(), dto.getHoraInicio(), duracion)
+        );
+
+        return guardado;
+    }
+
+    @Transactional
     public void eliminarSlotIndividual(Long slotId) {
         SlotHorario slot = slotHorarioRepository.findById(slotId).orElse(null);
         securityUtils.verificarAccesoDoctor(slot != null ? slot.getDoctor() : null, true);
@@ -278,16 +367,47 @@ public class DoctorAgendaService {
                 LocalTime pStart = rango[0];
                 LocalTime pEnd = rango[1];
 
-                for (SlotHorario slotExist : slotsExistentes) {
-                    if (pStart.isBefore(slotExist.getHoraFin()) && pEnd.isAfter(slotExist.getHoraInicio())) {
-                        throw new IllegalArgumentException(String.format(
-                                "El horario ingresado (%s hs a %s hs para el día %s) colisiona con un turno ya existente (%s hs a %s hs). Por favor seleccione un horario libre.",
-                                pStart, pEnd, dateTarget, slotExist.getHoraInicio(), slotExist.getHoraFin()
-                        ));
-                    }
-                }
+                buscarSlotColisionante(slotsExistentes, pStart, pEnd).ifPresent(slotExist -> {
+                    throw new IllegalArgumentException(formatearMensajeColision(pStart, pEnd, dateTarget, slotExist));
+                });
             }
         }
+    }
+
+    private Optional<SlotHorario> buscarSlotColisionante(List<SlotHorario> slotsExistentes, LocalTime horaInicio, LocalTime horaFin) {
+        return slotsExistentes.stream()
+                .filter(slotExist -> horaInicio.isBefore(slotExist.getHoraFin()) && horaFin.isAfter(slotExist.getHoraInicio()))
+                .findFirst();
+    }
+
+    private String formatearMensajeColision(LocalTime horaInicio, LocalTime horaFin, LocalDate fecha, SlotHorario slotExist) {
+        return String.format(
+                "El horario ingresado (%s hs a %s hs para el día %s) colisiona con un turno ya existente (%s hs a %s hs). Por favor seleccione un horario libre.",
+                horaInicio, horaFin, fecha, slotExist.getHoraInicio(), slotExist.getHoraFin()
+        );
+    }
+
+    private SlotHorario construirSlot(Doctor doctor, Especialidad especialidad, LocalDate fecha,
+                                      LocalTime horaInicio, LocalTime horaFin, int duracionMinutos, boolean esPuntual) {
+        return SlotHorario.builder()
+                .doctor(doctor)
+                .especialidad(especialidad)
+                .fecha(fecha)
+                .horaInicio(horaInicio)
+                .horaFin(horaFin)
+                .duracionMinutos(duracionMinutos)
+                .esPuntual(esPuntual)
+                .build();
+    }
+
+    private String resolverRolActor() {
+        if (securityUtils.esAdmin()) {
+            return "ADMIN";
+        }
+        if (securityUtils.esSecretaria()) {
+            return "SECRETARIA";
+        }
+        return "DOCTOR";
     }
 
     private void instanciarSlotsSemanales(Doctor doctor, DiaSemana diaSemana, LocalTime horaInicio, LocalTime horaFin, int duracionMinutos, Especialidad especialidad, LocalDate fechaDesde, LocalDate fechaHasta) {
@@ -338,16 +458,7 @@ public class DoctorAgendaService {
                     .anyMatch(s -> s.isEsPuntual() && slotStart.isBefore(s.getHoraFin()) && slotEnd.isAfter(s.getHoraInicio()));
 
             if (!chocaConPuntual) {
-                SlotHorario slot = SlotHorario.builder()
-                        .doctor(doctor)
-                        .especialidad(especialidad)
-                        .fecha(fecha)
-                        .horaInicio(slotStart)
-                        .horaFin(slotEnd)
-                        .duracionMinutos(duracion)
-                        .esPuntual(esPuntual)
-                        .build();
-                nuevosSlots.add(slot);
+                nuevosSlots.add(construirSlot(doctor, especialidad, fecha, slotStart, slotEnd, duracion, esPuntual));
             }
 
             actual = actual.plusMinutes(duracion);
