@@ -63,6 +63,7 @@ const ModalAgendarSecretaria = ({ open, onClose, onSuccess, doctor, especialidad
             setNombre(pacienteEncontrado.nombre || '');
             setApellido(pacienteEncontrado.apellido || '');
             setEmail(pacienteEncontrado.email || pacienteEncontrado.usuario?.email || '');
+            setTelefono(pacienteEncontrado.telefono || '');
 
             if (pacienteEncontrado.fechaNacimiento) {
               const fnStr = typeof pacienteEncontrado.fechaNacimiento === 'string'
@@ -113,8 +114,8 @@ const ModalAgendarSecretaria = ({ open, onClose, onSuccess, doctor, especialidad
     setError('');
     setSuccessMsg('');
 
-    if (!dni || !nombre || !apellido) {
-      setError('Por favor complete los campos obligatorios (DNI, Nombre y Apellido).');
+    if (!dni || !nombre.trim() || !apellido.trim() || !telefono.trim()) {
+      setError('Por favor complete los campos obligatorios (DNI, Nombre, Apellido y Teléfono).');
       return;
     }
 
@@ -128,7 +129,7 @@ const ModalAgendarSecretaria = ({ open, onClose, onSuccess, doctor, especialidad
         nombre: nombre.trim(),
         apellido: apellido.trim(),
         email: email.trim() || null,
-        telefono: null,
+        telefono: telefono.trim(),
         fechaNacimiento: fechaNacimiento || null,
         tieneObraSocial,
         obraSocial: tieneObraSocial ? obraSocial.trim() : null,
@@ -144,7 +145,14 @@ const ModalAgendarSecretaria = ({ open, onClose, onSuccess, doctor, especialidad
       }, 1200);
     } catch (err) {
       console.error('Error al agendar turno por secretaría:', err);
-      setError(err.response?.data?.message || 'Error al agendar el turno. Por favor verifique los datos.');
+      const detalles = err.response?.data?.detalles;
+      const detalleMsg = detalles && typeof detalles === 'object' ? Object.values(detalles)[0] : null;
+      setError(
+        detalleMsg ||
+        err.response?.data?.mensaje ||
+        err.response?.data?.message ||
+        'Error al agendar el turno. Por favor verifique los datos.'
+      );
     } finally {
       setLoading(false);
     }
@@ -232,6 +240,18 @@ const ModalAgendarSecretaria = ({ open, onClose, onSuccess, doctor, especialidad
                   value={apellido}
                   onChange={(e) => setApellido(e.target.value)}
                   required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Teléfono"
+                  type="tel"
+                  value={telefono}
+                  onChange={(e) => setTelefono(e.target.value)}
+                  required
+                  placeholder="Ej: 11 2233-4455"
+                  inputProps={{ maxLength: 50 }}
                 />
               </Grid>
               <Grid item xs={12} sm={6}>

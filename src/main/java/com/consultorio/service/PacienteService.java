@@ -202,15 +202,21 @@ public class PacienteService {
 
     @Transactional
     public Paciente obtenerORegistrarPacienteExpress(String nombre, String apellido, Long dni, String telefono, String email, java.time.LocalDate fechaNacimiento) {
+        String telefonoLimpio = (telefono != null && !telefono.trim().isEmpty()) ? telefono.trim() : null;
         Optional<Paciente> pacienteExistenteOpt = pacienteRepository.findByDni(dni);
         if (pacienteExistenteOpt.isPresent()) {
-            return pacienteExistenteOpt.get();
+            Paciente existente = pacienteExistenteOpt.get();
+            if (telefonoLimpio != null && !telefonoLimpio.equals(existente.getTelefono())) {
+                existente.setTelefono(telefonoLimpio);
+                return pacienteRepository.save(existente);
+            }
+            return existente;
         }
         Paciente nuevo = Paciente.builder()
                 .nombre(nombre != null ? nombre.trim() : "")
                 .apellido(apellido != null ? apellido.trim() : "")
                 .dni(dni)
-                .telefono(telefono != null && !telefono.trim().isEmpty() ? telefono.trim() : null)
+                .telefono(telefonoLimpio)
                 .email(email != null && !email.trim().isEmpty() ? email.trim() : null)
                 .fechaNacimiento(fechaNacimiento)
                 .usuario(null)

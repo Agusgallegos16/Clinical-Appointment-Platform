@@ -4,6 +4,7 @@ import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -41,6 +42,8 @@ public class TurnoReservaSecretariaDTO {
     @Email(message = "Formato de email inválido")
     private String email;
 
+    @NotBlank(message = "El teléfono es obligatorio")
+    @Size(max = 50, message = "El teléfono no puede superar los 50 caracteres")
     private String telefono;
 
     private LocalDate fechaNacimiento;
