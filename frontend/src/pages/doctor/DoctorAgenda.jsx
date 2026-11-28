@@ -18,6 +18,7 @@ import {
   DialogContent,
   DialogActions,
   Avatar,
+  Snackbar,
 } from '@mui/material';
 import {
   CheckCircle as CheckIcon,
@@ -45,6 +46,7 @@ const DoctorAgenda = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [updatingId, setUpdatingId] = useState(null);
+  const [toast, setToast] = useState({ open: false, message: '', severity: 'warning', key: 0 });
 
   // Estado para modal de cancelación con justificación obligatoria
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
@@ -108,13 +110,31 @@ const DoctorAgenda = () => {
     }
   };
 
-  const handleCambiarEstado = async (turnoId, nuevoEstado) => {
+  const mostrarToast = (message, severity = 'warning') => {
+    setToast({ open: true, message, severity, key: Date.now() });
+  };
+
+  const handleCambiarEstado = async (turnoId, nuevoEstado, fechaHora = null) => {
+    if (
+      (nuevoEstado === 'COMPLETADO' || nuevoEstado === 'AUSENTE') &&
+      fechaHora &&
+      dayjs(fechaHora).isAfter(dayjs())
+    ) {
+      mostrarToast('El horario del turno todavía no pasó. Vuelve a intentarlo mas tarde.', 'warning');
+      return;
+    }
+
     setUpdatingId(turnoId);
     try {
       await turnoService.cambiarEstado(turnoId, nuevoEstado);
       cargarAgenda(fecha);
     } catch (err) {
-      setError('No se pudo actualizar el estado del turno.');
+      const mensajeBackend = err.response?.data?.mensaje || err.response?.data?.message;
+      const esErrorRegla = err.response?.status >= 400 && err.response?.status < 500;
+      mostrarToast(
+        mensajeBackend || 'No se pudo actualizar el estado del turno.',
+        esErrorRegla ? 'warning' : 'error'
+      );
     } finally {
       setUpdatingId(null);
     }
@@ -411,7 +431,7 @@ const DoctorAgenda = () => {
                             size="small"
                             startIcon={<CheckIcon />}
                             disabled={updatingId === turno.id}
-                            onClick={() => handleCambiarEstado(turno.id, 'COMPLETADO')}
+                            onClick={() => handleCambiarEstado(turno.id, 'COMPLETADO', turno.fechaHora)}
                           >
                             Completar
                           </Button>
@@ -422,7 +442,7 @@ const DoctorAgenda = () => {
                             size="small"
                             startIcon={<PersonOffIcon />}
                             disabled={updatingId === turno.id}
-                            onClick={() => handleCambiarEstado(turno.id, 'AUSENTE')}
+                            onClick={() => handleCambiarEstado(turno.id, 'AUSENTE', turno.fechaHora)}
                           >
                             Marcar Ausente
                           </Button>
@@ -631,6 +651,27 @@ const DoctorAgenda = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <Snackbar
+        key={toast.key}
+        open={toast.open}
+        autoHideDuration={2000}
+        onClose={(_, reason) => {
+          if (reason === 'clickaway') return;
+          setToast((prev) => ({ ...prev, open: false }));
+        }}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setToast((prev) => ({ ...prev, open: false }))}
+          severity={toast.severity}
+          variant="filled"
+          elevation={6}
+          sx={{ width: '100%' }}
+        >
+          {toast.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };
