@@ -836,21 +836,23 @@ const SecretariaAgenda = () => {
             <Alert
               severity="info"
               action={
-                puedeAgregarSlot ? (
+                tabFiltro !== 1 && puedeAgregarSlot ? (
                   <Button
                     color="inherit"
                     size="small"
                     variant="outlined"
                     startIcon={<AddCircleOutlineIcon />}
                     onClick={() => setModalAgregarSlotOpen(true)}
-                    sx={{ textTransform: 'none', fontWeight: 600 }}
+                    sx={{ fontWeight: 600, whiteSpace: 'nowrap' }}
                   >
                     Agregar horario
                   </Button>
                 ) : null
               }
             >
-              No se encontraron turnos u horarios libres configurados para la fecha y filtros seleccionados.
+              {tabFiltro === 1
+                ? 'No se encontraron turnos reservados para la fecha seleccionada'
+                : 'No se encontraron turnos u horarios libres configurados para la fecha y filtros seleccionados.'}
             </Alert>
           ) : (
             <Grid container spacing={2}>
