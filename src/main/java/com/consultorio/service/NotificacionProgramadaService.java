@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
+import java.time.Clock;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -32,26 +33,30 @@ public class NotificacionProgramadaService {
     private final TurnoService turnoService;
     private final EmailService emailService;
     private final ConfiguracionSistemaService configuracionSistemaService;
+    private final Clock clock;
 
     @Autowired
     public NotificacionProgramadaService(DoctorRepository doctorRepository,
                                          TurnoRepository turnoRepository,
                                          TurnoService turnoService,
                                          EmailService emailService,
-                                         ConfiguracionSistemaService configuracionSistemaService) {
+                                         ConfiguracionSistemaService configuracionSistemaService,
+                                         Clock clock) {
         this.doctorRepository = doctorRepository;
         this.turnoRepository = turnoRepository;
         this.turnoService = turnoService;
         this.emailService = emailService;
         this.configuracionSistemaService = configuracionSistemaService;
+        this.clock = clock;
     }
 
     // Tarea programada diaria: Todos los días a las 09:00 hs (cron = "0 0 9 * * ?")
     // Envía recordatorios a pacientes con citas en 48 horas
-    @Scheduled(cron = "0 0 9 * * ?")
+    @Scheduled(cron = "0 0 9 * * ?", zone = "${app.timezone:America/Argentina/Buenos_Aires}")
     public void enviarRecordatorios48hsAPacientes() {
-        LocalDateTime desde = LocalDateTime.now().plusHours(47);
-        LocalDateTime hasta = LocalDateTime.now().plusHours(49);
+        LocalDateTime ahora = LocalDateTime.now(clock);
+        LocalDateTime desde = ahora.plusHours(47);
+        LocalDateTime hasta = ahora.plusHours(49);
 
         List<Turno> turnosAVisar = turnoRepository.findByFechaHoraBetweenAndEstadoInAndRecordatorio48hsEnviadoFalse(
                 desde, hasta, List.of(EstadoTurno.CONFIRMADO, EstadoTurno.PENDIENTE)
@@ -92,15 +97,23 @@ public class NotificacionProgramadaService {
     }
 
     // Tarea programada diaria: Todos los días a las 20:00 hs (cron = "0 0 20 * * ?")
-    @Scheduled(cron = "0 0 20 * * ?")
+    @Scheduled(cron = "0 0 20 * * ?", zone = "${app.timezone:America/Argentina/Buenos_Aires}")
     public void enviarResumenDiarioADoctores() {
-        enviarResumenDiarioADoctoresParaFecha(LocalDate.now().plusDays(1));
+        if (!configuracionSistemaService.isResumenDiarioMedicosHabilitado()) {
+            log.info("Envío automático de resumen diario a médicos omitido: deshabilitado globalmente por administración.");
+            return;
+        }
+        enviarResumenDiarioADoctoresParaFecha(LocalDate.now(clock).plusDays(1));
     }
 
     // Tarea programada semanal: Todos los domingos a las 20:00 hs (cron = "0 0 20 * * SUN")
-    @Scheduled(cron = "0 0 20 * * SUN")
+    @Scheduled(cron = "0 0 20 * * SUN", zone = "${app.timezone:America/Argentina/Buenos_Aires}")
     public void enviarResumenSemanalADoctores() {
-        LocalDate hoy = LocalDate.now();
+        if (!configuracionSistemaService.isResumenSemanalMedicosHabilitado()) {
+            log.info("Envío automático de resumen semanal a médicos omitido: deshabilitado globalmente por administración.");
+            return;
+        }
+        LocalDate hoy = LocalDate.now(clock);
         LocalDate lunesSemana = hoy.with(DayOfWeek.MONDAY);
         LocalDate domingoSemana = hoy.with(DayOfWeek.SUNDAY);
         enviarResumenSemanalADoctoresParaRango(lunesSemana, domingoSemana);
@@ -108,11 +121,6 @@ public class NotificacionProgramadaService {
 
     // Procesa el envío de resúmenes diarios para una fecha determinada
     public void enviarResumenDiarioADoctoresParaFecha(LocalDate fechaTarget) {
-        if (!configuracionSistemaService.isResumenDiarioMedicosHabilitado()) {
-            log.info("ℹ️ Envío de resumen diario a médicos omitido: Deshabilitado globalmente por administración.");
-            return;
-        }
-
         log.info("⏰ Procesando resúmenes diarios de agenda para la fecha: {}", fechaTarget);
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         String fechaFormateada = fechaTarget.format(formatter);
@@ -161,11 +169,6 @@ public class NotificacionProgramadaService {
 
     // Procesa el envío de reportes semanales de actividad para un rango de fechas
     public void enviarResumenSemanalADoctoresParaRango(LocalDate desde, LocalDate hasta) {
-        if (!configuracionSistemaService.isResumenSemanalMedicosHabilitado()) {
-            log.info("ℹ️ Envío de resumen semanal a médicos omitido: Deshabilitado globalmente por administración.");
-            return;
-        }
-
         log.info("⏰ Procesando reportes semanales de actividad desde {} hasta {}", desde, hasta);
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy");
         String periodoFormateado = String.format("%s al %s", desde.format(formatter), hasta.format(formatter));

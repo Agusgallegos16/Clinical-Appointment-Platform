@@ -12,11 +12,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.SpyBean;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Clock;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -31,6 +33,7 @@ import static org.mockito.Mockito.*;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -66,18 +69,26 @@ class AdminConfiguracionSchedulerIntegrationTest {
     @Autowired
     private EspecialidadRepository especialidadRepository;
 
+    @Autowired
+    private AuditLogRepository auditLogRepository;
+
+    @Autowired
+    private Clock clock;
+
     @SpyBean
     private EmailService emailService;
 
     private String emailAdmin;
     private String emailDoctor;
+    private LocalDate fechaHoy;
     private LocalDate fechaManana;
 
     @BeforeEach
     void setUp() {
         emailAdmin = "admin_config_" + UUID.randomUUID() + "@test.com";
         emailDoctor = "doctor_config_" + UUID.randomUUID() + "@test.com";
-        fechaManana = LocalDate.now().plusDays(1);
+        fechaHoy = LocalDate.now(clock);
+        fechaManana = fechaHoy.plusDays(1);
 
         // Crear Doctor con turno mañana
         Usuario usuarioDoctor = Usuario.builder()
@@ -116,6 +127,15 @@ class AdminConfiguracionSchedulerIntegrationTest {
                 .fechaHora(fechaManana.atTime(10, 0))
                 .estado(EstadoTurno.CONFIRMADO)
                 .motivoConsulta("Control pediátrico")
+                .build());
+
+        turnoRepository.save(Turno.builder()
+                .paciente(paciente)
+                .doctor(doctor)
+                .especialidad(especialidad)
+                .fechaHora(fechaHoy.atTime(11, 0))
+                .estado(EstadoTurno.CONFIRMADO)
+                .motivoConsulta("Control semanal")
                 .build());
 
         doNothing().when(emailService).enviarResumenDiarioDoctor(anyString(), anyString(), anyString(), anyList());
@@ -171,35 +191,65 @@ class AdminConfiguracionSchedulerIntegrationTest {
 
         assertFalse(configuracionSistemaService.isResumenDiarioMedicosHabilitado());
         assertFalse(configuracionSistemaService.isResumenSemanalMedicosHabilitado());
+        assertFalse(auditLogRepository
+                .findByEventTypeOrderByOccurredAtDescIdDesc("NOTIFICATION_CONFIG_UPDATED", PageRequest.of(0, 10))
+                .isEmpty());
+    }
+
+    @Test
+    @DisplayName("PATCH /api/admin/configuracion/notificaciones vacío retorna 400 Bad Request")
+    void testActualizarConfiguracionVaciaRetorna400() throws Exception {
+        mockMvc.perform(patch("/api/admin/configuracion/notificaciones")
+                        .with(user(emailAdmin).roles("ADMIN"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest());
     }
 
     @Test
     @DisplayName("Scheduler omite envío de resumen diario a médicos si el switch diario está deshabilitado")
     void testSchedulerOmiteResumenDiarioCuandoDeshabilitado() {
-        // Deshabilitar diario
         configuracionSistemaService.actualizarNotificacionesConfig(
                 ActualizarNotificacionesConfigDTO.builder().resumenDiarioMedicosHabilitado(false).build(),
                 emailAdmin
         );
 
-        notificacionProgramadaService.enviarResumenDiarioADoctoresParaFecha(fechaManana);
+        notificacionProgramadaService.enviarResumenDiarioADoctores();
 
-        // emailService no debe haber sido llamado
         verify(emailService, never()).enviarResumenDiarioDoctor(anyString(), anyString(), anyString(), anyList());
     }
 
     @Test
     @DisplayName("Scheduler despacha resumen diario a médicos cuando el switch diario está habilitado")
     void testSchedulerDespachaResumenDiarioCuandoHabilitado() {
-        // Habilitar diario
         configuracionSistemaService.actualizarNotificacionesConfig(
                 ActualizarNotificacionesConfigDTO.builder().resumenDiarioMedicosHabilitado(true).build(),
                 emailAdmin
         );
 
-        notificacionProgramadaService.enviarResumenDiarioADoctoresParaFecha(fechaManana);
+        notificacionProgramadaService.enviarResumenDiarioADoctores();
 
-        // emailService debe haber sido invocado para el doctor con turnos
+        verify(emailService, atLeastOnce()).enviarResumenDiarioDoctor(
+                eq(emailDoctor),
+                contains("Borghi"),
+                anyString(),
+                anyList()
+        );
+    }
+
+    @Test
+    @DisplayName("Disparo manual de resumen diario funciona aunque el cron automático esté deshabilitado")
+    void testEjecucionManualDiariaFuncionaConCronDeshabilitado() throws Exception {
+        configuracionSistemaService.actualizarNotificacionesConfig(
+                ActualizarNotificacionesConfigDTO.builder().resumenDiarioMedicosHabilitado(false).build(),
+                emailAdmin
+        );
+
+        mockMvc.perform(post("/api/doctores/ejecutar-resumen-diario")
+                        .param("fecha", fechaManana.toString())
+                        .with(user(emailAdmin).roles("ADMIN")))
+                .andExpect(status().isOk());
+
         verify(emailService, atLeastOnce()).enviarResumenDiarioDoctor(
                 eq(emailDoctor),
                 contains("Borghi"),
@@ -211,18 +261,53 @@ class AdminConfiguracionSchedulerIntegrationTest {
     @Test
     @DisplayName("Scheduler omite reporte semanal a médicos si el switch semanal está deshabilitado")
     void testSchedulerOmiteResumenSemanalCuandoDeshabilitado() {
-        // Deshabilitar semanal
         configuracionSistemaService.actualizarNotificacionesConfig(
                 ActualizarNotificacionesConfigDTO.builder().resumenSemanalMedicosHabilitado(false).build(),
                 emailAdmin
         );
 
-        LocalDate desde = LocalDate.now();
-        LocalDate hasta = LocalDate.now().plusDays(6);
+        notificacionProgramadaService.enviarResumenSemanalADoctores();
 
-        notificacionProgramadaService.enviarResumenSemanalADoctoresParaRango(desde, hasta);
-
-        // emailService no debe haber sido llamado
         verify(emailService, never()).enviarResumenSemanalDoctor(anyString(), anyString(), anyString(), anyList());
+    }
+
+    @Test
+    @DisplayName("Scheduler despacha reporte semanal cuando el switch semanal está habilitado")
+    void testSchedulerDespachaResumenSemanalCuandoHabilitado() {
+        configuracionSistemaService.actualizarNotificacionesConfig(
+                ActualizarNotificacionesConfigDTO.builder().resumenSemanalMedicosHabilitado(true).build(),
+                emailAdmin
+        );
+
+        notificacionProgramadaService.enviarResumenSemanalADoctores();
+
+        verify(emailService, atLeastOnce()).enviarResumenSemanalDoctor(
+                eq(emailDoctor),
+                contains("Borghi"),
+                anyString(),
+                anyList()
+        );
+    }
+
+    @Test
+    @DisplayName("Disparo manual de reporte semanal funciona aunque el cron automático esté deshabilitado")
+    void testEjecucionManualSemanalFuncionaConCronDeshabilitado() throws Exception {
+        configuracionSistemaService.actualizarNotificacionesConfig(
+                ActualizarNotificacionesConfigDTO.builder().resumenSemanalMedicosHabilitado(false).build(),
+                emailAdmin
+        );
+
+        mockMvc.perform(post("/api/doctores/ejecutar-resumen-semanal")
+                        .param("desde", fechaHoy.toString())
+                        .param("hasta", fechaManana.toString())
+                        .with(user(emailAdmin).roles("ADMIN")))
+                .andExpect(status().isOk());
+
+        verify(emailService, atLeastOnce()).enviarResumenSemanalDoctor(
+                eq(emailDoctor),
+                contains("Borghi"),
+                anyString(),
+                anyList()
+        );
     }
 }

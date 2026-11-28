@@ -234,10 +234,10 @@ const AdminDashboard = () => {
           >
             <Box textAlign="left">
               <Typography variant="h6" fontWeight={700}>
-                Ejecutar Reportes por Correo
+                Reportes y Resúmenes Automáticos
               </Typography>
               <Typography variant="caption" sx={{ opacity: 0.9, display: 'block', fontWeight: 400, mt: 0.3 }}>
-                Generá reportes automáticos y notificaciones a usuarios
+                Activá o desactivá envíos automáticos a médicos y ejecutá reportes por correo
               </Typography>
             </Box>
           </Button>

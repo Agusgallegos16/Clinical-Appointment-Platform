@@ -144,13 +144,13 @@ const AdminReportes = () => {
           <Box display="flex" alignItems="center" gap={1}>
             <SettingsIcon color="primary" />
             <Typography variant="h6" fontWeight={600}>
-              Control Global de Resúmenes Automáticos
+              Control de Resúmenes Automáticos
             </Typography>
           </Box>
           {loadingConfig && <CircularProgress size={20} />}
         </Box>
         <Typography variant="body2" color="text.secondary" mb={2}>
-          Activá o desactivá globalmente las tareas programadas (@Scheduled) que despachan emails periódicos a los médicos.
+          Active o desactive los envíos automáticos de resúmenes por correo a los médicos. Desactivarlos no impide ejecutar envíos manuales.
         </Typography>
 
         {configSuccessMsg && (
@@ -250,7 +250,7 @@ const AdminReportes = () => {
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3, height: '100%', borderRadius: 2 }}>
             <Typography variant="h6" fontWeight={600} mb={1}>
-              📅 Resumen Diario por Email
+              Resumen Diario por Email
             </Typography>
             <Typography variant="body2" color="text.secondary" mb={2}>
               Envía la nómina de turnos confirmados a cada médico para el día especificado (por defecto, el día de mañana).
@@ -285,7 +285,7 @@ const AdminReportes = () => {
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 3, height: '100%', borderRadius: 2 }}>
             <Typography variant="h6" fontWeight={600} mb={1}>
-              📊 Reporte Semanal de Actividad
+              Reporte Semanal de Actividad
             </Typography>
             <Typography variant="body2" color="text.secondary" mb={2}>
               Envía el informe semanal detallado (turnos completados, confirmados y cancelados) a cada médico para el rango indicado.
